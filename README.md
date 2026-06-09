@@ -7,6 +7,8 @@ First, run the development server:
 ```bash
 npm run dev
 # or
+npm run dev:host
+# or
 yarn dev
 # or
 pnpm dev
@@ -15,6 +17,18 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+If you want to open the app from another device on your local network (phone or tablet), run:
+
+```bash
+npm run dev:host
+```
+
+Then open `http://<tu-ip-local>:3000` in the other device browser. For example:
+
+```bash
+http://192.168.100.12:3000
+```
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
