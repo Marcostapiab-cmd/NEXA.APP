@@ -18,35 +18,49 @@ interface Exercise {
   id: string; name: string; muscle: MuscleGroup;
   series: number; reps: string; weight: string; rest: string; youtubeUrl: string;
 }
-interface CalSession {
-  name: string;
-  exercises: Exercise[];
-}
+interface CalSession { name: string; exercises: Exercise[]; }
 interface Routine {
   id: string; name: string;
   startDate: string; endDate: string;
   alumnoIds: string[];
-  sessions: Record<string, CalSession>; // YYYY-MM-DD → session
+  sessions: Record<string, CalSession>;
 }
 interface Plantilla { id: string; nombre: string; exercises: Exercise[]; creadaEn: string; }
 
-// ─── Migration from old block-based format ───────────────────────────────────
+// ─── Color system ────────────────────────────────────────────────────────────
+
+const MUSCLE_HEX: Record<string, string> = {
+  Piernas:  '#3b82f6',
+  Espalda:  '#8b5cf6',
+  Pecho:    '#f97316',
+  Hombros:  '#eab308',
+  Bíceps:   '#22c55e',
+  Tríceps:  '#10b981',
+  Core:     '#ec4899',
+  Glúteos:  '#14b8a6',
+  Cardio:   '#ef4444',
+};
+
+function getMuscleGroups(exercises: Exercise[]): string[] {
+  if (!exercises.length) return [];
+  const counts: Record<string, number> = {};
+  for (const ex of exercises) counts[ex.muscle] = (counts[ex.muscle] ?? 0) + ex.series;
+  return [...new Set(exercises.map(e => e.muscle))].sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
+}
+
+// ─── Migration ───────────────────────────────────────────────────────────────
 
 function migrateToCalendar(raw: any): Routine {
   if ('sessions' in raw && !('blocks' in raw)) return raw as Routine;
-
   const sessions: Record<string, CalSession> = {};
-
   if (raw.startDate) {
     const blocks: Array<{ id: string; name: string; exercises: Exercise[] }> = raw.blocks ?? [];
     if (!blocks.length && (raw.exercises ?? []).length)
       blocks.push({ id: 'legacy', name: raw.name, exercises: raw.exercises });
-
     const dayToBlock: Record<number, string> = raw.dayToBlock ?? {};
     const selectedDays: number[] = raw.selectedDays ?? [];
     const weekOverrides: Record<string, string> = raw.weekOverrides ?? {};
     const weeks: number = raw.weeks ?? 4;
-
     if (selectedDays.length && blocks.length) {
       const start = new Date(raw.startDate + 'T12:00:00');
       const dow = start.getDay() === 0 ? 6 : start.getDay() - 1;
@@ -65,7 +79,6 @@ function migrateToCalendar(raw: any): Routine {
       }
     }
   }
-
   const weeks: number = raw.weeks ?? 4;
   const endDate = raw.endDate ?? (raw.startDate ? computeEndDate(raw.startDate, weeks) : '');
   return { id: raw.id, name: raw.name, startDate: raw.startDate ?? '', endDate, alumnoIds: raw.alumnoIds ?? [], sessions };
@@ -82,6 +95,7 @@ function computeEndDate(start: string, weeks: number): string {
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DOW_LABEL = ['L','M','X','J','V','S','D'];
+const DOW_LONG  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 function toDateStr(d: Date) { return d.toISOString().slice(0, 10); }
 
@@ -119,9 +133,23 @@ function sameWeekdayDates(sourceDate: string, startDate: string, endDate: string
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
 
-const IC = 'w-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-3 py-2.5 text-sm text-white placeholder-[#444444] outline-none transition focus:border-white';
-const LC = 'mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-[#888888]';
-const SL = 'text-xs font-medium uppercase tracking-[0.1em] text-[#888888]';
+const IC = 'w-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-3 py-2.5 text-sm text-white placeholder-[#444444] outline-none transition focus:border-[#444444]';
+const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]';
+
+// ─── Muscle pill component ────────────────────────────────────────────────────
+
+function MusclePill({ muscle, size = 'sm' }: { muscle: string; size?: 'xs' | 'sm' }) {
+  const hex = MUSCLE_HEX[muscle] ?? '#888888';
+  const cls = size === 'xs'
+    ? 'flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold'
+    : 'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold';
+  return (
+    <span className={cls} style={{ backgroundColor: hex + '22', color: hex }}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: hex }} />
+      {muscle}
+    </span>
+  );
+}
 
 // ─── Biblioteca modal ─────────────────────────────────────────────────────────
 
@@ -129,41 +157,59 @@ function BibliotecaModal({ onAdd, onClose }: { onAdd: (e: EjBiblioteca) => void;
   const [q, setQ] = useState('');
   const [grupo, setGrupo] = useState('');
   const filtered = BIBLIOTECA_EJERCICIOS.filter(e =>
-    (!q     || e.nombre.toLowerCase().includes(q.toLowerCase())) &&
-    (!grupo || e.grupo === grupo)
+    (!q || e.nombre.toLowerCase().includes(q.toLowerCase())) && (!grupo || e.grupo === grupo)
   );
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 pt-10">
-      <div className="w-full max-w-lg rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/90 p-4 pt-10 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-[#2a2a2a] bg-[#141414] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 py-4">
-          <p className="text-sm font-semibold text-white">Biblioteca de ejercicios</p>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-[#888888] hover:bg-[#2a2a2a] hover:text-white"><X className="h-4 w-4" /></button>
+          <div>
+            <p className="text-sm font-bold text-white">Biblioteca de ejercicios</p>
+            <p className="mt-0.5 text-xs text-[#555555]">{BIBLIOTECA_EJERCICIOS.length} ejercicios disponibles</p>
+          </div>
+          <button onClick={onClose} className="rounded-xl border border-[#2a2a2a] p-2 text-[#555555] hover:border-[#444444] hover:text-white transition">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <div className="space-y-3 p-4">
+        <div className="p-4 space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#444444]" />
-            <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Buscar ejercicio..."
-              className="w-full rounded-lg border border-[#2a2a2a] bg-[#111111] py-2.5 pl-9 pr-3 text-sm text-white placeholder-[#444444] outline-none focus:border-white" />
+            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#444444]" />
+            <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Buscar por nombre..."
+              className="w-full rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] py-2.5 pl-10 pr-4 text-sm text-white placeholder-[#333333] outline-none focus:border-[#444444]" />
           </div>
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => setGrupo('')}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${!grupo ? 'border-white bg-white text-black' : 'border-[#2a2a2a] text-[#888888] hover:text-white'}`}>Todos</button>
-            {GRUPOS_MUSCULARES.map(g => (
-              <button key={g} onClick={() => setGrupo(g === grupo ? '' : g)}
-                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${grupo === g ? 'border-white bg-white text-black' : 'border-[#2a2a2a] text-[#888888] hover:text-white'}`}>{g}</button>
-            ))}
+              className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition ${!grupo ? 'border-white bg-white text-black' : 'border-[#2a2a2a] text-[#555555] hover:text-white'}`}>
+              Todos
+            </button>
+            {GRUPOS_MUSCULARES.map(g => {
+              const hex = MUSCLE_HEX[g] ?? '#888888';
+              return (
+                <button key={g} onClick={() => setGrupo(g === grupo ? '' : g)}
+                  className="rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition"
+                  style={grupo === g
+                    ? { borderColor: hex, backgroundColor: hex + '22', color: hex }
+                    : { borderColor: '#2a2a2a', color: '#555555' }}>
+                  {g}
+                </button>
+              );
+            })}
           </div>
-          <div className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
+          <div className="max-h-72 overflow-y-auto divide-y divide-[#1a1a1a]">
             {filtered.length === 0
-              ? <p className="py-6 text-center text-sm text-[#888888]">Sin resultados</p>
+              ? <p className="py-8 text-center text-sm text-[#555555]">Sin resultados</p>
               : filtered.map(ej => (
                 <button key={ej.id} onClick={() => { onAdd(ej); onClose(); }}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-[#111111]">
-                  <div>
-                    <p className="text-sm font-medium text-white">{ej.nombre}</p>
-                    <p className="text-xs text-[#888888]">{ej.grupo}{ej.series ? ` · ${ej.series}×${ej.reps}` : ''}</p>
+                  className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-[#1a1a1a] transition">
+                  <div className="flex items-center gap-3">
+                    <span className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: MUSCLE_HEX[ej.grupo] ?? '#555555' }} />
+                    <div>
+                      <p className="text-sm font-medium text-white">{ej.nombre}</p>
+                      <p className="text-xs text-[#555555]">{ej.grupo}{ej.series ? ` · ${ej.series} × ${ej.reps}` : ''}</p>
+                    </div>
                   </div>
-                  <Plus className="h-4 w-4 shrink-0 text-[#444444]" />
+                  <Plus className="h-4 w-4 shrink-0 text-[#333333]" />
                 </button>
               ))}
           </div>
@@ -181,58 +227,77 @@ function CopyModal({ sourceDate, session, routine, onCopy, onClose }: {
 }) {
   const candidates = sameWeekdayDates(sourceDate, routine.startDate, routine.endDate);
   const [selected, setSelected] = useState<Set<string>>(new Set(candidates));
-
   const srcDate = new Date(sourceDate + 'T12:00:00');
-  const DOW_LONG = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const dayName = DOW_LONG[srcDate.getDay()];
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' });
-
+  const muscles = getMuscleGroups(session.exercises);
+  const primaryColor = MUSCLE_HEX[muscles[0] ?? ''] ?? '#ffffff';
   function toggle(d: string) { setSelected(p => { const n = new Set(p); n.has(d) ? n.delete(d) : n.add(d); return n; }); }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 py-4">
-          <div>
-            <p className="text-sm font-semibold text-white">Copiar entrenamiento</p>
-            <p className="text-xs text-[#888888]">{session.exercises.length} ejercicios · {fmt(sourceDate)}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-[#2a2a2a] bg-[#141414] shadow-2xl">
+        {/* Header with color accent */}
+        <div className="relative overflow-hidden rounded-t-2xl border-b border-[#2a2a2a] px-5 py-4">
+          <div className="absolute inset-0 opacity-5" style={{ background: `linear-gradient(135deg, ${primaryColor}, transparent)` }} />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-sm font-bold text-white">Copiar entrenamiento</p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {muscles.map(m => <MusclePill key={m} muscle={m} size="xs" />)}
+              </div>
+              <p className="mt-1.5 text-xs text-[#555555]">{session.exercises.length} ejercicios · {fmt(sourceDate)}</p>
+            </div>
+            <button onClick={onClose} className="rounded-xl border border-[#2a2a2a] p-1.5 text-[#555555] hover:text-white transition">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-[#888888] hover:bg-[#2a2a2a] hover:text-white"><X className="h-4 w-4" /></button>
         </div>
         <div className="p-4">
           {candidates.length === 0 ? (
-            <p className="py-4 text-center text-sm text-[#888888]">
+            <p className="py-6 text-center text-sm text-[#555555]">
               {!routine.startDate || !routine.endDate
-                ? 'Define una fecha de inicio y fin del programa primero.'
-                : `No hay más ${dayName.toLowerCase()}s dentro del período.`}
+                ? 'Define fecha de inicio y fin del programa primero.'
+                : `No hay más ${dayName.toLowerCase()}s en el período.`}
             </p>
           ) : (
             <>
               <div className="mb-2 flex items-center justify-between">
-                <p className={SL}>Copiar a los {dayName.toLowerCase()}s</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]">
+                  Copiar a los {dayName.toLowerCase()}s ({candidates.length})
+                </p>
                 <button onClick={() => setSelected(selected.size === candidates.length ? new Set() : new Set(candidates))}
-                  className="text-xs text-[#888888] hover:text-white">
+                  className="text-xs text-[#555555] hover:text-white transition">
                   {selected.size === candidates.length ? 'Ninguno' : 'Todos'}
                 </button>
               </div>
-              <div className="max-h-60 overflow-y-auto space-y-1">
+              <div className="max-h-56 overflow-y-auto space-y-1">
                 {candidates.map(d => {
                   const has = routine.sessions[d];
                   const chk = selected.has(d);
+                  const hasGroups = has ? getMuscleGroups(has.exercises) : [];
                   return (
                     <button key={d} onClick={() => toggle(d)}
-                      className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition ${chk ? 'border-white/20 bg-white/5 text-white' : 'border-[#2a2a2a] text-[#888888] hover:border-[#333333]'}`}>
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${chk ? 'border-white bg-white text-black' : 'border-[#444444]'}`}>
-                        {chk && '✓'}
-                      </span>
-                      <span className="flex-1">{fmt(d)}</span>
-                      {has && <span className="text-[10px] text-[#555555]">{has.exercises.length} ej.</span>}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                        chk ? 'border-white/15 bg-white/[0.04]' : 'border-[#1e1e1e] hover:border-[#2a2a2a]'
+                      }`}>
+                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md text-[9px] font-bold border transition ${
+                        chk ? 'border-white bg-white text-black' : 'border-[#333333] text-transparent'
+                      }`}>✓</span>
+                      <span className={`flex-1 text-sm ${chk ? 'text-white' : 'text-[#666666]'}`}>{fmt(d)}</span>
+                      {hasGroups.length > 0 && (
+                        <div className="flex gap-0.5">
+                          {hasGroups.slice(0, 4).map(m => (
+                            <span key={m} className="h-2 w-2 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] + '80' }} />
+                          ))}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
               </div>
               <button onClick={() => { onCopy([...selected]); onClose(); }} disabled={selected.size === 0}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-white py-2.5 text-sm font-semibold text-black hover:bg-[#e0e0e0] disabled:opacity-40">
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-bold text-black hover:bg-[#e8e8e8] disabled:opacity-30 transition">
                 <Copy className="h-4 w-4" />
                 Copiar a {selected.size} fecha{selected.size !== 1 ? 's' : ''}
               </button>
@@ -251,11 +316,13 @@ function ExerciseForm({ onAdd, onCancel }: { onAdd: (e: Omit<Exercise,'id'>) => 
   const set = (k: string, v: string|number) => setF(p => ({ ...p, [k]: v }));
   return (
     <form onSubmit={e => { e.preventDefault(); if (f.name.trim()) onAdd(f); }}
-      className="rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] p-4">
-      <div className="grid grid-cols-2 gap-3">
+      className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.12em] text-[#444444]">Nuevo ejercicio</p>
+      <div className="grid grid-cols-2 gap-2.5">
         <div className="col-span-2">
-          <label className={LC}>Ejercicio *</label>
-          <input required autoFocus value={f.name} onChange={e => set('name', e.target.value)} placeholder="Press de banca" className={IC} />
+          <label className={LC}>Nombre *</label>
+          <input required autoFocus value={f.name} onChange={e => set('name', e.target.value)}
+            placeholder="Ej: Press de banca" className={IC} />
         </div>
         <div>
           <label className={LC}>Grupo muscular</label>
@@ -268,17 +335,17 @@ function ExerciseForm({ onAdd, onCancel }: { onAdd: (e: Omit<Exercise,'id'>) => 
           <input type="number" min="1" value={f.series} onChange={e => set('series', parseInt(e.target.value)||1)} className={IC} />
         </div>
         <div>
-          <label className={LC}>Reps</label>
-          <input value={f.reps} onChange={e => set('reps', e.target.value)} placeholder="10 ó 8-12" className={IC} />
+          <label className={LC}>Repeticiones</label>
+          <input value={f.reps} onChange={e => set('reps', e.target.value)} placeholder="10 ó 8–12" className={IC} />
         </div>
         <div>
-          <label className={LC}>Peso</label>
-          <input value={f.weight} onChange={e => set('weight', e.target.value)} placeholder="60 kg" className={IC} />
+          <label className={LC}>Peso (kg)</label>
+          <input value={f.weight} onChange={e => set('weight', e.target.value)} placeholder="60" className={IC} />
         </div>
       </div>
       <div className="mt-3 flex gap-2">
-        <button type="submit" className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-[#e0e0e0]">Agregar</button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-[#444444] px-4 py-2 text-xs font-medium text-white hover:border-white">Cancelar</button>
+        <button type="submit" className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-black hover:bg-[#e8e8e8] transition">Agregar</button>
+        <button type="button" onClick={onCancel} className="rounded-xl border border-[#333333] px-4 py-2.5 text-xs font-medium text-[#888888] hover:border-[#555555] hover:text-white transition">Cancelar</button>
       </div>
     </form>
   );
@@ -295,25 +362,22 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
   const dragIdx = useRef<number | null>(null);
 
   const d = new Date(dateStr + 'T12:00:00');
-  const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const label = `${DOW[d.getDay()]} ${d.getDate()} de ${MONTHS_ES[d.getMonth()].toLowerCase()}`;
-
   const ensure = (): CalSession => session ?? { name: '', exercises: [] };
   const exs = ensure().exercises;
+  const muscleGroups = getMuscleGroups(exs);
+  const primaryColor = MUSCLE_HEX[muscleGroups[0] ?? ''] ?? '#ffffff';
 
   function updEx(exercises: Exercise[]) {
     const s = ensure();
     if (!exercises.length && !s.name) onUpdate(null);
     else onUpdate({ ...s, exercises });
   }
-
   function addEx(ex: Omit<Exercise,'id'>) { updEx([...exs, { ...ex, id: crypto.randomUUID() }]); setShowForm(false); }
   function addLib(ej: EjBiblioteca) {
     updEx([...exs, { id: crypto.randomUUID(), name: ej.nombre, muscle: ej.grupo as MuscleGroup,
       series: ej.series ?? 3, reps: ej.reps ?? '10', weight: '', rest: '90s', youtubeUrl: ej.youtubeUrl ?? '' }]);
   }
   function delEx(id: string) { updEx(exs.filter(e => e.id !== id)); }
-
   function handleDragStart(i: number) { dragIdx.current = i; }
   function handleDragOver(e: React.DragEvent, i: number) {
     e.preventDefault();
@@ -325,65 +389,105 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
   function handleDragEnd() { dragIdx.current = null; }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#111111]">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[#2a2a2a] px-4 py-3">
-        <span className="text-sm font-semibold capitalize text-white flex-1">{label}</span>
-        {exs.length > 0 && (
-          <>
-            <button onClick={onCopy}
-              className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] px-2.5 py-1.5 text-xs text-[#888888] hover:border-[#444444] hover:text-white transition">
-              <Copy className="h-3 w-3" /> Copiar día
-            </button>
-            <button onClick={onClear}
-              className="rounded-md border border-[#2a2a2a] px-2.5 py-1.5 text-xs text-[#888888] hover:border-red-800 hover:text-red-400 transition">
-              Limpiar
-            </button>
-          </>
+    <div className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#111111]">
+      {/* Premium header */}
+      <div className="relative overflow-hidden border-b border-[#2a2a2a] px-5 py-4">
+        {/* Subtle color wash from primary muscle */}
+        {muscleGroups.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 opacity-[0.06]"
+            style={{ background: `linear-gradient(120deg, ${primaryColor} 0%, transparent 60%)` }} />
         )}
+        <div className="relative flex items-start gap-4">
+          {/* Big date block */}
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 pb-2 pt-2.5 min-w-[52px]">
+            <span className="text-3xl font-black leading-none tabular-nums text-white">
+              {d.getDate().toString().padStart(2, '0')}
+            </span>
+            <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.15em] text-[#444444]">
+              {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]}
+            </span>
+          </div>
+          {/* Info */}
+          <div className="flex-1 pt-0.5">
+            <p className="text-base font-bold capitalize text-white">
+              {MONTHS_ES[d.getMonth()]} {d.getFullYear()}
+            </p>
+            {muscleGroups.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {muscleGroups.map(m => <MusclePill key={m} muscle={m} />)}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-[#333333]">Sin ejercicios — agrega el primero</p>
+            )}
+          </div>
+          {/* Actions */}
+          {exs.length > 0 && (
+            <div className="flex shrink-0 items-center gap-1.5 pt-1">
+              <button onClick={onCopy}
+                className="flex items-center gap-1.5 rounded-xl border border-[#2a2a2a] px-3 py-1.5 text-xs font-medium text-[#888888] hover:border-[#444444] hover:text-white transition">
+                <Copy className="h-3 w-3" /> Copiar
+              </button>
+              <button onClick={onClear}
+                className="rounded-xl border border-[#2a2a2a] p-1.5 text-[#555555] hover:border-red-900 hover:text-red-500 transition">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-3">
-        {/* Session name */}
+        {/* Session name input */}
         <input value={session?.name ?? ''} onChange={e => onUpdate({ ...ensure(), name: e.target.value })}
-          placeholder="Nombre del día (ej: Piernas · Empuje · Full Body)"
-          className="w-full bg-transparent text-sm text-white placeholder-[#333333] outline-none" />
+          placeholder="Nombre del entrenamiento (ej: Piernas · Empuje · Pull)"
+          className="w-full bg-transparent text-sm font-medium text-white placeholder-[#2a2a2a] outline-none" />
 
         {/* Exercise table */}
         {exs.length > 0 && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-[#1e1e1e]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2a2a2a]">
-                  {['','#','Ejercicio','Grupo','Series','Reps','Peso','1RM est.',''].map((h, i) => (
-                    <th key={i} className="pb-2 pr-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#555555]">{h}</th>
+                <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
+                  {['','#','Ejercicio','Grupo','S','Reps','Peso','1RM',''].map((h, i) => (
+                    <th key={i} className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-[0.12em] text-[#333333] first:pl-2 last:pr-2">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[#1a1a1a]">
                 {exs.map((ex, idx) => {
                   const rm = (() => { const p = parsePeso(ex.weight), r = parseReps(ex.reps); return p && r ? calc1RM(p, r) : null; })();
+                  const hex = MUSCLE_HEX[ex.muscle] ?? '#555555';
                   return (
                     <tr key={ex.id} draggable
                       onDragStart={() => handleDragStart(idx)}
                       onDragOver={e => handleDragOver(e, idx)}
                       onDragEnd={handleDragEnd}
-                      className="cursor-grab border-b border-[#2a2a2a]/40 last:border-0">
-                      <td className="py-2.5 pr-1 text-[#333333]"><GripVertical className="h-3.5 w-3.5" /></td>
-                      <td className="py-2.5 pr-3 text-xs font-mono text-[#555555]">{idx + 1}</td>
-                      <td className="py-2.5 pr-3 font-medium text-white">{ex.name}</td>
-                      <td className="py-2.5 pr-3">
-                        <span className="rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-0.5 text-xs text-[#888888]">{ex.muscle}</span>
+                      className="group cursor-grab hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5 pl-2 pr-1 text-[#2a2a2a] group-hover:text-[#444444]">
+                        <GripVertical className="h-3.5 w-3.5" />
                       </td>
-                      <td className="py-2.5 pr-3 text-[#888888]">{ex.series}</td>
-                      <td className="py-2.5 pr-3 text-[#888888]">{ex.reps}</td>
-                      <td className="py-2.5 pr-3 text-[#888888]">{ex.weight || '—'}</td>
-                      <td className="py-2.5 pr-3">
-                        {rm ? <span className="text-xs font-semibold text-white">{rm} kg</span>
-                             : <span className="text-xs text-[#333333]">—</span>}
+                      <td className="px-2 py-2.5 text-xs font-mono text-[#333333]">{idx + 1}</td>
+                      <td className="px-3 py-2.5 font-semibold text-white">{ex.name}</td>
+                      <td className="px-3 py-2.5">
+                        <span className="flex items-center gap-1 w-fit rounded-full px-2 py-0.5 text-[10px] font-bold"
+                          style={{ backgroundColor: hex + '22', color: hex }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: hex }} />
+                          {ex.muscle}
+                        </span>
                       </td>
-                      <td className="py-2.5">
-                        <button onClick={() => delEx(ex.id)} className="rounded p-1 text-[#333333] hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                      <td className="px-3 py-2.5 text-sm font-medium text-[#888888]">{ex.series}</td>
+                      <td className="px-3 py-2.5 text-sm text-[#666666]">{ex.reps}</td>
+                      <td className="px-3 py-2.5 text-sm text-[#666666]">{ex.weight ? `${ex.weight} kg` : '—'}</td>
+                      <td className="px-3 py-2.5">
+                        {rm
+                          ? <span className="rounded-md bg-white/5 px-2 py-0.5 text-xs font-bold text-white">{rm} kg</span>
+                          : <span className="text-xs text-[#2a2a2a]">—</span>}
+                      </td>
+                      <td className="pr-2 py-2.5 text-right">
+                        <button onClick={() => delEx(ex.id)}
+                          className="rounded-lg p-1 text-[#2a2a2a] hover:bg-red-950/40 hover:text-red-500 transition">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -393,18 +497,18 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
           </div>
         )}
 
-        {/* Add row */}
+        {/* Add buttons */}
         {showForm
           ? <ExerciseForm onAdd={addEx} onCancel={() => setShowForm(false)} />
           : (
             <div className="flex gap-2">
               <button onClick={() => setShowForm(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#2a2a2a] px-3 py-2 text-xs text-[#888888] hover:border-[#444444] hover:text-white transition">
-                <Plus className="h-3.5 w-3.5" /> Agregar ejercicio
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#222222] px-3.5 py-2 text-xs font-medium text-[#444444] hover:border-[#444444] hover:text-[#888888] transition">
+                <Plus className="h-3.5 w-3.5" /> Ejercicio manual
               </button>
               <button onClick={() => setShowLib(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#2a2a2a] px-3 py-2 text-xs text-[#888888] hover:border-[#444444] hover:text-white transition">
-                <BookOpen className="h-3.5 w-3.5" /> Buscar en biblioteca
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#222222] px-3.5 py-2 text-xs font-medium text-[#444444] hover:border-[#444444] hover:text-[#888888] transition">
+                <BookOpen className="h-3.5 w-3.5" /> Biblioteca
               </button>
             </div>
           )}
@@ -423,55 +527,58 @@ function VolumeCounter({ sessions, startDate, endDate }: {
   const allExs = Object.values(sessions).flatMap(s => s.exercises);
   const numWeeks = (() => {
     if (!startDate || !endDate) return 1;
-    const s = new Date(startDate + 'T12:00:00');
-    const e = new Date(endDate   + 'T12:00:00');
+    const s = new Date(startDate + 'T12:00:00'), e = new Date(endDate + 'T12:00:00');
     return Math.max(1, Math.ceil((e.getTime() - s.getTime()) / 86400000 / 7));
   })();
-
   const totalByMuscle = MUSCLES.reduce<Record<string,number>>((acc, m) => {
     acc[m] = allExs.filter(e => e.muscle === m).reduce((s, e) => s + e.series, 0);
     return acc;
   }, {});
-
   const active = MUSCLES.filter(m => totalByMuscle[m] > 0);
   if (!active.length) return null;
 
   return (
-    <div className="rounded-lg border border-[#2a2a2a] bg-[#111111] p-4">
-      <p className={`mb-4 ${SL}`}>Volumen semanal promedio — series/semana</p>
-      <div className="space-y-3">
+    <div className="rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#444444]">Volumen semanal promedio</p>
+        <p className="text-[10px] text-[#333333]">{numWeeks} semana{numWeeks !== 1 ? 's' : ''}</p>
+      </div>
+      <div className="space-y-3.5">
         {active.map(m => {
           const rango = MEV_MRV[m];
-          const total = totalByMuscle[m];
-          const weekly = Math.round((total / numWeeks) * 10) / 10;
+          const weekly = Math.round((totalByMuscle[m] / numWeeks) * 10) / 10;
+          const hex = MUSCLE_HEX[m] ?? '#888888';
           if (!rango) return (
             <div key={m} className="flex items-center gap-3">
-              <span className="w-20 shrink-0 text-xs text-[#888888]">{m}</span>
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+              <span className="w-16 text-xs text-[#555555]">{m}</span>
               <span className="text-sm font-bold text-white">{weekly}</span>
             </div>
           );
-          const estado  = getEstado(weekly, rango);
-          const barColor = estado === 'optimo' ? 'bg-white' : estado === 'alto' ? 'bg-red-500' : 'bg-[#555555]';
-          const txtColor = estado === 'optimo' ? 'text-white' : estado === 'alto' ? 'text-red-400' : 'text-[#888888]';
+          const estado = getEstado(weekly, rango);
           const pct = Math.min(100, (weekly / rango.mrv) * 100);
+          const label = estado === 'bajo' ? 'bajo MEV' : estado === 'optimo' ? 'óptimo' : estado === 'alto' ? 'excede MRV' : '';
+          const labelColor = estado === 'optimo' ? hex : estado === 'alto' ? '#ef4444' : '#444444';
           return (
             <div key={m} className="flex items-center gap-3">
-              <span className="w-20 shrink-0 text-xs text-[#888888]">{m}</span>
-              <div className="relative flex-1 overflow-hidden rounded-full bg-[#2a2a2a]" style={{ height: 6 }}>
-                <div className="absolute top-0 bottom-0 w-px bg-[#444444]"
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+              <span className="w-16 shrink-0 text-xs text-[#555555]">{m}</span>
+              <div className="relative flex-1 overflow-hidden rounded-full bg-[#1a1a1a]" style={{ height: 5 }}>
+                <div className="absolute top-0 bottom-0 w-px bg-[#333333]"
                   style={{ left: `${(rango.mev / rango.mrv) * 100}%` }} />
-                <div className="absolute top-0 bottom-0 bg-white/10"
-                  style={{ left: `${(rango.optimo[0] / rango.mrv) * 100}%`, width: `${((rango.optimo[1] - rango.optimo[0]) / rango.mrv) * 100}%` }} />
-                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${barColor}`}
-                  style={{ width: `${pct}%` }} />
+                <div className="absolute top-0 bottom-0 opacity-10 rounded-full"
+                  style={{ left: `${(rango.optimo[0] / rango.mrv) * 100}%`, width: `${((rango.optimo[1] - rango.optimo[0]) / rango.mrv) * 100}%`, backgroundColor: hex }} />
+                <div className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+                  style={{ width: `${pct}%`, backgroundColor: hex }} />
               </div>
-              <span className={`w-12 shrink-0 text-right text-xs font-bold ${txtColor}`}>{weekly}/{rango.mrv}</span>
+              <span className="w-10 shrink-0 text-right text-xs font-bold text-white">{weekly}</span>
+              {label && <span className="hidden text-[10px] sm:block" style={{ color: labelColor }}>{label}</span>}
             </div>
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-[#555555]">
-        MEV (mínimo) · zona blanca = óptimo · MRV (máximo) · promedio {numWeeks} sem.
+      <p className="mt-4 text-[10px] text-[#2a2a2a]">
+        Línea = MEV · zona coloreada = rango óptimo · max = MRV (Renaissance Periodization)
       </p>
     </div>
   );
@@ -505,37 +612,50 @@ function PlantillaPanel({ exercises, onLoad }: { exercises: Exercise[]; onLoad: 
     setPlantillas(updated);
   }
   return (
-    <div className="overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#111111]">
+    <div className="overflow-hidden rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d]">
       <div className="flex items-center justify-between px-4 py-3">
-        <span className={SL}>Plantillas de día</span>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">Plantillas de día</p>
         <div className="flex gap-2">
           {exercises.length > 0 && (
             <button onClick={guardar}
-              className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] px-2.5 py-1.5 text-xs text-[#888888] hover:border-[#444444] hover:text-white transition">
+              className="flex items-center gap-1.5 rounded-xl border border-[#222222] px-3 py-1.5 text-xs text-[#555555] hover:border-[#333333] hover:text-[#888888] transition">
               <Save className="h-3 w-3" /> Guardar
             </button>
           )}
           <button onClick={() => setOpen(!open)}
-            className="flex items-center gap-1.5 rounded-md border border-[#2a2a2a] px-2.5 py-1.5 text-xs text-[#888888] hover:border-[#444444] hover:text-white transition">
+            className="flex items-center gap-1.5 rounded-xl border border-[#222222] px-3 py-1.5 text-xs text-[#555555] hover:border-[#333333] hover:text-[#888888] transition">
             <FolderOpen className="h-3 w-3" /> Cargar
           </button>
         </div>
       </div>
       {open && (
-        <div className="border-t border-[#2a2a2a] p-3">
+        <div className="border-t border-[#1e1e1e] p-3">
           {plantillas.length === 0
-            ? <p className="py-4 text-center text-xs text-[#888888]">Sin plantillas guardadas</p>
+            ? <p className="py-4 text-center text-xs text-[#333333]">Sin plantillas guardadas</p>
             : <div className="space-y-1.5">
-                {plantillas.map(p => (
-                  <div key={p.id} className="flex items-center gap-3 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2.5">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{p.nombre}</p>
-                      <p className="text-xs text-[#888888]">{p.exercises.length} ejercicios · {p.creadaEn}</p>
+                {plantillas.map(p => {
+                  const groups = getMuscleGroups(p.exercises);
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111] px-3 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{p.nombre}</p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          {groups.slice(0,4).map(m => (
+                            <span key={m} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] ?? '#555555' }} />
+                          ))}
+                          <span className="text-[10px] text-[#333333]">{p.exercises.length} ej. · {p.creadaEn}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => cargar(p)}
+                        className="rounded-xl border border-[#2a2a2a] px-2.5 py-1 text-xs text-[#555555] hover:border-[#444444] hover:text-white transition">
+                        Cargar
+                      </button>
+                      <button onClick={() => del(p.id)} className="p-1 text-[#2a2a2a] hover:text-red-500 transition">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <button onClick={() => cargar(p)} className="rounded-md border border-[#2a2a2a] px-2.5 py-1 text-xs text-[#888888] hover:border-white hover:text-white">Cargar</button>
-                    <button onClick={() => del(p.id)} className="p-1 text-[#333333] hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>}
         </div>
       )}
@@ -551,18 +671,11 @@ function exportToPDF(routine: Routine) {
   if (!w) return;
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><title>${routine.name}</title>
 <style>body{font-family:Arial,sans-serif;padding:2rem;color:#111}h1{font-size:1.5rem;margin-bottom:.5rem}.meta{color:#666;font-size:.85rem;margin-bottom:1.5rem}.day{margin:1.5rem 0 .25rem;font-size:1rem;font-weight:700;border-bottom:2px solid #ddd;padding-bottom:.25rem}table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.5rem}th{text-align:left;padding:.4rem .6rem;background:#f5f5f5;border:1px solid #ddd}td{padding:.4rem .6rem;border:1px solid #ddd}@media print{body{padding:1rem}}</style></head><body>
-<h1>${routine.name}</h1>
-<p class="meta">${dates.length} días · ${routine.startDate || ''} ${routine.endDate ? '→ ' + routine.endDate : ''}</p>
-${dates.map(d => {
-  const s = routine.sessions[d];
-  const label = new Date(d + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return `<p class="day">${label}${s.name ? ' — ' + s.name : ''}</p>
-${s.exercises.length === 0 ? '<p>Sin ejercicios</p>' : `<table><thead><tr><th>#</th><th>Ejercicio</th><th>Grupo</th><th>Series</th><th>Reps</th><th>Peso</th></tr></thead><tbody>${s.exercises.map((ex, i) => `<tr><td>${i+1}</td><td>${ex.name}</td><td>${ex.muscle}</td><td>${ex.series}</td><td>${ex.reps}</td><td>${ex.weight||'—'}</td></tr>`).join('')}</tbody></table>`}`;
-}).join('')}
-</body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
+<h1>${routine.name}</h1><p class="meta">${dates.length} días · ${routine.startDate || ''} ${routine.endDate ? '→ ' + routine.endDate : ''}</p>
+${dates.map(d => { const s = routine.sessions[d]; const label = new Date(d + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+return `<p class="day">${label}${s.name ? ' — ' + s.name : ''}</p>${s.exercises.length === 0 ? '<p>Sin ejercicios</p>' : `<table><thead><tr><th>#</th><th>Ejercicio</th><th>Grupo</th><th>Series</th><th>Reps</th><th>Peso</th></tr></thead><tbody>${s.exercises.map((ex, i) => `<tr><td>${i+1}</td><td>${ex.name}</td><td>${ex.muscle}</td><td>${ex.series}</td><td>${ex.reps}</td><td>${ex.weight||'—'}</td></tr>`).join('')}</tbody></table>`}`;
+}).join('')}</body></html>`);
+  w.document.close(); w.focus(); w.print();
 }
 
 // ─── RoutineCalendarEditor ────────────────────────────────────────────────────
@@ -573,16 +686,18 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
   const today = new Date();
   const todayStr = toDateStr(today);
   const initDate = routine.startDate ? new Date(routine.startDate + 'T12:00:00') : today;
-  const [viewYear, setViewYear]       = useState(initDate.getFullYear());
+  const [viewYear,  setViewYear]      = useState(initDate.getFullYear());
   const [viewMonth, setViewMonth]     = useState(initDate.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [copyDate, setCopyDate]       = useState<string | null>(null);
-  const [showVol, setShowVol]         = useState(false);
+  const [selDate,   setSelDate]       = useState<string | null>(null);
+  const [copyDate,  setCopyDate]      = useState<string | null>(null);
+  const [showVol,   setShowVol]       = useState(false);
 
   const grid = buildMonthGrid(viewYear, viewMonth);
+  const isCurrentMonthView = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
   function prevMonth() { if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); } else setViewMonth(m => m - 1); }
   function nextMonth() { if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); } else setViewMonth(m => m + 1); }
+  function goToday()   { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); }
 
   function patch(partial: Partial<Routine>) { onUpdate({ ...routine, ...partial }); }
 
@@ -614,80 +729,96 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
   };
 
   const sessionCount = Object.keys(routine.sessions).length;
+  const allMuscles = [...new Set(Object.values(routine.sessions).flatMap(s => s.exercises.map(e => e.muscle)))];
 
   return (
-    <div className="border-t border-[#2a2a2a] px-5 pb-6 pt-5">
-      <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-6">
+    <div className="border-t border-[#1e1e1e] px-5 pb-6 pt-5">
+      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6">
 
-        {/* ── Left: calendar + dates ── */}
+        {/* ── Left col ── */}
         <div className="space-y-4">
+
           {/* Date range */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LC}>Inicio</label>
-              <input type="date" value={routine.startDate}
-                onChange={e => patch({ startDate: e.target.value })}
-                className={IC + ' text-xs'} />
+              <input type="date" value={routine.startDate} onChange={e => patch({ startDate: e.target.value })}
+                className="w-full rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-xs text-white outline-none transition focus:border-[#444444]" />
             </div>
             <div>
               <label className={LC}>Fin</label>
-              <input type="date" value={routine.endDate}
-                onChange={e => patch({ endDate: e.target.value })}
-                className={IC + ' text-xs'} />
+              <input type="date" value={routine.endDate} onChange={e => patch({ endDate: e.target.value })}
+                className="w-full rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-xs text-white outline-none transition focus:border-[#444444]" />
             </div>
           </div>
 
           {/* Calendar */}
-          <div className="overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111111]">
+          <div className="overflow-hidden rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d]">
             {/* Month nav */}
-            <div className="flex items-center justify-between border-b border-[#2a2a2a] px-3 py-2.5">
-              <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#888888] hover:bg-[#2a2a2a] hover:text-white">
+            <div className="flex items-center gap-1 border-b border-[#1e1e1e] px-2 py-2">
+              <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#444444] hover:bg-[#1a1a1a] hover:text-white transition">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="text-sm font-semibold text-white">{MONTHS_ES[viewMonth]} {viewYear}</span>
-              <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#888888] hover:bg-[#2a2a2a] hover:text-white">
+              <div className="flex flex-1 items-center justify-center gap-2">
+                <span className="text-sm font-bold text-white">{MONTHS_ES[viewMonth]} {viewYear}</span>
+                {!isCurrentMonthView && (
+                  <button onClick={goToday}
+                    className="rounded-full border border-[#222222] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#444444] hover:border-[#333333] hover:text-[#888888] transition">
+                    Hoy
+                  </button>
+                )}
+              </div>
+              <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#444444] hover:bg-[#1a1a1a] hover:text-white transition">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
 
             {/* DOW headers */}
-            <div className="grid grid-cols-7 border-b border-[#2a2a2a]">
+            <div className="grid grid-cols-7 border-b border-[#1a1a1a]">
               {DOW_LABEL.map(d => (
-                <div key={d} className="py-2 text-center text-[10px] font-medium uppercase tracking-[0.1em] text-[#555555]">{d}</div>
+                <div key={d} className="py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-[#333333]">{d}</div>
               ))}
             </div>
 
             {/* Grid */}
             {grid.map((week, wi) => (
-              <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#2a2a2a]' : ''}`}>
+              <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}>
                 {week.map((date, di) => {
-                  const ds = toDateStr(date);
-                  const isThisMonth = date.getMonth() === viewMonth;
-                  const isToday     = ds === todayStr;
-                  const isSel       = ds === selectedDate;
-                  const inRange     = isInRange(ds);
-                  const sess        = routine.sessions[ds];
+                  const ds       = toDateStr(date);
+                  const isThisM  = date.getMonth() === viewMonth;
+                  const isToday  = ds === todayStr;
+                  const isSel    = ds === selDate;
+                  const inRange  = isInRange(ds);
+                  const sess     = routine.sessions[ds];
+                  const primaryM = sess ? getMuscleGroups(sess.exercises)[0] : null;
+                  const chipColor = primaryM ? (MUSCLE_HEX[primaryM] ?? '#ffffff') : '#ffffff';
 
                   return (
-                    <button key={di} onClick={() => setSelectedDate(isSel ? null : ds)}
-                      className={`relative flex min-h-[52px] flex-col items-start p-1.5 text-left transition
-                        ${di < 6 ? 'border-r border-[#2a2a2a]' : ''}
-                        ${isSel ? 'bg-white/8' : 'hover:bg-[#1a1a1a]'}
-                        ${!isThisMonth || (!inRange && isThisMonth) ? 'opacity-25' : ''}
+                    <button key={di} onClick={() => setSelDate(isSel ? null : ds)}
+                      className={`group relative flex min-h-[58px] flex-col items-start p-1.5 text-left transition-colors
+                        ${di < 6 ? 'border-r border-[#1a1a1a]' : ''}
+                        ${isSel ? 'bg-white/[0.04]' : 'hover:bg-[#141414]'}
+                        ${(!isThisM || (!inRange && isThisM)) ? 'opacity-20' : ''}
                       `}>
-                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold
-                        ${isToday ? 'bg-white text-black' : isSel ? 'bg-white/15 text-white' : 'text-[#888888]'}
+                      {/* Date number */}
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition
+                        ${isToday  ? 'bg-white text-black'
+                        : isSel    ? 'bg-white/20 text-white'
+                        : 'text-[#666666] group-hover:text-white'}
                       `}>
                         {date.getDate()}
                       </span>
+                      {/* Session chip */}
                       {sess && sess.exercises.length > 0 && (
-                        <div className="mt-0.5 w-full">
-                          <div className="w-full truncate rounded bg-white/10 px-1 py-0.5 text-[9px] font-medium leading-tight text-white">
+                        <div className="mt-0.5 w-full overflow-hidden">
+                          <div className="truncate rounded-sm py-px pl-1.5 pr-1 text-[9px] font-semibold leading-tight text-white"
+                            style={{ backgroundColor: chipColor + '20', borderLeft: `2px solid ${chipColor}` }}>
                             {sess.name || `${sess.exercises.length} ej.`}
                           </div>
                         </div>
                       )}
-                      {isSel && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white" />}
+                      {/* Selected underline */}
+                      {isSel && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-white" />}
                     </button>
                   );
                 })}
@@ -695,13 +826,20 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
             ))}
           </div>
 
-          {/* Calendar summary */}
-          <div className="flex items-center justify-between text-xs text-[#888888]">
-            <span>{sessionCount} días planificados</span>
+          {/* Footer summary */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {allMuscles.slice(0, 6).map(m => (
+                <span key={m} className="h-2 w-2 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] ?? '#555555' }} />
+              ))}
+              {sessionCount > 0 && (
+                <span className="ml-1 text-xs text-[#444444]">{sessionCount} días planificados</span>
+              )}
+            </div>
             {sessionCount > 0 && (
               <button onClick={() => exportToPDF(routine)}
-                className="flex items-center gap-1.5 hover:text-white transition">
-                <Download className="h-3 w-3" /> Exportar PDF
+                className="flex items-center gap-1.5 text-xs text-[#333333] hover:text-[#888888] transition">
+                <Download className="h-3 w-3" /> PDF
               </button>
             )}
           </div>
@@ -709,14 +847,16 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
           {/* Alumno assignment */}
           {alumnos.length > 0 && (
             <div>
-              <p className={`mb-2 ${SL}`}>Alumnos</p>
+              <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]`}>Alumnos asignados</p>
               <div className="flex flex-wrap gap-1.5">
                 {alumnos.map(a => {
                   const sel = (routine.alumnoIds ?? []).includes(a.id);
                   return (
                     <button key={a.id} onClick={() => toggleAlumno(a.id)}
-                      className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${sel ? 'border-white bg-white text-black' : 'border-[#2a2a2a] text-[#888888] hover:border-[#444444] hover:text-white'}`}>
-                      <span className={`flex h-4 w-4 items-center justify-center rounded text-[10px] font-bold ${sel ? 'bg-black/10' : 'bg-[#2a2a2a]'}`}>
+                      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
+                        sel ? 'border-white bg-white text-black' : 'border-[#222222] text-[#555555] hover:border-[#333333] hover:text-[#888888]'
+                      }`}>
+                      <span className={`flex h-4 w-4 items-center justify-center rounded-lg text-[10px] font-black ${sel ? 'bg-black/10' : 'bg-[#1a1a1a]'}`}>
                         {a.nombre[0]?.toUpperCase()}
                       </span>
                       {a.nombre}
@@ -728,29 +868,39 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
           )}
         </div>
 
-        {/* ── Right: day editor ── */}
-        <div className="mt-4 space-y-4 lg:mt-0">
-          {selectedDate ? (
+        {/* ── Right col ── */}
+        <div className="mt-4 space-y-3 lg:mt-0">
+          {selDate ? (
             <>
               <DayEditor
-                dateStr={selectedDate}
-                session={routine.sessions[selectedDate]}
+                dateStr={selDate}
+                session={routine.sessions[selDate]}
                 routine={routine}
-                onUpdate={s => setSession(selectedDate, s)}
-                onCopy={() => setCopyDate(selectedDate)}
-                onClear={() => { setSession(selectedDate, null); }}
+                onUpdate={s => setSession(selDate, s)}
+                onCopy={() => setCopyDate(selDate)}
+                onClear={() => setSession(selDate, null)}
               />
               <PlantillaPanel
-                exercises={routine.sessions[selectedDate]?.exercises ?? []}
+                exercises={routine.sessions[selDate]?.exercises ?? []}
                 onLoad={exercises => {
-                  const s = routine.sessions[selectedDate] ?? { name: '', exercises: [] };
-                  setSession(selectedDate, { ...s, exercises });
+                  const s = routine.sessions[selDate] ?? { name: '', exercises: [] };
+                  setSession(selDate, { ...s, exercises });
                 }}
               />
             </>
           ) : (
-            <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-[#2a2a2a] lg:h-64">
-              <p className="text-sm text-[#888888]">Selecciona un día en el calendario para editar el entrenamiento</p>
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#1e1e1e] bg-[#0a0a0a] py-16 text-center lg:py-24">
+              <svg viewBox="0 0 40 40" className="h-10 w-10 text-[#1e1e1e]" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="4" y="8" width="32" height="28" rx="4" />
+                <path d="M4 15h32" />
+                <path d="M13 4v7M27 4v7" strokeLinecap="round" />
+                <rect x="10" y="21" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5" stroke="none" />
+                <rect x="22" y="21" width="6" height="6" rx="1.5" fill="currentColor" opacity=".25" stroke="none" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-[#333333]">Selecciona un día</p>
+                <p className="mt-1 text-xs text-[#222222]">Haz click en cualquier fecha del calendario</p>
+              </div>
             </div>
           )}
 
@@ -758,25 +908,23 @@ function RoutineCalendarEditor({ routine, alumnos, onUpdate }: {
           {sessionCount > 0 && (
             <div>
               <button onClick={() => setShowVol(!showVol)}
-                className="flex items-center gap-2 text-xs text-[#888888] hover:text-white transition mb-2">
-                {showVol ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                Volumen semanal (MEV / MRV)
+                className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333] hover:text-[#666666] transition">
+                {showVol ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                Volumen MEV / MRV
               </button>
-              {showVol && <VolumeCounter sessions={routine.sessions} startDate={routine.startDate} endDate={routine.endDate} />}
+              {showVol && (
+                <div className="mt-2">
+                  <VolumeCounter sessions={routine.sessions} startDate={routine.startDate} endDate={routine.endDate} />
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Copy modal */}
       {copyDate && routine.sessions[copyDate] && (
-        <CopyModal
-          sourceDate={copyDate}
-          session={routine.sessions[copyDate]}
-          routine={routine}
-          onCopy={handleCopy}
-          onClose={() => setCopyDate(null)}
-        />
+        <CopyModal sourceDate={copyDate} session={routine.sessions[copyDate]}
+          routine={routine} onCopy={handleCopy} onClose={() => setCopyDate(null)} />
       )}
     </div>
   );
@@ -794,82 +942,90 @@ export default function RutinasPage() {
     try { const s = localStorage.getItem('nexa_alumnos');  if (s) setAlumnos(JSON.parse(s)); } catch {}
   }, []);
 
-  function save(next: Routine[]) {
-    setRoutines(next);
-    localStorage.setItem('nexa_routines', JSON.stringify(next));
-  }
-
+  function save(next: Routine[]) { setRoutines(next); localStorage.setItem('nexa_routines', JSON.stringify(next)); }
   function createRoutine() {
     const r: Routine = { id: crypto.randomUUID(), name: 'Nueva rutina', startDate: '', endDate: '', alumnoIds: [], sessions: {} };
-    const next = [r, ...routines];
-    save(next);
+    save([r, ...routines]);
     setExpanded(r.id);
   }
-
   function deleteRoutine(id: string) {
     if (!confirm('¿Eliminar esta rutina?')) return;
     save(routines.filter(r => r.id !== id));
   }
-
-  function updateRoutine(r: Routine) {
-    save(routines.map(x => x.id === r.id ? r : x));
-  }
+  function updateRoutine(r: Routine) { save(routines.map(x => x.id === r.id ? r : x)); }
 
   return (
     <main className="mx-auto min-h-[calc(100vh-57px)] max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Rutinas</h1>
-          <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">
+          <h1 className="text-xl font-bold tracking-tight text-white">Rutinas</h1>
+          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">
             {routines.length} programa{routines.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button onClick={createRoutine}
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#e0e0e0]">
+          className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-black transition hover:bg-[#e8e8e8]">
           <Plus className="h-4 w-4" /> Nueva rutina
         </button>
       </div>
 
       {routines.length === 0 && (
-        <div className="rounded-lg border border-dashed border-[#2a2a2a] py-20 text-center">
-          <p className="text-sm text-[#888888]">Sin rutinas. Crea la primera.</p>
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#1e1e1e] py-24 text-center">
+          <svg viewBox="0 0 40 40" className="h-10 w-10 text-[#1e1e1e]" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="4" y="8" width="32" height="28" rx="4" />
+            <path d="M4 15h32M13 4v7M27 4v7" strokeLinecap="round" />
+            <path d="M20 22v8M16 26h8" strokeLinecap="round" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-[#333333]">Sin programas aún</p>
+            <p className="mt-1 text-xs text-[#222222]">Crea tu primer programa de entrenamiento</p>
+          </div>
+          <button onClick={createRoutine}
+            className="mt-1 flex items-center gap-2 rounded-xl border border-[#222222] px-4 py-2 text-sm font-medium text-[#555555] hover:border-[#444444] hover:text-white transition">
+            <Plus className="h-4 w-4" /> Crear programa
+          </button>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {routines.map(routine => {
           const isOpen = expanded === routine.id;
           const sessionCount = Object.keys(routine.sessions).length;
+          const allMuscles = [...new Set(Object.values(routine.sessions).flatMap(s => s.exercises.map(e => e.muscle)))];
+
           return (
-            <div key={routine.id} className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a]">
+            <div key={routine.id}
+              className={`overflow-hidden rounded-2xl border transition-colors ${isOpen ? 'border-[#2a2a2a] bg-[#111111]' : 'border-[#1a1a1a] bg-[#0d0d0d] hover:border-[#2a2a2a]'}`}>
               <div className="flex items-center gap-3 px-5 py-4">
                 <input value={routine.name}
                   onChange={e => updateRoutine({ ...routine, name: e.target.value })}
-                  className="flex-1 bg-transparent text-base font-semibold text-white outline-none placeholder-[#444444]"
-                  placeholder="Nombre de la rutina" />
-                {sessionCount > 0 && (
-                  <span className="hidden shrink-0 text-xs text-[#888888] sm:block">{sessionCount} días</span>
+                  className="flex-1 bg-transparent text-base font-bold text-white outline-none placeholder-[#222222]"
+                  placeholder="Nombre del programa" />
+                {/* Muscle dots preview */}
+                {allMuscles.length > 0 && (
+                  <div className="hidden items-center gap-1 sm:flex">
+                    {allMuscles.slice(0, 7).map(m => (
+                      <span key={m} className="h-2 w-2 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] ?? '#333333' }} />
+                    ))}
+                    <span className="ml-1 text-xs text-[#333333]">{sessionCount}d</span>
+                  </div>
                 )}
-                {routine.startDate && routine.endDate && (
-                  <span className="hidden shrink-0 text-xs text-[#555555] sm:block">
-                    {routine.startDate} → {routine.endDate}
+                {routine.startDate && (
+                  <span className="hidden text-xs text-[#2a2a2a] sm:block">
+                    {routine.startDate}{routine.endDate ? ` → ${routine.endDate}` : ''}
                   </span>
                 )}
                 <button onClick={() => setExpanded(isOpen ? null : routine.id)}
-                  className="rounded-md p-1.5 text-[#888888] transition hover:bg-[#2a2a2a] hover:text-white">
+                  className="rounded-xl border border-[#222222] p-1.5 text-[#444444] transition hover:border-[#333333] hover:text-white">
                   {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
                 <button onClick={() => deleteRoutine(routine.id)}
-                  className="rounded-md p-1.5 text-[#444444] transition hover:bg-red-950/40 hover:text-red-500">
+                  className="rounded-xl border border-[#1a1a1a] p-1.5 text-[#333333] transition hover:border-red-950 hover:text-red-500">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
               {isOpen && (
-                <RoutineCalendarEditor
-                  routine={routine}
-                  alumnos={alumnos}
-                  onUpdate={updateRoutine}
-                />
+                <RoutineCalendarEditor routine={routine} alumnos={alumnos} onUpdate={updateRoutine} />
               )}
             </div>
           );
