@@ -104,9 +104,9 @@ export const athletes: Athlete[] = [
 ];
 
 export const progressSummary = {
-  totalSessions: 18,
-  completedSessions: 11,
-  consistency: '61%',
-  caloriesBurned: 1120,
-  personalBest: '5 km en 28 min',
+  totalSessions: 0,
+  completedSessions: 0,
+  consistency: '0%',
+  caloriesBurned: 0,
+  personalBest: '—',
 };

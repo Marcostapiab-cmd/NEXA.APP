@@ -15,7 +15,8 @@ export interface SesionEjercicio {
 export interface Sesion {
   id: string;
   alumnoId: string;
-  fecha: string;          // YYYY-MM-DD
+  fecha: string;           // YYYY-MM-DD — fecha real de ejecución
+  fechaPlaneada?: string;  // YYYY-MM-DD — fecha original del calendario (si difiere de fecha)
   rutinaId: string;
   rutinaNombre: string;
   bloqueNombre: string;
@@ -70,4 +71,45 @@ export function getHistorialPeso(alumnoId: string, ejercicioNombre: string): Pun
     const maxP = Math.max(...ej.series.filter(s => s.completada).map(s => parseFloat(s.peso) || 0));
     return { fecha: s.fecha, peso: maxP };
   }).filter(p => p.peso > 0);
+}
+
+// ─── Estado por día / ejercicio (Weightroom calendar) ──────────────────────────
+//
+// Día:      pendiente (rutina asignada, sin sesión registrada)
+//           en_progreso (sesión con series registradas, faltan, fecha aún no pasada)
+//           incompleto (sesión con series faltantes y la fecha ya pasó — abandonada)
+//           completado (todas las series de todos los ejercicios registradas)
+// Ejercicio: misma escala, derivada del estado del día cuando no hay registro propio.
+
+export type EstadoSesion = 'completado' | 'en_progreso' | 'incompleto' | 'pendiente';
+export type EstadoEjercicio = EstadoSesion;
+
+/** Finds the saved Sesion matching either the real or the originally planned date. */
+export function getSesionPorFecha(alumnoId: string, fecha: string): Sesion | null {
+  return getSesionesAlumno(alumnoId).find(s => s.fecha === fecha || s.fechaPlaneada === fecha) ?? null;
+}
+
+export function computeEstadoSesion(sesion: Sesion, fechaPlaneada: string): EstadoSesion {
+  const totales     = sesion.ejercicios.reduce((s, e) => s + e.series.length, 0);
+  const completadas = sesion.ejercicios.reduce((s, e) => s + e.series.filter(sr => sr.completada).length, 0);
+  if (totales > 0 && completadas === totales) return 'completado';
+  const today = new Date().toISOString().slice(0, 10);
+  return fechaPlaneada < today ? 'incompleto' : 'en_progreso';
+}
+
+/** Status of a calendar day. Returns null when there is no rutina assigned that day. */
+export function getEstadoDia(alumnoId: string, fecha: string, tieneRutina: boolean): EstadoSesion | null {
+  if (!tieneRutina) return null;
+  const sesion = getSesionPorFecha(alumnoId, fecha);
+  if (!sesion) return 'pendiente';
+  return computeEstadoSesion(sesion, fecha);
+}
+
+/** Status of a single exercise within a registered Sesion. */
+export function getEstadoEjercicio(ej: SesionEjercicio, estadoSesion: EstadoSesion): EstadoEjercicio {
+  const total = ej.series.length;
+  const done  = ej.series.filter(s => s.completada).length;
+  if (total > 0 && done === total) return 'completado';
+  if (done > 0) return 'en_progreso';
+  return estadoSesion === 'incompleto' ? 'incompleto' : 'pendiente';
 }

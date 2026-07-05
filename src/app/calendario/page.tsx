@@ -47,7 +47,7 @@ export default function CalendarioPage() {
   const selectedRoutines = selectedDay ? routinesForDay(selectedDay) : [];
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-57px)] max-w-5xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight text-white">Calendario</h1>
         <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">

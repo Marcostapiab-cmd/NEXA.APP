@@ -6,10 +6,10 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,61 +31,117 @@ export default function LoginPage() {
     }
 
     setLoading(false);
-    router.push('/rutinas');
+    router.push('/dashboard');
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">NEXA</h1>
-          <p className="mt-1 text-sm text-slate-500">Plataforma de gestión para coaches</p>
+    <div
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{
+        background: 'var(--nexa-black)',
+        backgroundImage: 'radial-gradient(ellipse at top right, rgba(212,175,55,0.08) 0%, transparent 60%)',
+      }}
+    >
+      <div
+        className="w-full max-w-[400px] rounded-2xl p-12"
+        style={{
+          background: 'var(--nexa-card)',
+          border: '1px solid var(--nexa-border)',
+        }}
+      >
+        {/* Logo */}
+        <div className="mb-10 flex flex-col items-center gap-4">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-xl"
+            style={{ background: 'var(--nexa-accent)' }}
+          >
+            <span
+              className="text-[18px] font-black tracking-wider"
+              style={{ color: '#000000' }}
+            >
+              N
+            </span>
+          </div>
+          <div className="text-center">
+            <h1
+              className="text-[22px] font-black tracking-[0.14em]"
+              style={{ color: 'var(--nexa-accent)', letterSpacing: '0.14em' }}
+            >
+              NEXA
+            </h1>
+            <p
+              className="mt-1 text-[12px] font-medium uppercase tracking-[0.1em]"
+              style={{ color: 'var(--nexa-muted)' }}
+            >
+              Performance Management
+            </p>
+          </div>
         </div>
 
-        <form
-          onSubmit={handleLogin}
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"
-        >
+        {/* Form */}
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            <label
+              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em]"
+              style={{ color: 'var(--nexa-muted)' }}
+            >
               Correo electrónico
             </label>
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               required
               placeholder="tucorreo@email.com"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+              className="nexa-input"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            <label
+              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em]"
+              style={{ color: 'var(--nexa-muted)' }}
+            >
               Contraseña
             </label>
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               required
               placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:bg-white"
+              className="nexa-input"
             />
           </div>
 
           {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
+            <div
+              className="rounded-lg px-4 py-3 text-[13px]"
+              style={{
+                background: 'rgba(255,68,68,0.1)',
+                border: '1px solid rgba(255,68,68,0.25)',
+                color: '#FF4444',
+              }}
+            >
+              {error}
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+            className="nexa-btn-primary w-full justify-center mt-2"
           >
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
+
+        <p
+          className="mt-8 text-center text-[11px] font-medium uppercase tracking-[0.1em]"
+          style={{ color: 'var(--nexa-ghost)' }}
+        >
+          NEXA · Uso exclusivo de coaches
+        </p>
       </div>
     </div>
   );

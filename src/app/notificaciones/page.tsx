@@ -18,7 +18,7 @@ export default function NotificacionesPage() {
   };
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-96px)] max-w-5xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-semibold text-slate-900">Notificaciones</h1>
         <p className="mt-2 text-slate-600">Activa recordatorios para mantener el ritmo y revisar tu progreso regularmente.</p>

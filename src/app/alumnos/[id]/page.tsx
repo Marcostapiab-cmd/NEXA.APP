@@ -23,9 +23,9 @@ interface Routine {
 }
 
 const DAY_LONG  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-const IC = 'w-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-3 py-2.5 text-sm text-white placeholder-[#444444] outline-none transition focus:border-white';
-const LC = 'mb-1.5 block text-xs font-medium uppercase tracking-[0.1em] text-[#888888]';
-const SL = 'text-xs font-medium uppercase tracking-[0.1em] text-[#888888]';
+const IC = 'w-full rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] px-4 py-3 text-sm text-white placeholder-[#444] outline-none transition focus:border-[#D4AF37]' as const;
+const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#888888]' as const;
+const SL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888888]' as const;
 
 function isActive(r: Routine) {
   if (!r.startDate || !r.endDate) return false;
@@ -45,9 +45,9 @@ function PesoChart({ puntos }: { puntos: { fecha: string; peso: number }[] }) {
   const path = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(i)},${yScale(p.peso)}`).join(' ');
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      <polyline fill="none" stroke="#ffffff" strokeWidth="1.5" points={puntos.map((p, i) => `${xScale(i)},${yScale(p.peso)}`).join(' ')} />
+      <polyline fill="none" stroke="#D4AF37" strokeWidth="1.5" points={puntos.map((p, i) => `${xScale(i)},${yScale(p.peso)}`).join(' ')} />
       {puntos.map((p, i) => (
-        <circle key={i} cx={xScale(i)} cy={yScale(p.peso)} r="3" fill="#ffffff" />
+        <circle key={i} cx={xScale(i)} cy={yScale(p.peso)} r="3" fill="#D4AF37" />
       ))}
     </svg>
   );
@@ -104,7 +104,7 @@ export default function AlumnoPerfilPage() {
 
   if (!alumno) {
     return (
-      <main className="flex min-h-[calc(100vh-57px)] items-center justify-center">
+      <main className="flex min-h-screen items-center justify-center">
         <p className="text-[#888888]">Alumno no encontrado.</p>
       </main>
     );
@@ -124,17 +124,17 @@ export default function AlumnoPerfilPage() {
     : null;
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-57px)] max-w-5xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       {/* Back + header */}
       <div className="mb-6 flex items-start gap-4">
         <button onClick={() => router.back()}
-          className="mt-0.5 rounded-lg border border-[#2a2a2a] p-2 text-[#888888] transition hover:border-[#444444] hover:text-white">
+          className="mt-0.5 rounded-lg border border-[#2A2A2A] p-2 text-[#888888] transition hover:border-[#D4AF37] hover:text-[#D4AF37]">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex flex-1 items-center gap-4">
           {alumno.foto
             ? <img src={alumno.foto} alt="" className="h-16 w-16 rounded-xl object-cover" />
-            : <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#2a2a2a] text-2xl font-bold text-[#888888]">
+            : <div className="flex h-16 w-16 items-center justify-center rounded-xl text-2xl font-black" style={{ background: '#D4AF37', color: '#000000' }}>
                 {alumno.nombre[0]?.toUpperCase()}
               </div>}
           <div>
@@ -154,7 +154,7 @@ export default function AlumnoPerfilPage() {
         <div className="space-y-4">
 
           {/* Active routines */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
             <p className={`mb-3 ${SL}`}>Rutinas activas</p>
             {activeRoutines.length === 0 ? (
               <p className="text-sm text-[#888888]">Sin rutinas activas. Asigna una en /rutinas.</p>
@@ -163,7 +163,7 @@ export default function AlumnoPerfilPage() {
                 {activeRoutines.map(r => {
                   const diasStr = [...r.selectedDays].sort((a,b)=>a-b).map(d => DAY_LONG[d].slice(0,3)).join(' · ');
                   return (
-                    <div key={r.id} className="rounded-md border border-[#2a2a2a] bg-[#111111] p-3">
+                    <div key={r.id} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
                       <p className="font-semibold text-white">{r.name}</p>
                       <p className="mt-1 text-xs text-[#888888]">{diasStr} · {r.weeks} semanas</p>
                       <p className="text-xs text-[#888888]">{r.startDate} → {r.endDate}</p>
@@ -182,7 +182,7 @@ export default function AlumnoPerfilPage() {
           </div>
 
           {/* Session history */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
             <p className={`mb-3 ${SL}`}>Historial de sesiones ({sesiones.length})</p>
             {sesiones.length === 0 ? (
               <p className="text-sm text-[#888888]">Sin sesiones registradas.</p>
@@ -191,7 +191,7 @@ export default function AlumnoPerfilPage() {
                 {sesiones.map(s => {
                   const isExp = expandedSesion === s.id;
                   return (
-                    <div key={s.id} className="rounded-md border border-[#2a2a2a] bg-[#111111]">
+                    <div key={s.id} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A]">
                       <button onClick={() => setExpandedSesion(isExp ? null : s.id)}
                         className="flex w-full items-center justify-between px-3 py-2.5 text-left">
                         <div>
@@ -240,9 +240,9 @@ export default function AlumnoPerfilPage() {
 
           {/* Progress per exercise */}
           {ejerciciosUnicos.length > 0 && (
-            <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+            <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
               <div className="mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-[#888888]" />
+                <TrendingUp className="h-4 w-4 text-[#D4AF37]" />
                 <p className={SL}>Progresión de carga</p>
               </div>
               <div className="space-y-4">
@@ -251,10 +251,10 @@ export default function AlumnoPerfilPage() {
                   const ultimo = historial[historial.length - 1];
                   if (!ultimo) return null;
                   return (
-                    <div key={nombre} className="rounded-md border border-[#2a2a2a] bg-[#111111] p-3">
+                    <div key={nombre} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-white">{nombre}</p>
-                        <span className="text-sm font-bold text-white">{ultimo.peso} kg</span>
+                        <span className="text-sm font-bold" style={{ color: '#D4AF37' }}>{ultimo.peso} kg</span>
                       </div>
                       {historial.length >= 2 && <PesoChart puntos={historial} />}
                       {historial.length < 2 && (
@@ -270,17 +270,17 @@ export default function AlumnoPerfilPage() {
 
         {/* Right column: metrics */}
         <div className="space-y-4">
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Métricas corporales</p>
               <button onClick={() => setShowMedicion(!showMedicion)}
-                className="flex items-center gap-1 rounded-lg border border-[#2a2a2a] px-2.5 py-1 text-xs text-[#888888] transition hover:border-[#444444] hover:text-white">
+                className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] px-2.5 py-1 text-xs text-[#888888] transition hover:border-[#D4AF37] hover:text-[#D4AF37]">
                 <Plus className="h-3 w-3" /> Nueva
               </button>
             </div>
 
             {showMedicion && (
-              <div className="mb-4 space-y-3 rounded-lg border border-[#2a2a2a] bg-[#111111] p-3">
+              <div className="mb-4 space-y-3 rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
                 <div>
                   <label className={LC}>Fecha</label>
                   <input type="date" value={medForm.fecha}
@@ -310,11 +310,11 @@ export default function AlumnoPerfilPage() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={addMedicion}
-                    className="flex-1 rounded-lg bg-white py-2 text-xs font-semibold text-black transition hover:bg-[#e0e0e0]">
+                    className="nexa-btn-primary flex-1 justify-center text-xs py-2">
                     Guardar
                   </button>
                   <button onClick={() => setShowMedicion(false)}
-                    className="rounded-lg border border-[#444444] px-3 py-2 text-xs text-white transition hover:border-white">
+                    className="nexa-btn-secondary px-4 py-2 text-xs">
                     Cancelar
                   </button>
                 </div>
@@ -322,7 +322,7 @@ export default function AlumnoPerfilPage() {
             )}
 
             {pesoChartData.length >= 2 && (
-              <div className="mb-3 rounded-md border border-[#2a2a2a] bg-[#111111] p-2">
+              <div className="mb-3 rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-2">
                 <p className="mb-1 text-xs text-[#888888]">Evolución del peso</p>
                 <PesoChart puntos={pesoChartData} />
               </div>
@@ -354,7 +354,7 @@ export default function AlumnoPerfilPage() {
           </div>
 
           {/* Stats */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
             <p className={`mb-3 ${SL}`}>Estadísticas</p>
             <div className="space-y-2 text-sm">
               {[

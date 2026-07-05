@@ -2,120 +2,207 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users, Dumbbell, AlertTriangle, Calendar, ChevronRight } from 'lucide-react';
+import { Users, Calendar, Dumbbell, ChevronRight, TrendingUp, AlertTriangle } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getSesiones } from '@/lib/sesiones';
 
-interface DayBlock { id: string; name: string; exercises: { id: string }[]; }
+/* ── Types ──────────────────────────────────────────────────────────────────── */
+
+interface CalSession { name: string; exercises: { id: string; name: string; muscle: string }[]; }
+
 interface Routine {
-  id: string; name: string; blocks: DayBlock[]; exercises?: unknown[];
-  selectedDays: number[]; dayToBlock: Record<number, string>;
-  weeks: number; startDate: string; endDate: string; alumnoIds: string[];
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  alumnoId?: string;
+  alumnoIds: string[];
+  /* new format */
+  sessions?: Record<string, CalSession>;
+  /* old format (backwards compat) */
+  selectedDays?: number[];
+  dayToBlock?: Record<number, string>;
+  blocks?: { id: string; name: string; exercises: { id: string }[] }[];
 }
 
-const DAY_LONG = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+/* ── Helpers ────────────────────────────────────────────────────────────────── */
 
-function todayIdx(): number { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; }
-function isActive(r: Routine): boolean {
-  if (!r.startDate || !r.endDate) return false;
-  const t = new Date().toISOString().slice(0,10);
-  return t >= r.startDate && t <= r.endDate;
+const TODAY = new Date().toISOString().slice(0, 10);
+
+function todayDow(): number {
+  const d = new Date().getDay();
+  return d === 0 ? 6 : d - 1; // 0=Mon … 6=Sun
 }
+
+function getWeekDates(): string[] {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
 function daysUntilEnd(endDate: string): number {
   const end = new Date(endDate + 'T12:00:00');
-  const now = new Date(); now.setHours(12,0,0,0);
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
   return Math.ceil((end.getTime() - now.getTime()) / 86400000);
 }
 
-const SL = 'text-xs font-medium uppercase tracking-[0.1em] text-[#888888]';
+function isRoutineActive(r: Routine): boolean {
+  return !!r.startDate && !!r.endDate && r.startDate <= TODAY && TODAY <= r.endDate;
+}
+
+function routineHasSessionToday(r: Routine): boolean {
+  if (r.sessions) {
+    return (r.sessions[TODAY]?.exercises?.length ?? 0) > 0;
+  }
+  return (r.selectedDays ?? []).includes(todayDow());
+}
+
+function getTodayBloqueName(r: Routine): string | null {
+  if (r.sessions) {
+    return r.sessions[TODAY]?.name ?? null;
+  }
+  const dow = todayDow();
+  const blockId = r.dayToBlock?.[dow];
+  return r.blocks?.find(b => b.id === blockId)?.name ?? null;
+}
+
+function getTodayEjerciciosCount(r: Routine): number {
+  if (r.sessions) {
+    return r.sessions[TODAY]?.exercises?.length ?? 0;
+  }
+  const dow = todayDow();
+  const blockId = r.dayToBlock?.[dow];
+  return r.blocks?.find(b => b.id === blockId)?.exercises.length ?? 0;
+}
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 20) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+/* ── Component ──────────────────────────────────────────────────────────────── */
 
 export default function DashboardPage() {
   const [alumnos, setAlumnos]   = useState<Alumno[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
-  const [sesionesHoy, setSesionesHoy] = useState(0);
 
   useEffect(() => {
     try { const a = localStorage.getItem('nexa_alumnos');  if (a) setAlumnos(JSON.parse(a));  } catch {}
     try { const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r)); } catch {}
-    const hoy = new Date().toISOString().slice(0,10);
-    setSesionesHoy(getSesiones().filter(s => s.fecha === hoy).length);
   }, []);
 
-  const hoy = todayIdx();
-  const activeRoutines = routines.filter(isActive);
+  const sesiones     = getSesiones();
+  const alumnoMap    = Object.fromEntries(alumnos.map(a => [a.id, a]));
+  const weekDates    = getWeekDates();
 
-  // Routines expiring soon (≤7 days)
-  const expirando = routines.filter(r => {
-    if (!isActive(r)) return false;
+  /* Derived data */
+  const activeRoutines  = routines.filter(isRoutineActive);
+  const sesionesHoy     = sesiones.filter(s => s.fecha === TODAY);
+  const sesionesEsSemana = sesiones.filter(s => weekDates.includes(s.fecha));
+  const recentSesiones  = [...sesiones].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5);
+
+  function getRoutineFor(alumnoId: string): Routine | undefined {
+    return routines.find(r =>
+      r.alumnoId === alumnoId || (r.alumnoIds ?? []).includes(alumnoId)
+    );
+  }
+
+  const alumnosHoy = alumnos.filter(a => {
+    const r = getRoutineFor(a.id);
+    return r && isRoutineActive(r) && routineHasSessionToday(r);
+  });
+
+  const expirandoPronto = routines.filter(r => {
+    if (!isRoutineActive(r)) return false;
     const d = daysUntilEnd(r.endDate);
     return d >= 0 && d <= 7;
   });
 
-  // Students training today
-  const entrenanHoy = alumnos.filter(a => {
-    return activeRoutines.some(r =>
-      (r.alumnoIds ?? []).includes(a.id) && r.selectedDays.includes(hoy)
-    );
+  const displayDate = new Date().toLocaleDateString('es-CL', {
+    weekday: 'long', day: 'numeric', month: 'long',
   });
 
-  // Recent sessions (last 5)
-  const sesiones = getSesiones().slice(0, 5);
-  const alumnoMap = Object.fromEntries(alumnos.map(a => [a.id, a]));
+  /* Stat cards */
+  const stats = [
+    { label: 'Alumnos',       value: alumnos.length,          Icon: Users,       href: '/alumnos',    accent: false },
+    { label: 'Rutinas activas', value: activeRoutines.length, Icon: Calendar,    href: '/rutinas',    accent: false },
+    { label: 'Esta semana',   value: sesionesEsSemana.length,  Icon: TrendingUp,  href: '/weightroom', accent: false },
+    { label: 'Entrenan hoy',  value: alumnosHoy.length,       Icon: Dumbbell,    href: '/weightroom', accent: true  },
+  ];
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-57px)] max-w-5xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
+
+      {/* ── Page header ─────────────────────────────────────── */}
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">
-          {new Date().toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#333333]">
+          {displayDate}
         </p>
+        <h1 className="text-[20px] font-bold tracking-tight text-[#f4f4f5]">
+          {getGreeting()}, Coach
+        </h1>
       </div>
 
-      {/* Stats grid */}
+      {/* ── Stats row ───────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Alumnos',       value: alumnos.length,         icon: <Users className="h-5 w-5" />,       href: '/alumnos' },
-          { label: 'Rutinas activas', value: activeRoutines.length, icon: <Dumbbell className="h-5 w-5" />,   href: '/rutinas' },
-          { label: 'Entrenan hoy',  value: entrenanHoy.length,     icon: <Calendar className="h-5 w-5" />,    href: '/weightroom' },
-          { label: 'Sesiones hoy',  value: sesionesHoy,            icon: <Calendar className="h-5 w-5" />,    href: '/weightroom' },
-        ].map(({ label, value, icon, href }) => (
+        {stats.map(({ label, value, Icon, href, accent }) => (
           <Link key={label} href={href}
-            className="flex flex-col gap-3 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4 transition hover:border-[#444444]">
-            <div className="text-[#888888]">{icon}</div>
+            className="group flex flex-col gap-3 rounded-xl border border-[#141414] bg-[#0d0d0d] p-4 transition-all hover:border-[#1e1e1e] hover:bg-[#0f0f0f]">
+            <Icon
+              size={14}
+              strokeWidth={1.75}
+              className={`transition-colors ${accent ? 'text-[#D4AF37]' : 'text-[#2a2a2a] group-hover:text-[#3d3d3d]'}`}
+            />
             <div>
-              <p className="text-2xl font-black text-white">{value}</p>
-              <p className="text-xs text-[#888888]">{label}</p>
+              <p className={`text-[22px] font-black tracking-tight ${accent ? 'text-[#D4AF37]' : 'text-[#f4f4f5]'}`}>
+                {value}
+              </p>
+              <p className="mt-0.5 text-[11px] text-[#333333]">{label}</p>
             </div>
           </Link>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      {/* ── Main grid ───────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_288px]">
+
         {/* Left column */}
         <div className="space-y-4">
 
-          {/* Expiring programs */}
-          {expirando.length > 0 && (
-            <div className="rounded-lg border border-red-800/40 bg-red-950/20 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-                <p className="text-sm font-semibold text-red-400">
-                  {expirando.length} programa{expirando.length !== 1 ? 's' : ''} por vencer
+          {/* Expiring programs alert */}
+          {expirandoPronto.length > 0 && (
+            <div className="rounded-xl border border-[#FF4444]/15 bg-[#FF4444]/5 p-4 anim-fade-in">
+              <div className="mb-2.5 flex items-center gap-2">
+                <AlertTriangle size={13} className="text-[#FF4444]" />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#FF4444]">
+                  {expirandoPronto.length} programa{expirandoPronto.length !== 1 ? 's' : ''} por vencer
                 </p>
               </div>
-              <div className="space-y-2">
-                {expirando.map(r => {
+              <div className="space-y-1.5">
+                {expirandoPronto.map(r => {
                   const d = daysUntilEnd(r.endDate);
                   const asignados = (r.alumnoIds ?? []).map(id => alumnoMap[id]).filter(Boolean);
                   return (
-                    <div key={r.id} className="flex items-center justify-between rounded-md border border-red-800/20 bg-[#1a1a1a] px-3 py-2">
+                    <div key={r.id}
+                      className="flex items-center justify-between rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2">
                       <div>
-                        <p className="text-sm font-medium text-white">{r.name}</p>
+                        <p className="text-[13px] font-medium text-[#f4f4f5]">{r.name}</p>
                         {asignados.length > 0 && (
-                          <p className="text-xs text-[#888888]">{asignados.map(a => a.nombre).join(', ')}</p>
+                          <p className="text-[11px] text-[#444444]">
+                            {asignados.map(a => a.nombre).join(', ')}
+                          </p>
                         )}
                       </div>
-                      <span className={`text-xs font-semibold ${d === 0 ? 'text-red-400' : 'text-[#888888]'}`}>
+                      <span className={`shrink-0 text-[12px] font-semibold ${d === 0 ? 'text-[#FF4444]' : 'text-[#444444]'}`}>
                         {d === 0 ? 'Hoy' : `${d}d`}
                       </span>
                     </div>
@@ -125,35 +212,51 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Today's athletes */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className={SL}>Entrenan hoy — {DAY_LONG[hoy]}</p>
-              <Link href="/weightroom" className="text-xs text-[#888888] transition hover:text-white">
-                Ir al gym →
+          {/* Today's schedule */}
+          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
+            <div className="flex items-center justify-between border-b border-[#111111] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+                Agenda de hoy
+              </p>
+              <Link href="/weightroom"
+                className="text-[11px] text-[#2e2e2e] transition hover:text-[#666666]">
+                Weightroom →
               </Link>
             </div>
-            {entrenanHoy.length === 0 ? (
-              <p className="text-sm text-[#888888]">Nadie entrena hoy o no hay rutinas asignadas.</p>
+
+            {alumnosHoy.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="text-[13px] text-[#2e2e2e]">Sin sesiones programadas para hoy.</p>
+                <Link href="/rutinas"
+                  className="mt-2 inline-block text-[12px] text-[#3a3a3a] transition hover:text-[#666666]">
+                  Ir al Calendario →
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-2">
-                {entrenanHoy.map(a => {
-                  const r = activeRoutines.find(r => (r.alumnoIds ?? []).includes(a.id) && r.selectedDays.includes(hoy));
-                  const blockId = r?.dayToBlock?.[hoy];
-                  const block = r?.blocks?.find(b => b.id === blockId);
+              <div className="p-2">
+                {alumnosHoy.map(a => {
+                  const r = getRoutineFor(a.id)!;
+                  const bloque = getTodayBloqueName(r);
+                  const count  = getTodayEjerciciosCount(r);
                   return (
                     <Link key={a.id} href={`/alumnos/${a.id}`}
-                      className="flex items-center gap-3 rounded-md border border-[#2a2a2a] px-3 py-2.5 transition hover:border-[#444444]">
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-[#111111]">
                       {a.foto
-                        ? <img src={a.foto} alt="" className="h-9 w-9 rounded-lg object-cover" />
-                        : <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#2a2a2a] text-sm font-bold text-[#888888]">
+                        ? <img src={a.foto} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                        : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#141414] text-[13px] font-bold text-[#3a3a3a]">
                             {a.nombre[0]?.toUpperCase()}
-                          </div>}
+                          </div>
+                      }
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white">{a.nombre} {a.apellido}</p>
-                        <p className="text-xs text-[#888888]">{block?.name || r?.name || '—'}</p>
+                        <p className="text-[13px] font-semibold text-[#f4f4f5]">
+                          {a.nombre} {a.apellido}
+                        </p>
+                        <p className="text-[11px] text-[#3a3a3a]">
+                          {bloque ?? r.name}
+                          {count > 0 && ` · ${count} ejercicios`}
+                        </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-[#444444]" />
+                      <ChevronRight size={13} className="shrink-0 text-[#1e1e1e]" />
                     </Link>
                   );
                 })}
@@ -162,22 +265,34 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent sessions */}
-          {sesiones.length > 0 && (
-            <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
-              <p className={`mb-3 ${SL}`}>Últimas sesiones registradas</p>
-              <div className="space-y-2">
-                {sesiones.map(s => {
+          {recentSesiones.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
+              <div className="border-b border-[#111111] px-5 py-3.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+                  Últimas sesiones registradas
+                </p>
+              </div>
+              <div className="p-2">
+                {recentSesiones.map(s => {
                   const a = alumnoMap[s.alumnoId];
                   return (
-                    <div key={s.id} className="flex items-center gap-3 rounded-md border border-[#2a2a2a] px-3 py-2">
+                    <div key={s.id}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5">
                       {a?.foto
-                        ? <img src={a.foto} alt="" className="h-7 w-7 rounded-md object-cover" />
-                        : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2a2a2a] text-xs font-bold text-[#888888]">
+                        ? <img src={a.foto} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                        : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#141414] text-[12px] font-bold text-[#3a3a3a]">
                             {a?.nombre[0]?.toUpperCase() || '?'}
-                          </div>}
+                          </div>
+                      }
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white">{a?.nombre || 'Alumno'} · {s.bloqueNombre}</p>
-                        <p className="text-xs text-[#888888]">{s.ejercicios.length} ejercicios · {s.fecha}</p>
+                        <p className="text-[13px] text-[#d4d4d4]">
+                          <span className="font-medium">{a?.nombre || 'Alumno'}</span>
+                          <span className="text-[#3d3d3d]"> · {s.bloqueNombre}</span>
+                        </p>
+                        <p className="text-[11px] text-[#2e2e2e]">
+                          {s.ejercicios.length} ejercicios ·{' '}
+                          {s.fecha === TODAY ? 'Hoy' : s.fecha}
+                        </p>
                       </div>
                     </div>
                   );
@@ -185,33 +300,65 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Empty sessions state */}
+          {sesionesHoy.length === 0 && recentSesiones.length === 0 && (
+            <div className="rounded-xl border border-dashed border-[#141414] py-10 text-center">
+              <p className="text-[13px] text-[#2a2a2a]">
+                Sin sesiones registradas aún.
+              </p>
+              <Link href="/weightroom"
+                className="mt-2 inline-block text-[12px] text-[#3a3a3a] transition hover:text-[#666666]">
+                Ir al Weightroom →
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Right column */}
         <div className="space-y-4">
 
-          {/* All students */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className={SL}>Alumnos</p>
-              <Link href="/alumnos" className="text-xs text-[#888888] transition hover:text-white">Ver todos →</Link>
+          {/* Alumnos list */}
+          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
+            <div className="flex items-center justify-between border-b border-[#111111] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+                Alumnos
+              </p>
+              <Link href="/alumnos"
+                className="text-[11px] text-[#2e2e2e] transition hover:text-[#666666]">
+                Ver todos →
+              </Link>
             </div>
+
             {alumnos.length === 0 ? (
-              <p className="text-sm text-[#888888]">Sin alumnos aún.</p>
+              <div className="px-5 py-6 text-center">
+                <p className="text-[13px] text-[#2e2e2e]">Sin alumnos aún.</p>
+                <Link href="/alumnos"
+                  className="mt-1.5 inline-block text-[12px] text-[#D4AF37]">
+                  Agregar alumno →
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="p-2">
                 {alumnos.slice(0, 8).map(a => {
-                  const tieneRutinaActiva = activeRoutines.some(r => (r.alumnoIds ?? []).includes(a.id));
+                  const tieneRutina = activeRoutines.some(
+                    r => r.alumnoId === a.id || (r.alumnoIds ?? []).includes(a.id)
+                  );
                   return (
                     <Link key={a.id} href={`/alumnos/${a.id}`}
-                      className="flex items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-[#2a2a2a]">
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-[#111111]">
                       {a.foto
-                        ? <img src={a.foto} alt="" className="h-7 w-7 rounded-md object-cover" />
-                        : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2a2a2a] text-xs font-bold text-[#888888]">
+                        ? <img src={a.foto} alt="" className="h-7 w-7 shrink-0 rounded-md object-cover" />
+                        : <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#141414] text-[11px] font-bold text-[#3a3a3a]">
                             {a.nombre[0]?.toUpperCase()}
-                          </div>}
-                      <span className="flex-1 text-sm text-white">{a.nombre} {a.apellido}</span>
-                      <span className={`h-2 w-2 rounded-full ${tieneRutinaActiva ? 'bg-white' : 'bg-[#2a2a2a]'}`} />
+                          </div>
+                      }
+                      <span className="flex-1 truncate text-[13px] text-[#c4c4c4]">
+                        {a.nombre} {a.apellido}
+                      </span>
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        tieneRutina ? 'bg-[#D4AF37]' : 'bg-[#1e1e1e]'
+                      }`} />
                     </Link>
                   );
                 })}
@@ -220,26 +367,29 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick actions */}
-          <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] p-4">
-            <p className={`mb-3 ${SL}`}>Acceso rápido</p>
-            <div className="space-y-1.5">
+          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
+            <div className="border-b border-[#111111] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+                Acceso rápido
+              </p>
+            </div>
+            <div className="p-2">
               {[
-                { href: '/rutinas',    label: 'Nueva rutina' },
-                { href: '/alumnos',    label: 'Nuevo alumno' },
-                { href: '/biblioteca', label: 'Biblioteca de ejercicios' },
-                { href: '/weightroom', label: 'Vista del gym' },
-                { href: '/calendario', label: 'Calendario' },
+                { href: '/weightroom', label: 'Abrir Weightroom' },
+                { href: '/rutinas',    label: 'Ver Calendario' },
+                { href: '/alumnos',    label: 'Mis Alumnos' },
+                { href: '/biblioteca', label: 'Ejercicios' },
               ].map(({ href, label }) => (
                 <Link key={href} href={href}
-                  className="flex items-center justify-between rounded-md border border-[#2a2a2a] px-3 py-2 text-sm text-[#888888] transition hover:border-[#444444] hover:text-white">
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-[#3d3d3d] transition hover:bg-[#111111] hover:text-[#D4AF37]">
                   {label}
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight size={12} className="text-[#222222]" />
                 </Link>
               ))}
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

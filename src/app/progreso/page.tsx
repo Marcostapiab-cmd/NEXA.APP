@@ -4,7 +4,7 @@ import { progressSummary } from '@/lib/mockData';
 
 export default function ProgresoPage() {
   return (
-    <main className="mx-auto min-h-[calc(100vh-96px)] max-w-6xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-semibold text-slate-900">Progreso</h1>
         <p className="mt-2 text-slate-600">Revisa tu evolución semanal, tu consistencia y tus mejores marcas.</p>

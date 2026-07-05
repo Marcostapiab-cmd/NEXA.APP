@@ -1,48 +1,299 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0a0a0a;
-  --foreground: #ffffff;
-}
+/* ── Tailwind theme bridge ───────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--nexa-black);
+  --color-foreground: var(--nexa-white);
   --font-sans: var(--font-inter);
 }
+
+/* ── NEXA Design Tokens ──────────────────────────────────────────────────────── */
+
+:root {
+  /* Core surfaces */
+  --nexa-black:        #0A0A0A;
+  --nexa-dark:         #111111;
+  --nexa-surface:      #1A1A1A;
+  --nexa-card:         #202020;
+  --nexa-border:       #2A2A2A;
+
+  /* Accent — dorado clásico */
+  --nexa-accent:       #D4AF37;
+  --nexa-accent-dim:   #B8942E;
+  --nexa-accent-glow:  rgba(212, 175, 55, 0.15);
+  --nexa-accent-sub:   rgba(212, 175, 55, 0.08);
+
+  /* Text hierarchy */
+  --nexa-white:        #FFFFFF;
+  --nexa-muted:        #888888;
+  --nexa-faint:        #444444;
+  --nexa-ghost:        #2A2A2A;
+
+  /* Semantic */
+  --nexa-success:      #D4AF37;
+  --nexa-warning:      #F59E0B;
+  --nexa-danger:       #FF4444;
+
+  /* Legacy aliases (backward compat) */
+  --background:        var(--nexa-black);
+  --foreground:        var(--nexa-white);
+
+  /* Layout */
+  --sidebar-w:         220px;
+  --header-h:          60px;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #ffffff;
+  background: var(--nexa-black);
+  color: var(--nexa-white);
   font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
+
+/* ── Form elements ───────────────────────────────────────────────────────────── */
 
 button, input, textarea, select {
   font: inherit;
+  letter-spacing: inherit;
+}
+input, textarea, select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+button { cursor: pointer; }
+
+/* ── Selection ───────────────────────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(212, 175, 55, 0.2);
+  color: inherit;
 }
 
-* {
-  box-sizing: border-box;
+/* ── Focus ───────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid rgba(212, 175, 55, 0.5);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* Date picker dark mode */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6);
+/* ── Global input styles ─────────────────────────────────────────────────────── */
+
+.nexa-input {
+  width: 100%;
+  background: var(--nexa-surface);
+  border: 1px solid var(--nexa-border);
+  border-radius: 8px;
+  color: var(--nexa-white);
+  padding: 12px 16px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.nexa-input::placeholder { color: var(--nexa-faint); }
+.nexa-input:focus {
+  border-color: var(--nexa-accent);
+  box-shadow: 0 0 0 3px var(--nexa-accent-glow);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+
+.nexa-btn-primary {
+  background: var(--nexa-accent);
+  color: #000000;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 12px 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+  border: none;
   cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.nexa-btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.nexa-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.nexa-btn-secondary {
+  background: transparent;
+  color: var(--nexa-white);
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 11px 20px;
+  border: 1px solid var(--nexa-border);
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.nexa-btn-secondary:hover {
+  border-color: var(--nexa-accent);
+  color: var(--nexa-accent);
 }
 
-/* Select options dark mode */
+/* ── Badges ──────────────────────────────────────────────────────────────────── */
+
+.nexa-badge-active {
+  background: rgba(212, 175, 55, 0.15);
+  color: #D4AF37;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nexa-badge-danger {
+  background: rgba(255, 68, 68, 0.15);
+  color: #FF4444;
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nexa-badge-pending {
+  background: rgba(212, 175, 55, 0.15);
+  color: #D4AF37;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────────── */
+
+.nexa-card {
+  background: var(--nexa-card);
+  border: 1px solid var(--nexa-border);
+  border-radius: 12px;
+}
+
+/* ── Date / time inputs ──────────────────────────────────────────────────────── */
+
+input[type="date"],
+input[type="time"] { color-scheme: dark; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.4) sepia(1) saturate(2) hue-rotate(50deg);
+  cursor: pointer;
+  opacity: 0.6;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+/* ── Select options ──────────────────────────────────────────────────────────── */
+
 select option {
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--nexa-dark);
+  color: var(--nexa-white);
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0a0a0a; }
-::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #444; }
+/* ── Checkbox (custom) ───────────────────────────────────────────────────────── */
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--nexa-border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 0.12s, background 0.12s;
+}
+input[type="checkbox"]:hover { border-color: var(--nexa-muted); }
+input[type="checkbox"]:checked {
+  background: var(--nexa-accent);
+  border-color: var(--nexa-accent);
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 6l3 3 5-5' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 10px;
+}
+input[type="checkbox"]:indeterminate {
+  background: var(--nexa-surface);
+  border-color: var(--nexa-faint);
+}
+input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px; height: 1.5px;
+  background: var(--nexa-muted);
+  border-radius: 1px;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--nexa-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--nexa-muted); }
+
+/* ── Drag ────────────────────────────────────────────────────────────────────── */
+
+[draggable="true"] { cursor: grab; }
+[draggable="true"]:active { cursor: grabbing; }
+
+/* ── Animations ──────────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+  50%       { box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.15); }
+}
+
+.anim-fade-up    { animation: fade-up    0.18s ease-out forwards; }
+.anim-fade-in    { animation: fade-in    0.15s ease-out forwards; }
+.anim-scale-in   { animation: scale-in   0.18s ease-out forwards; }
+.anim-slide-down { animation: slide-down 0.16s ease-out forwards; }
+.anim-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
