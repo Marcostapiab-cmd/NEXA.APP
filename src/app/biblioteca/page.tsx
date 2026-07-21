@@ -8,6 +8,10 @@ import {
   getEjerciciosPropios, saveEjercicioPropio, deleteEjercicioPropio,
   type EjBiblioteca, type BibliotecaCustom,
 } from '@/lib/ejercicios';
+import {
+  getEjerciciosPropiosDB, saveEjercicioPropiooDB, deleteEjercicioPropiooDB,
+  getBibliotecaCustomsDB, saveBibliotecaCustomDB,
+} from '@/lib/ejercicios-supabase';
 import VideoUrlInput from '@/components/ejercicios/VideoUrlInput';
 
 interface EjercicioMerged extends EjBiblioteca {
@@ -196,11 +200,32 @@ export default function BibliotecaPage() {
   const [editando,     setEditando]     = useState<EjercicioMerged | null>(null);
   const [showNew,      setShowNew]      = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [loading,      setLoading]      = useState(true);
   const searchWrapRef = useRef<HTMLDivElement>(null);
 
-  function loadData() {
-    setCustoms(getBibliotecaCustoms());
-    setPropios(getEjerciciosPropios());
+  function syncLocal(updatedPropios: EjBiblioteca[], updatedCustoms: Record<string, BibliotecaCustom>) {
+    try {
+      localStorage.setItem('nexa_ejercicios_propios', JSON.stringify(updatedPropios));
+      localStorage.setItem('nexa_biblioteca_custom', JSON.stringify(updatedCustoms));
+    } catch { /* ignore */ }
+  }
+
+  async function loadData() {
+    try {
+      const [dbPropios, dbCustoms] = await Promise.all([
+        getEjerciciosPropiosDB(),
+        getBibliotecaCustomsDB(),
+      ]);
+      setPropios(dbPropios);
+      setCustoms(dbCustoms);
+      syncLocal(dbPropios, dbCustoms);
+    } catch {
+      // Si Supabase falla, usar localStorage como respaldo
+      setPropios(getEjerciciosPropios());
+      setCustoms(getBibliotecaCustoms());
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { loadData(); }, []);
@@ -215,26 +240,28 @@ export default function BibliotecaPage() {
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  function handleSaveVideo(id: string, videoUrl: string, nombre: string) {
+  async function handleSaveVideo(id: string, videoUrl: string, nombre: string) {
     const isPropio = propios.some(e => e.id === id);
     if (isPropio) {
       const base = propios.find(e => e.id === id)!;
-      saveEjercicioPropio({ ...base, nombre, videoUrl: videoUrl || undefined });
+      const updated = { ...base, nombre, videoUrl: videoUrl || undefined };
+      await saveEjercicioPropiooDB(updated).catch(() => saveEjercicioPropio(updated));
     } else {
-      const existing = getBibliotecaCustoms()[id] ?? {};
-      saveBibliotecaCustom(id, { ...existing, videoUrl, nombre });
+      const existing = customs[id] ?? {};
+      const custom = { ...existing, videoUrl, nombre };
+      await saveBibliotecaCustomDB(id, custom).catch(() => saveBibliotecaCustom(id, custom));
     }
-    loadData();
+    await loadData();
   }
 
-  function handleDelete(id: string) {
-    deleteEjercicioPropio(id);
-    loadData();
+  async function handleDelete(id: string) {
+    await deleteEjercicioPropiooDB(id).catch(() => deleteEjercicioPropio(id));
+    await loadData();
   }
 
-  function handleNew(ej: EjBiblioteca) {
-    saveEjercicioPropio(ej);
-    loadData();
+  async function handleNew(ej: EjBiblioteca) {
+    await saveEjercicioPropiooDB(ej).catch(() => saveEjercicioPropio(ej));
+    await loadData();
   }
 
   const baseConCustom: EjercicioMerged[] = BIBLIOTECA_EJERCICIOS.map(e => ({
@@ -340,8 +367,13 @@ export default function BibliotecaPage() {
         </p>
       )}
 
+      {/* Loading */}
+      {loading && (
+        <div className="py-10 text-center text-sm text-[#888888]">Cargando ejercicios...</div>
+      )}
+
       {/* Table */}
-      {filtrados.length === 0 ? (
+      {!loading && (filtrados.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#CACACA] py-20 text-center">
           <p className="text-sm text-[#888888]">No se encontraron ejercicios.</p>
           <button onClick={() => setBusqueda('')}
@@ -434,7 +466,7 @@ export default function BibliotecaPage() {
             </p>
           </div>
         </div>
-      )}
+      ))}
 
       {/* Modals */}
       {showNew && (
