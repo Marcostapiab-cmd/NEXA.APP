@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getMergedEjercicios, getEjerciciosPropios, saveEjercicioPropio, type EjBiblioteca } from '@/lib/ejercicios';
+import { getRutinasDB, saveRutinaDB, deleteRutinaDB } from '@/lib/rutinas-supabase';
+import { getAlumnos } from '@/lib/alumnos';
 import QuickCreateModal, { type QuickExercise } from './QuickCreateModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1216,13 +1218,55 @@ export default function RutinasPage() {
   const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null);
 
   useEffect(() => {
-    try { const s = localStorage.getItem('nexa_routines'); if (s) setRoutines(JSON.parse(s).map(migrateToCalendar)); } catch {}
-    try { const s = localStorage.getItem('nexa_alumnos');  if (s) setAlumnos(JSON.parse(s)); } catch {}
+    async function loadData() {
+      // Alumnos desde Supabase
+      try {
+        const dbAlumnos = await getAlumnos();
+        if (dbAlumnos.length > 0) {
+          setAlumnos(dbAlumnos);
+          localStorage.setItem('nexa_alumnos', JSON.stringify(dbAlumnos));
+        } else {
+          const s = localStorage.getItem('nexa_alumnos');
+          if (s) setAlumnos(JSON.parse(s));
+        }
+      } catch {
+        try { const s = localStorage.getItem('nexa_alumnos'); if (s) setAlumnos(JSON.parse(s)); } catch {}
+      }
+      // Rutinas desde Supabase
+      try {
+        const dbRutinas = await getRutinasDB();
+        if (dbRutinas.length > 0) {
+          const mapped = dbRutinas.map(r => migrateToCalendar({
+            id: r.id, name: r.nombre,
+            alumnoId: r.alumno_ids[0], alumnoIds: r.alumno_ids,
+            startDate: r.start_date, endDate: r.end_date,
+            sessions: r.sessions, blocks: r.blocks,
+          }));
+          setRoutines(mapped);
+          localStorage.setItem('nexa_routines', JSON.stringify(mapped));
+          return;
+        }
+      } catch {}
+      try { const s = localStorage.getItem('nexa_routines'); if (s) setRoutines(JSON.parse(s).map(migrateToCalendar)); } catch {}
+    }
+    loadData();
   }, []);
 
   function save(next: Routine[]) {
     setRoutines(next);
     localStorage.setItem('nexa_routines', JSON.stringify(next));
+  }
+
+  function syncToSupabase(r: Routine) {
+    saveRutinaDB({
+      id:         r.id,
+      nombre:     r.name,
+      alumno_ids: r.alumnoIds ?? (r.alumnoId ? [r.alumnoId] : []),
+      start_date: r.startDate ?? '',
+      end_date:   r.endDate   ?? '',
+      sessions:   (r.sessions ?? {}) as Record<string, unknown>,
+      blocks:     [],
+    }).catch(() => {});
   }
 
   function handleSelectAlumno(alumno: Alumno) {
@@ -1239,11 +1283,15 @@ export default function RutinasPage() {
       const updated = [newRoutine, ...routines];
       setRoutines(updated);
       localStorage.setItem('nexa_routines', JSON.stringify(updated));
+      syncToSupabase(newRoutine);
     }
     setSelectedAlumno(alumno);
   }
 
-  function updateRoutine(r: Routine) { save(routines.map(x => x.id === r.id ? r : x)); }
+  function updateRoutine(r: Routine) {
+    save(routines.map(x => x.id === r.id ? r : x));
+    syncToSupabase(r);
+  }
 
   const currentRoutine = selectedAlumno
     ? routines.find(r => r.alumnoId === selectedAlumno.id || r.alumnoIds?.[0] === selectedAlumno.id) ?? null

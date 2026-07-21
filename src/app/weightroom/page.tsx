@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Save, Plus, Minus, CheckSquare, Mic, Trophy, CalendarDays, Search, Check, StickyNote, RefreshCw } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { saveSesion, getMaxPeso, type Sesion, type SesionEjercicio, type SesionSerie } from '@/lib/sesiones';
+import { saveSesionDB } from '@/lib/sesiones-supabase';
+import { getRutinasDB } from '@/lib/rutinas-supabase';
+import { getAlumnos } from '@/lib/alumnos';
 import { calc1RM } from '@/lib/mevmrv';
 import { getVideoUrlForExercise, getAllEjercicios, type EjBiblioteca } from '@/lib/ejercicios';
 import VoiceWorkoutLogger, { type ParsedExercise } from '@/components/ejercicios/VoiceWorkoutLogger';
@@ -272,7 +275,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
     if (parsed.generalNotes) setNotas(n => n ? `${n}\n${parsed.generalNotes}` : parsed.generalNotes);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!routine || !activeBlock) return;
     const sesion: Sesion = {
       id: crypto.randomUUID(),
@@ -285,7 +288,8 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       notas,
       ejercicios,
     };
-    saveSesion(sesion);
+    saveSesion(sesion); // localStorage (backup local)
+    saveSesionDB(sesion).catch(() => {}); // Supabase (no bloquea si falla)
     setIsRecording(false);
     setNotas('');
     onSaved();
@@ -601,8 +605,37 @@ export default function WeightroomPage() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    try { const a = localStorage.getItem('nexa_alumnos');  if (a) setAlumnos(JSON.parse(a));  } catch {}
-    try { const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r)); } catch {}
+    async function loadData() {
+      // Alumnos desde Supabase
+      try {
+        const dbAlumnos = await getAlumnos();
+        if (dbAlumnos.length > 0) {
+          setAlumnos(dbAlumnos);
+          localStorage.setItem('nexa_alumnos', JSON.stringify(dbAlumnos));
+        } else {
+          const a = localStorage.getItem('nexa_alumnos');
+          if (a) setAlumnos(JSON.parse(a));
+        }
+      } catch {
+        try { const a = localStorage.getItem('nexa_alumnos'); if (a) setAlumnos(JSON.parse(a)); } catch {}
+      }
+      // Rutinas desde Supabase con fallback a localStorage
+      try {
+        const dbRutinas = await getRutinasDB();
+        if (dbRutinas.length > 0) {
+          const mapped = dbRutinas.map(r => ({
+            id: r.id, name: r.nombre,
+            alumnoId: r.alumno_ids[0], alumnoIds: r.alumno_ids,
+            startDate: r.start_date, endDate: r.end_date,
+            sessions: r.sessions, blocks: r.blocks,
+          }));
+          setRoutines(mapped as unknown as Routine[]);
+          return;
+        }
+      } catch {}
+      try { const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r)); } catch {}
+    }
+    loadData();
   }, []);
 
   useEffect(() => {

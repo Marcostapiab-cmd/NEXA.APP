@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getRutinasDB } from '@/lib/rutinas-supabase';
 
 interface Routine {
   id: string; name: string; exercises: { id: string }[];
@@ -30,7 +31,26 @@ export default function CalendarioPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   useEffect(() => {
-    try { const s = localStorage.getItem('nexa_routines'); if (s) setRoutines(JSON.parse(s)); } catch {}
+    async function loadRoutines() {
+      try {
+        const dbRoutines = await getRutinasDB();
+        if (dbRoutines.length > 0) {
+          setRoutines(dbRoutines.map(r => ({
+            id:        r.id,
+            name:      r.nombre,
+            exercises: [],
+            startDate: r.start_date,
+            endDate:   r.end_date,
+          })));
+          return;
+        }
+      } catch { /* fallback to localStorage */ }
+      try {
+        const s = localStorage.getItem('nexa_routines');
+        if (s) setRoutines(JSON.parse(s));
+      } catch {}
+    }
+    loadRoutines();
   }, []);
 
   const year  = currentDate.getFullYear();
