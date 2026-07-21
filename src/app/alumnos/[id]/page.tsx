@@ -7,14 +7,15 @@ import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp } from 'luc
 import type { Alumno } from '@/app/alumnos/page';
 import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
 import { calc1RM, parseReps } from '@/lib/mevmrv';
-import type { Plan, Reserva } from '@/lib/planes';
-import { RESERVA_LABEL, todayStr } from '@/lib/planes';
+import type { Plan, Reserva, Reagenda } from '@/lib/planes';
+import { RESERVA_LABEL, todayStr, getEffectiveEndDate, formatDate, canReagendar } from '@/lib/planes';
 import PlanFormModal from '@/components/planes/PlanFormModal';
 import PlanStatusCard from '@/components/planes/PlanStatusCard';
 import {
   getPlanesAlumnoDB, upsertPlanDB, deletePlanDB,
   getReservasAlumnoDB, upsertReservaDB, deleteReservaDB,
   recalcUsedClasesDB,
+  getReagendasAlumnoDB, upsertReagendaDB,
 } from '@/lib/planes-supabase';
 
 interface Medicion {
@@ -75,6 +76,8 @@ export default function AlumnoPerfilPage() {
   // Planes y reservas
   const [planes,   setPlanes]   = useState<Plan[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [reagendas,  setReagendas]  = useState<Reagenda[]>([]);
+  const [asignando,  setAsignando]  = useState<{ reagendaId: string; fecha: string } | null>(null);
   const [planModal, setPlanModal] = useState<{ mode: 'create' | 'edit'; plan?: Plan } | null>(null);
   const [newReserva, setNewReserva] = useState<{
     fecha: string; hora: string; tipo: string[];
@@ -109,9 +112,19 @@ export default function AlumnoPerfilPage() {
     try {
       const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r));
     } catch {}
-    // Planes y reservas desde Supabase
+    // Planes, reservas y reagendas desde Supabase
     getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
     getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+    getReagendasAlumnoDB(id).then(rs => {
+      const hoy = todayStr();
+      // Marcar vencidas automáticamente
+      const actualizadas = rs.map(r =>
+        r.estado === 'pendiente' && hoy > r.fechaLimite ? { ...r, estado: 'vencida' as const } : r
+      );
+      setReagendas(actualizadas);
+      actualizadas.filter(r => r.estado === 'vencida' && rs.find(x => x.id === r.id)?.estado === 'pendiente')
+        .forEach(r => upsertReagendaDB(r).catch(() => {}));
+    }).catch(() => {});
   }, [id]);
 
   function saveAlumno(updated: AlumnoExtended) {
@@ -172,6 +185,23 @@ export default function AlumnoPerfilPage() {
       const plan = planes.find(p => p.id === reserva.planId);
       if (plan) upsertPlanDB({ ...plan, usedClases: newCount }).catch(() => {});
     }
+    // Auto-crear reagenda si se marca como "reagendada" y no existe ya una
+    if (nuevoEstado === 'reagendada') {
+      const yaExiste = reagendas.some(r => r.reservaOriginalId === reservaId);
+      if (!yaExiste) {
+        const plan = planes.find(p => p.id === reserva.planId);
+        if (plan) {
+          const reagenda: Reagenda = {
+            id: crypto.randomUUID(), alumnoId: id, planId: reserva.planId,
+            reservaOriginalId: reservaId,
+            fechaLimite: getEffectiveEndDate(plan),
+            estado: 'pendiente', creadaAt: new Date().toISOString(),
+          };
+          await upsertReagendaDB(reagenda).catch(() => {});
+          setReagendas(prev => [reagenda, ...prev]);
+        }
+      }
+    }
   }
 
   async function handleCreateReserva() {
@@ -211,6 +241,26 @@ export default function AlumnoPerfilPage() {
     await Promise.all(nuevas.map(r => upsertReservaDB(r).catch(() => {})));
     setReservas(prev => [...nuevas, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
     setNewReserva(null);
+  }
+
+  async function handleAsignarReagenda(reagendaId: string, nuevaFecha: string) {
+    const reagenda = reagendas.find(r => r.id === reagendaId);
+    if (!reagenda) return;
+    const check = canReagendar(reagenda, nuevaFecha);
+    if (!check.ok) { alert(check.reason); return; }
+    // Crear nueva reserva vinculada a la reagenda
+    const nuevaReserva: Reserva = {
+      id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
+      fecha: nuevaFecha, estado: 'pendiente',
+      reagendaId: reagenda.id, creadaAt: new Date().toISOString(),
+    };
+    await upsertReservaDB(nuevaReserva).catch(() => {});
+    setReservas(prev => [nuevaReserva, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
+    // Marcar reagenda como completada
+    const reagendaCompletada: Reagenda = { ...reagenda, nuevaReservaId: nuevaReserva.id, estado: 'completada' };
+    await upsertReagendaDB(reagendaCompletada).catch(() => {});
+    setReagendas(prev => prev.map(r => r.id === reagendaId ? reagendaCompletada : r));
+    setAsignando(null);
   }
 
   async function handleDeleteReserva(reservaId: string) {
@@ -459,6 +509,88 @@ export default function AlumnoPerfilPage() {
               </div>
             )}
           </div>
+
+          {/* Reagendas */}
+          {reagendas.length > 0 && (
+            <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
+              <p className={`mb-3 ${SL}`}>Reagendas</p>
+              <div className="space-y-2">
+                {reagendas.map(r => {
+                  const reservaOrig = reservas.find(x => x.id === r.reservaOriginalId);
+                  const isPendiente = r.estado === 'pendiente';
+                  const isVencida   = r.estado === 'vencida';
+                  const estaAsignando = asignando?.reagendaId === r.id;
+
+                  return (
+                    <div key={r.id} className={`rounded-[8px] border px-3 py-2.5 ${
+                      isPendiente ? 'border-[#f97316]/40 bg-[#fff7ed]' :
+                      isVencida   ? 'border-[#CACACA] bg-[#F5F5F5] opacity-60' :
+                                    'border-[#22c55e]/30 bg-[#f0fdf4]'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-[#121212]">
+                            Clase del {reservaOrig ? reservaOrig.fecha : '—'}
+                            {reservaOrig?.hora && ` · ${reservaOrig.hora}`}
+                          </p>
+                          <p className="text-[11px] text-[#5E5E5E]">
+                            {isPendiente && `Reagendar antes del ${formatDate(r.fechaLimite)}`}
+                            {isVencida   && `Vencida el ${formatDate(r.fechaLimite)}`}
+                            {r.estado === 'completada' && (() => {
+                              const nueva = reservas.find(x => x.id === r.nuevaReservaId);
+                              return `Reagendada al ${nueva ? nueva.fecha : '—'}`;
+                            })()}
+                          </p>
+                        </div>
+                        {isPendiente && !estaAsignando && (
+                          <button
+                            onClick={() => setAsignando({ reagendaId: r.id, fecha: todayStr() })}
+                            className="shrink-0 rounded-lg border border-[#f97316]/50 bg-white px-3 py-1.5 text-xs font-semibold text-[#f97316] transition hover:bg-[#f97316] hover:text-white">
+                            Asignar fecha
+                          </button>
+                        )}
+                        {r.estado === 'completada' && (
+                          <span className="shrink-0 text-xs font-semibold text-[#22c55e]">✓ Completada</span>
+                        )}
+                        {isVencida && (
+                          <span className="shrink-0 text-xs text-[#9B9B9B]">Vencida</span>
+                        )}
+                      </div>
+
+                      {/* Formulario inline para asignar fecha */}
+                      {estaAsignando && (
+                        <div className="mt-3 space-y-2 border-t border-[#f97316]/20 pt-3">
+                          <p className="text-[11px] text-[#5E5E5E]">
+                            Fecha límite: <strong>{formatDate(r.fechaLimite)}</strong>
+                          </p>
+                          <input
+                            type="date"
+                            value={asignando.fecha}
+                            min={todayStr()}
+                            max={r.fechaLimite}
+                            onChange={e => setAsignando(p => p ? { ...p, fecha: e.target.value } : p)}
+                            className="w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAsignarReagenda(r.id, asignando.fecha)}
+                              className="flex-1 rounded-lg bg-[#121212] py-2 text-xs font-bold text-white transition hover:bg-[#3E3E3E]">
+                              Confirmar
+                            </button>
+                            <button
+                              onClick={() => setAsignando(null)}
+                              className="rounded-lg border border-[#CACACA] px-4 py-2 text-xs text-[#5E5E5E] transition hover:border-[#888]">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Session history */}
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">

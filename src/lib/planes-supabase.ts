@@ -154,6 +154,43 @@ export async function getReservasFechaDB(fecha: string): Promise<Reserva[]> {
   }));
 }
 
+// ─── Reagendas ────────────────────────────────────────────────────────────────
+
+export async function getReagendasAlumnoDB(alumnoId: string): Promise<Reagenda[]> {
+  const { data, error } = await supabase
+    .from('reagendas')
+    .select('*')
+    .eq('alumno_id', alumnoId)
+    .order('creada_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id:                String(r.id),
+    alumnoId:          String(r.alumno_id),
+    planId:            String(r.plan_id),
+    reservaOriginalId: String(r.reserva_original_id),
+    nuevaReservaId:    r.nueva_reserva_id ? String(r.nueva_reserva_id) : undefined,
+    fechaLimite:       String(r.fecha_limite),
+    estado:            String(r.estado) as Reagenda['estado'],
+    motivo:            r.motivo ? String(r.motivo) : undefined,
+    creadaAt:          String(r.creada_at),
+  }));
+}
+
+export async function upsertReagendaDB(reagenda: Reagenda): Promise<void> {
+  const { error } = await supabase.from('reagendas').upsert({
+    id:                   reagenda.id,
+    alumno_id:            reagenda.alumnoId,
+    plan_id:              reagenda.planId,
+    reserva_original_id:  reagenda.reservaOriginalId,
+    nueva_reserva_id:     reagenda.nuevaReservaId  || null,
+    fecha_limite:         reagenda.fechaLimite,
+    estado:               reagenda.estado,
+    motivo:               reagenda.motivo           || null,
+    creada_at:            reagenda.creadaAt,
+  });
+  if (error) throw error;
+}
+
 // Recalcula usedClases de un plan contando reservas que queman clase
 export async function recalcUsedClasesDB(planId: string, alumnoId: string): Promise<number> {
   const { data, error } = await supabase
