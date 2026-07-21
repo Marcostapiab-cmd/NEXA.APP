@@ -77,7 +77,7 @@ export default function AlumnoPerfilPage() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [planModal, setPlanModal] = useState<{ mode: 'create' | 'edit'; plan?: Plan } | null>(null);
   const [newReserva, setNewReserva] = useState<{
-    fecha: string; hora: string; descripcion: string;
+    fecha: string; hora: string; tipo: string[];
     repetir: boolean; diasSemana: number[]; fechaFin: string;
   } | null>(null);
 
@@ -201,10 +201,11 @@ export default function AlumnoPerfilPage() {
       fechas = [newReserva.fecha];
     }
 
+    const descripcion = newReserva.tipo.length > 0 ? newReserva.tipo.join(' · ') : undefined;
     const nuevas: Reserva[] = fechas.map(fecha => ({
       id: crypto.randomUUID(), alumnoId: id, planId: planActivo.id,
       fecha, hora: newReserva.hora || undefined,
-      descripcion: newReserva.descripcion || undefined,
+      descripcion,
       estado: 'pendiente' as const, creadaAt: new Date().toISOString(),
     }));
     await Promise.all(nuevas.map(r => upsertReservaDB(r).catch(() => {})));
@@ -308,7 +309,7 @@ export default function AlumnoPerfilPage() {
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Reservas y asistencia ({reservas.length})</p>
-              <button onClick={() => setNewReserva({ fecha: todayStr(), hora: '', descripcion: '', repetir: false, diasSemana: [], fechaFin: '' })}
+              <button onClick={() => setNewReserva({ fecha: todayStr(), hora: '', tipo: [], repetir: false, diasSemana: [], fechaFin: '' })}
                 className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
                 <Plus className="h-3 w-3" /> Nueva
               </button>
@@ -331,10 +332,26 @@ export default function AlumnoPerfilPage() {
                   </div>
                 </div>
                 <div>
-                  <label className={LC}>Descripción</label>
-                  <input value={newReserva.descripcion}
-                    onChange={e => setNewReserva(p => p ? { ...p, descripcion: e.target.value } : p)}
-                    placeholder="Ej: Clase de fuerza" className={IC} />
+                  <label className={LC}>Tipo de clase</label>
+                  <div className="flex gap-2">
+                    {['1:1', '2:1', 'Grupal'].map(t => {
+                      const sel = newReserva.tipo.includes(t);
+                      return (
+                        <button key={t} type="button"
+                          onClick={() => setNewReserva(p => p ? {
+                            ...p,
+                            tipo: sel ? p.tipo.filter(x => x !== t) : [...p.tipo, t],
+                          } : p)}
+                          className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${
+                            sel
+                              ? 'border-[#121212] bg-[#121212] text-white'
+                              : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
+                          }`}>
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Repetir semanalmente */}
@@ -352,7 +369,7 @@ export default function AlumnoPerfilPage() {
 
                 {newReserva.repetir && (() => {
                   const DIAS = [
-                    { label: 'L', day: 1 }, { label: 'M', day: 2 }, { label: 'X', day: 3 },
+                    { label: 'L', day: 1 }, { label: 'M', day: 2 }, { label: 'Mi', day: 3 },
                     { label: 'J', day: 4 }, { label: 'V', day: 5 }, { label: 'S', day: 6 }, { label: 'D', day: 0 },
                   ];
                   return (
