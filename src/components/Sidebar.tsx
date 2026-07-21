@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, Users, Dumbbell } from 'lucide-react';
+import { Home, Calendar, Users, Dumbbell, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { href: '/rutinas',    label: 'Calendario', shortLabel: 'Cal',    Icon: Calendar },
   { href: '/alumnos',    label: 'Alumnos',    shortLabel: 'Alumn',  Icon: Users },
   { href: '/weightroom', label: 'Weightroom', shortLabel: 'WR',     Icon: Dumbbell },
+  { href: '/progreso',   label: 'Progreso',   shortLabel: 'Prog',   Icon: TrendingUp },
 ];
 
 const AUTH_ROUTES = ['/', '/login'];

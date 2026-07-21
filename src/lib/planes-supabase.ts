@@ -113,6 +113,26 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
   }));
 }
 
+// Todas las reservas (para estadísticas de progreso)
+export async function getAllReservasDB(): Promise<Reserva[]> {
+  const { data, error } = await supabase
+    .from('reservas')
+    .select('*')
+    .order('fecha', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id:          String(r.id),
+    alumnoId:    String(r.alumno_id),
+    planId:      String(r.plan_id),
+    fecha:       String(r.fecha),
+    hora:        r.hora ? String(r.hora) : undefined,
+    descripcion: r.descripcion ? String(r.descripcion) : undefined,
+    estado:      String(r.estado) as Reserva['estado'],
+    reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
+    creadaAt:    String(r.creada_at),
+  }));
+}
+
 // Reservas de una fecha específica (para el dashboard)
 export async function getReservasFechaDB(fecha: string): Promise<Reserva[]> {
   const { data, error } = await supabase
