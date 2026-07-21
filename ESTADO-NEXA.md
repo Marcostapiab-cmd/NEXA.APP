@@ -32,22 +32,19 @@
 
 ---
 
+### Planes y Reservas
+- **Qué guarda:** planes de clases por alumno (mensual/trimestral/personalizado), reservas con estado de asistencia
+- **Tablas en Supabase:** `planes`, `reservas`, `reagendas`
+- **Operaciones:** crear/editar/eliminar plan, crear reservas únicas o recurrentes (días de semana), cambiar estado de asistencia con recálculo automático de clases usadas
+- **Lógica de negocio:** presente/no_show/cancelada_tarde queman clase; cancelada_nexa/bloqueada NO queman
+- **UI:** integrado en el perfil del alumno `/alumnos/[id]`
+
 ## ❌ Secciones que todavía faltan conectar
 
-### Planes
-- **Qué guarda hoy:** planes de clases por atleta (mensual/trimestral/personalizado), con total de clases y fechas
-- **Guardado actual:** navegador (`nexa_planes`)
-- **Tabla en Supabase:** no existe todavía — hay que crearla
-
-### Reservas
-- **Qué guarda hoy:** reservas de clases por atleta, con fecha, hora y estado
-- **Guardado actual:** navegador (`nexa_reservas`)
-- **Tabla en Supabase:** no existe todavía — hay que crearla
-
 ### Reagendas
-- **Qué guarda hoy:** solicitudes de cambio de fecha para una clase reservada
+- **Qué guarda hoy:** solicitudes de cambio de fecha vinculadas a una reserva original
 - **Guardado actual:** navegador (`nexa_reagendas`)
-- **Tabla en Supabase:** no existe todavía — hay que crearla
+- **Tabla en Supabase:** existe (`reagendas`) pero sin UI conectada todavía
 
 ### Dashboard
 - **Qué muestra:** resumen general (alumnos activos, sesiones recientes, alertas)
