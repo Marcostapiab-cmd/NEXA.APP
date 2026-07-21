@@ -136,14 +136,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => router.push('/dashboard')}
-          className="mt-4 w-full rounded-xl border border-dashed border-[#555] py-2.5 text-[11px] text-[#888] transition hover:border-[#aaa] hover:text-[#ccc]"
-        >
-          Entrar sin login (solo desarrollo local)
-        </button>
-
         <p
           className="mt-8 text-center text-[11px] font-medium uppercase tracking-[0.1em]"
           style={{ color: 'var(--nexa-ghost)' }}
