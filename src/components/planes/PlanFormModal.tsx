@@ -11,8 +11,8 @@ import {
   addDays,
 } from '@/lib/planes';
 
-const IC = 'w-full rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder-[#444444] outline-none transition focus:border-[#f97316]';
-const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]';
+const IC = 'w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]';
+const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]';
 
 type FormData = Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>;
 
@@ -90,18 +90,18 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
   const endWarning = f.endDate && f.startDate && f.endDate < f.startDate;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/85 p-4 pt-12 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-[#2a2a2a] bg-[#141414] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 p-4 pt-12 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-[#C8C8C8] bg-[#EBEBEB] shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[#C8C8C8] px-5 py-4">
           <div>
-            <p className="text-sm font-bold text-white">
+            <p className="text-sm font-bold text-[#121212]">
               {isEdit ? 'Editar plan' : 'Nuevo plan'}
             </p>
-            <p className="mt-0.5 text-xs text-[#555555]">{alumnoNombre}</p>
+            <p className="mt-0.5 text-xs text-[#777777]">{alumnoNombre}</p>
           </div>
-          <button onClick={onClose} className="rounded-xl border border-[#2a2a2a] p-2 text-[#555555] transition hover:border-[#444444] hover:text-white">
+          <button onClick={onClose} className="rounded-xl border border-[#C8C8C8] p-2 text-[#777777] transition hover:border-[#888888] hover:text-[#121212]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -118,8 +118,8 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                     <button key={opt.value} type="button" onClick={() => handleTipo(opt.value)}
                       className={`rounded-xl border py-3 text-center transition ${
                         f.tipo === opt.value
-                          ? 'border-[#f97316] bg-[#f9731610] text-[#f97316]'
-                          : 'border-[#2a2a2a] text-[#555555] hover:border-[#3a3a3a] hover:text-white'
+                          ? 'border-[#121212] bg-[#121212]/6 text-[#121212]'
+                          : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B] hover:text-[#121212]'
                       }`}>
                       <p className="text-xs font-bold">{opt.label}</p>
                       <p className="mt-0.5 text-[10px] opacity-60">{opt.desc}</p>
@@ -143,8 +143,8 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                     <button key={n} type="button" onClick={() => set('totalClases', n)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
                         f.totalClases === n
-                          ? 'border-[#f97316] bg-[#f9731610] text-[#f97316]'
-                          : 'border-[#2a2a2a] text-[#555555] hover:border-[#3a3a3a] hover:text-white'
+                          ? 'border-[#121212] bg-[#121212]/6 text-[#121212]'
+                          : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B] hover:text-[#121212]'
                       }`}>
                       {n}
                     </button>
@@ -162,7 +162,7 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                   <input type="number" min={0} max={f.totalClases} value={f.usedClases}
                     onChange={e => set('usedClases', Math.min(f.totalClases, parseInt(e.target.value) || 0))}
                     className={IC} />
-                  <p className="mt-1 text-[11px] text-[#444444]">
+                  <p className="mt-1 text-[11px] text-[#888888]">
                     Restantes: {Math.max(0, f.totalClases - f.usedClases)} clases
                   </p>
                 </div>
@@ -185,7 +185,7 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                         if (!autoEnd) set('endDate', calcEndDate(f.startDate, f.tipo));
                       }}
                         className={`text-[9px] font-bold uppercase tracking-wider transition ${
-                          autoEnd ? 'text-[#f97316]' : 'text-[#444444] hover:text-white'
+                          autoEnd ? 'text-[#121212]' : 'text-[#888888] hover:text-[#121212]'
                         }`}>
                         {autoEnd ? 'AUTO' : 'MANUAL'}
                       </button>
@@ -194,11 +194,11 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                   <input type="date" value={f.endDate}
                     onChange={e => { set('endDate', e.target.value); setAutoEnd(false); }}
                     required readOnly={autoEnd && f.tipo !== 'personalizado'}
-                    className={IC + (endWarning ? ' border-red-900' : '')} />
+                    className={IC + (endWarning ? ' border-[#B44040]/30' : '')} />
                 </div>
               </div>
               {endWarning && (
-                <p className="text-xs text-red-500">La fecha de fin no puede ser anterior al inicio.</p>
+                <p className="text-xs text-[#B44040]">La fecha de fin no puede ser anterior al inicio.</p>
               )}
 
               {/* Extensión (solo edit) */}
@@ -206,13 +206,13 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                 <div>
                   <label className={LC}>Extender vigencia hasta (opcional)</label>
                   <div className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 shrink-0 text-[#555555]" />
+                    <CalendarDays className="h-4 w-4 shrink-0 text-[#777777]" />
                     <input type="date" value={f.extendedUntil ?? ''}
                       min={f.endDate}
                       onChange={e => set('extendedUntil', e.target.value)}
                       className={IC} />
                   </div>
-                  <p className="mt-1 text-[11px] text-[#444444]">
+                  <p className="mt-1 text-[11px] text-[#888888]">
                     Deja en blanco para usar la fecha original de vencimiento.
                   </p>
                 </div>
@@ -230,13 +230,13 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
           </div>
 
           {/* Footer */}
-          <div className="flex gap-3 border-t border-[#2a2a2a] px-5 py-4">
+          <div className="flex gap-3 border-t border-[#C8C8C8] px-5 py-4">
             <button type="button" onClick={onClose}
-              className="flex-1 rounded-xl border border-[#2a2a2a] py-2.5 text-sm font-medium text-[#888888] transition hover:border-[#444444] hover:text-white">
+              className="flex-1 rounded-xl border border-[#C8C8C8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
               Cancelar
             </button>
             <button type="submit" disabled={!!endWarning}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f97316] py-2.5 text-sm font-bold text-white transition hover:bg-[#ea6c0c] disabled:opacity-40">
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
               <Save className="h-4 w-4" />
               {isEdit ? 'Guardar cambios' : 'Crear plan'}
             </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { GripVertical, Trash2, Pencil } from 'lucide-react';
+import { GripVertical, Trash2, Pencil, PlayCircle } from 'lucide-react';
 import { MUSCLE_HEX, BLOQUE_HEX, type Exercise } from './types';
 
 interface Props {
@@ -20,7 +20,7 @@ export default function ExerciseCard({
   exercise, index, isDragging, isDragOver,
   onEdit, onDelete, onDragStart, onDragOver, onDrop, onDragEnd,
 }: Props) {
-  const muscleHex  = MUSCLE_HEX[exercise.muscle ?? '']  ?? '#555555';
+  const muscleHex  = MUSCLE_HEX[exercise.muscle ?? '']  ?? '#777777';
   const bloqueHex  = exercise.bloque ? BLOQUE_HEX[exercise.bloque] : null;
   const hasBloque  = exercise.bloque && exercise.bloque !== 'N/A';
 
@@ -38,18 +38,18 @@ export default function ExerciseCard({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={`group cursor-grab transition-colors ${
-        isDragOver  ? 'bg-white/[0.06]' :
+        isDragOver  ? 'bg-black/[0.06]' :
         isDragging  ? 'opacity-40' :
-        'hover:bg-white/[0.02]'
+        'hover:bg-black/[0.02]'
       }`}
     >
       {/* Drag handle */}
-      <td className="py-3 pl-2 pr-1 text-[#2a2a2a] group-hover:text-[#444444]">
+      <td className="py-3 pl-2 pr-1 text-[#AAAAAA] group-hover:text-[#888888]">
         <GripVertical className="h-3.5 w-3.5" />
       </td>
 
       {/* Row number */}
-      <td className="px-2 py-3 text-xs font-mono text-[#333333]">{index + 1}</td>
+      <td className="px-2 py-3 text-xs font-mono text-[#9B9B9B]">{index + 1}</td>
 
       {/* Bloque badge */}
       <td className="px-1 py-3">
@@ -59,26 +59,34 @@ export default function ExerciseCard({
             {exercise.bloque}
           </span>
         ) : (
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[9px] text-[#2a2a2a]">—</span>
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[9px] text-[#AAAAAA]">—</span>
         )}
       </td>
 
       {/* Name */}
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-white">{exercise.name}</span>
+          <span className="font-semibold text-[#121212]">{exercise.name}</span>
+          {exercise.youtubeUrl && (
+            <a href={exercise.youtubeUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              title="Ver video"
+              className="shrink-0 text-[#9B9B9B] transition hover:text-[#121212]">
+              <PlayCircle className="h-3.5 w-3.5" />
+            </a>
+          )}
           {exercise.bodyWeight && (
-            <span className="rounded bg-[#1e1e1e] px-1.5 py-0.5 text-[9px] text-[#555555]">BW</span>
+            <span className="rounded bg-[#E0E0E0] px-1.5 py-0.5 text-[9px] text-[#777777]">BW</span>
           )}
           {exercise.completionLift && (
-            <span className="rounded px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: '#D4AF3725', color: '#D4AF37' }}>1RM</span>
+            <span className="rounded px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: '#12121206', color: '#121212' }}>1RM</span>
           )}
           {exercise.eachSide && (
-            <span className="rounded bg-[#1e1e1e] px-1.5 py-0.5 text-[9px] text-[#555555]">×2</span>
+            <span className="rounded bg-[#E0E0E0] px-1.5 py-0.5 text-[9px] text-[#777777]">×2</span>
           )}
         </div>
         {exercise.notas && (
-          <p className="mt-0.5 truncate text-[11px] text-[#333333]">{exercise.notas}</p>
+          <p className="mt-0.5 truncate text-[11px] text-[#9B9B9B]">{exercise.notas}</p>
         )}
       </td>
 
@@ -92,18 +100,18 @@ export default function ExerciseCard({
       </td>
 
       {/* Sets × Reps */}
-      <td className="px-3 py-3 text-sm font-medium text-[#888888] tabular-nums">{repsDisplay}</td>
+      <td className="px-3 py-3 text-sm font-medium text-[#5E5E5E] tabular-nums">{repsDisplay}</td>
 
       {/* Weight */}
-      <td className="px-3 py-3 text-sm text-[#666666]">
+      <td className="px-3 py-3 text-sm text-[#6E6E6E]">
         {exercise.weight ? `${exercise.weight} kg` : '—'}
       </td>
 
       {/* Rest + Tempo */}
-      <td className="px-3 py-3 text-xs text-[#444444]">
+      <td className="px-3 py-3 text-xs text-[#888888]">
         <div className="flex flex-col gap-0.5">
           {exercise.rest && <span>{exercise.rest}</span>}
-          {exercise.tempo && <span className="text-[#333333]">{exercise.tempo}</span>}
+          {exercise.tempo && <span className="text-[#9B9B9B]">{exercise.tempo}</span>}
         </div>
       </td>
 
@@ -111,11 +119,11 @@ export default function ExerciseCard({
       <td className="py-3 pr-2 text-right">
         <div className="flex items-center justify-end gap-1">
           <button onClick={onEdit}
-            className="rounded-lg p-1.5 text-[#2a2a2a] transition hover:bg-[#1e1e1e] hover:text-[#888888]">
+            className="rounded-lg p-1.5 text-[#AAAAAA] transition hover:bg-[#E0E0E0] hover:text-[#5E5E5E]">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button onClick={onDelete}
-            className="rounded-lg p-1 text-[#2a2a2a] transition hover:bg-red-950/40 hover:text-red-500">
+            className="rounded-lg p-1 text-[#AAAAAA] transition hover:bg-[#FAEAEA] hover:text-[#B44040]">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>

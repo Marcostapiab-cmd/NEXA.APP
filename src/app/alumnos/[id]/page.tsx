@@ -23,9 +23,9 @@ interface Routine {
 }
 
 const DAY_LONG  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-const IC = 'w-full rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] px-4 py-3 text-sm text-white placeholder-[#444] outline-none transition focus:border-[#D4AF37]' as const;
-const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#888888]' as const;
-const SL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#888888]' as const;
+const IC = 'w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-4 py-3 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#121212]' as const;
+const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#5E5E5E]' as const;
+const SL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]' as const;
 
 function isActive(r: Routine) {
   if (!r.startDate || !r.endDate) return false;
@@ -45,9 +45,9 @@ function PesoChart({ puntos }: { puntos: { fecha: string; peso: number }[] }) {
   const path = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(i)},${yScale(p.peso)}`).join(' ');
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      <polyline fill="none" stroke="#D4AF37" strokeWidth="1.5" points={puntos.map((p, i) => `${xScale(i)},${yScale(p.peso)}`).join(' ')} />
+      <polyline fill="none" stroke="#121212" strokeWidth="1.5" points={puntos.map((p, i) => `${xScale(i)},${yScale(p.peso)}`).join(' ')} />
       {puntos.map((p, i) => (
-        <circle key={i} cx={xScale(i)} cy={yScale(p.peso)} r="3" fill="#D4AF37" />
+        <circle key={i} cx={xScale(i)} cy={yScale(p.peso)} r="3" fill="#121212" />
       ))}
     </svg>
   );
@@ -105,7 +105,7 @@ export default function AlumnoPerfilPage() {
   if (!alumno) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-[#888888]">Alumno no encontrado.</p>
+        <p className="text-[#5E5E5E]">Alumno no encontrado.</p>
       </main>
     );
   }
@@ -128,18 +128,18 @@ export default function AlumnoPerfilPage() {
       {/* Back + header */}
       <div className="mb-6 flex items-start gap-4">
         <button onClick={() => router.back()}
-          className="mt-0.5 rounded-lg border border-[#2A2A2A] p-2 text-[#888888] transition hover:border-[#D4AF37] hover:text-[#D4AF37]">
+          className="mt-0.5 rounded-lg border border-[#CACACA] p-2 text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex flex-1 items-center gap-4">
           {alumno.foto
             ? <img src={alumno.foto} alt="" className="h-16 w-16 rounded-xl object-cover" />
-            : <div className="flex h-16 w-16 items-center justify-center rounded-xl text-2xl font-black" style={{ background: '#D4AF37', color: '#000000' }}>
+            : <div className="flex h-16 w-16 items-center justify-center rounded-xl text-2xl font-black" style={{ background: '#121212', color: '#FFFFFF' }}>
                 {alumno.nombre[0]?.toUpperCase()}
               </div>}
           <div>
-            <h1 className="text-xl font-bold text-white">{alumno.nombre} {alumno.apellido}</h1>
-            <div className="mt-0.5 flex flex-wrap gap-3 text-xs text-[#888888]">
+            <h1 className="text-xl font-bold text-[#121212]">{alumno.nombre} {alumno.apellido}</h1>
+            <div className="mt-0.5 flex flex-wrap gap-3 text-xs text-[#5E5E5E]">
               {alumno.email && <span>{alumno.email}</span>}
               {edad && <span>{edad} años</span>}
               {alumno.altura && <span>{alumno.altura} cm</span>}
@@ -154,22 +154,22 @@ export default function AlumnoPerfilPage() {
         <div className="space-y-4">
 
           {/* Active routines */}
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <p className={`mb-3 ${SL}`}>Rutinas activas</p>
             {activeRoutines.length === 0 ? (
-              <p className="text-sm text-[#888888]">Sin rutinas activas. Asigna una en /rutinas.</p>
+              <p className="text-sm text-[#5E5E5E]">Sin rutinas activas. Asigna una en /rutinas.</p>
             ) : (
               <div className="space-y-2">
                 {activeRoutines.map(r => {
                   const diasStr = [...r.selectedDays].sort((a,b)=>a-b).map(d => DAY_LONG[d].slice(0,3)).join(' · ');
                   return (
-                    <div key={r.id} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
-                      <p className="font-semibold text-white">{r.name}</p>
-                      <p className="mt-1 text-xs text-[#888888]">{diasStr} · {r.weeks} semanas</p>
-                      <p className="text-xs text-[#888888]">{r.startDate} → {r.endDate}</p>
+                    <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
+                      <p className="font-semibold text-[#121212]">{r.name}</p>
+                      <p className="mt-1 text-xs text-[#5E5E5E]">{diasStr} · {r.weeks} semanas</p>
+                      <p className="text-xs text-[#5E5E5E]">{r.startDate} → {r.endDate}</p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {r.blocks.map(b => (
-                          <span key={b.id} className="rounded-md border border-[#2a2a2a] px-2 py-0.5 text-xs text-[#888888]">
+                          <span key={b.id} className="rounded-md border border-[#CACACA] px-2 py-0.5 text-xs text-[#5E5E5E]">
                             {b.name}
                           </span>
                         ))}
@@ -182,44 +182,44 @@ export default function AlumnoPerfilPage() {
           </div>
 
           {/* Session history */}
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <p className={`mb-3 ${SL}`}>Historial de sesiones ({sesiones.length})</p>
             {sesiones.length === 0 ? (
-              <p className="text-sm text-[#888888]">Sin sesiones registradas.</p>
+              <p className="text-sm text-[#5E5E5E]">Sin sesiones registradas.</p>
             ) : (
               <div className="space-y-2">
                 {sesiones.map(s => {
                   const isExp = expandedSesion === s.id;
                   return (
-                    <div key={s.id} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A]">
+                    <div key={s.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4]">
                       <button onClick={() => setExpandedSesion(isExp ? null : s.id)}
                         className="flex w-full items-center justify-between px-3 py-2.5 text-left">
                         <div>
-                          <p className="text-sm font-medium text-white">{s.bloqueNombre}</p>
-                          <p className="text-xs text-[#888888]">{s.fecha} · {s.ejercicios.length} ejercicios</p>
+                          <p className="text-sm font-medium text-[#121212]">{s.bloqueNombre}</p>
+                          <p className="text-xs text-[#5E5E5E]">{s.fecha} · {s.ejercicios.length} ejercicios</p>
                         </div>
-                        {isExp ? <ChevronUp className="h-4 w-4 text-[#888888]" /> : <ChevronDown className="h-4 w-4 text-[#888888]" />}
+                        {isExp ? <ChevronUp className="h-4 w-4 text-[#5E5E5E]" /> : <ChevronDown className="h-4 w-4 text-[#5E5E5E]" />}
                       </button>
                       {isExp && (
-                        <div className="border-t border-[#2a2a2a] px-3 pb-3 pt-2">
-                          {s.notas && <p className="mb-2 text-xs text-[#888888] italic">"{s.notas}"</p>}
+                        <div className="border-t border-[#CACACA] px-3 pb-3 pt-2">
+                          {s.notas && <p className="mb-2 text-xs text-[#5E5E5E] italic">"{s.notas}"</p>}
                           <div className="space-y-2">
                             {s.ejercicios.map((ej, i) => {
                               const maxPeso = Math.max(...ej.series.filter(s=>s.completada).map(s=>parseFloat(s.peso)||0));
                               const repsNum = parseReps(ej.series[0]?.reps);
                               const rm = maxPeso && repsNum ? calc1RM(maxPeso, repsNum) : null;
                               return (
-                                <div key={i} className="rounded-md bg-[#1a1a1a] px-3 py-2">
+                                <div key={i} className="rounded-md bg-[#E4E4E4] px-3 py-2">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-white">{ej.nombre}</p>
-                                    {rm && <span className="text-xs text-[#888888]">1RM ~{rm} kg</span>}
+                                    <p className="text-sm font-medium text-[#121212]">{ej.nombre}</p>
+                                    {rm && <span className="text-xs text-[#5E5E5E]">1RM ~{rm} kg</span>}
                                   </div>
                                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                                     {ej.series.map((serie, j) => (
                                       <span key={j} className={`rounded-md border px-2 py-0.5 text-xs ${
                                         serie.completada
-                                          ? 'border-[#333333] bg-[#111111] text-white'
-                                          : 'border-[#2a2a2a] text-[#444444] line-through'
+                                          ? 'border-[#E8E8E8] bg-[#F0F0F0] text-[#121212]'
+                                          : 'border-[#CACACA] text-[#9B9B9B] line-through'
                                       }`}>
                                         {serie.reps}×{serie.peso}kg
                                       </span>
@@ -240,9 +240,9 @@ export default function AlumnoPerfilPage() {
 
           {/* Progress per exercise */}
           {ejerciciosUnicos.length > 0 && (
-            <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
+            <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
               <div className="mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-[#D4AF37]" />
+                <TrendingUp className="h-4 w-4 text-[#121212]" />
                 <p className={SL}>Progresión de carga</p>
               </div>
               <div className="space-y-4">
@@ -251,14 +251,14 @@ export default function AlumnoPerfilPage() {
                   const ultimo = historial[historial.length - 1];
                   if (!ultimo) return null;
                   return (
-                    <div key={nombre} className="rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
+                    <div key={nombre} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-white">{nombre}</p>
-                        <span className="text-sm font-bold" style={{ color: '#D4AF37' }}>{ultimo.peso} kg</span>
+                        <p className="text-sm font-semibold text-[#121212]">{nombre}</p>
+                        <span className="text-sm font-bold" style={{ color: '#121212' }}>{ultimo.peso} kg</span>
                       </div>
                       {historial.length >= 2 && <PesoChart puntos={historial} />}
                       {historial.length < 2 && (
-                        <p className="mt-1 text-xs text-[#888888]">1 sesión registrada</p>
+                        <p className="mt-1 text-xs text-[#5E5E5E]">1 sesión registrada</p>
                       )}
                     </div>
                   );
@@ -270,17 +270,17 @@ export default function AlumnoPerfilPage() {
 
         {/* Right column: metrics */}
         <div className="space-y-4">
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Métricas corporales</p>
               <button onClick={() => setShowMedicion(!showMedicion)}
-                className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] px-2.5 py-1 text-xs text-[#888888] transition hover:border-[#D4AF37] hover:text-[#D4AF37]">
+                className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
                 <Plus className="h-3 w-3" /> Nueva
               </button>
             </div>
 
             {showMedicion && (
-              <div className="mb-4 space-y-3 rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-3">
+              <div className="mb-4 space-y-3 rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
                 <div>
                   <label className={LC}>Fecha</label>
                   <input type="date" value={medForm.fecha}
@@ -322,29 +322,29 @@ export default function AlumnoPerfilPage() {
             )}
 
             {pesoChartData.length >= 2 && (
-              <div className="mb-3 rounded-[8px] border border-[#2A2A2A] bg-[#1A1A1A] p-2">
-                <p className="mb-1 text-xs text-[#888888]">Evolución del peso</p>
+              <div className="mb-3 rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-2">
+                <p className="mb-1 text-xs text-[#5E5E5E]">Evolución del peso</p>
                 <PesoChart puntos={pesoChartData} />
               </div>
             )}
 
             {mediciones.length === 0 ? (
-              <p className="text-sm text-[#888888]">Sin mediciones registradas.</p>
+              <p className="text-sm text-[#5E5E5E]">Sin mediciones registradas.</p>
             ) : (
               <div className="space-y-2">
                 {mediciones.slice(0, 10).map(m => (
-                  <div key={m.id} className="flex items-start justify-between rounded-md border border-[#2a2a2a] bg-[#111111] px-3 py-2.5">
+                  <div key={m.id} className="flex items-start justify-between rounded-md border border-[#CACACA] bg-[#F0F0F0] px-3 py-2.5">
                     <div>
-                      <p className="text-xs text-[#888888]">{m.fecha}</p>
-                      <div className="mt-0.5 flex flex-wrap gap-2 text-sm font-semibold text-white">
+                      <p className="text-xs text-[#5E5E5E]">{m.fecha}</p>
+                      <div className="mt-0.5 flex flex-wrap gap-2 text-sm font-semibold text-[#121212]">
                         {m.peso && <span>{m.peso} kg</span>}
-                        {m.grasa && <span className="text-[#888888]">{m.grasa}% grasa</span>}
-                        {m.musculo && <span className="text-[#888888]">{m.musculo} kg músculo</span>}
+                        {m.grasa && <span className="text-[#5E5E5E]">{m.grasa}% grasa</span>}
+                        {m.musculo && <span className="text-[#5E5E5E]">{m.musculo} kg músculo</span>}
                       </div>
-                      {m.notas && <p className="mt-0.5 text-xs text-[#888888] italic">{m.notas}</p>}
+                      {m.notas && <p className="mt-0.5 text-xs text-[#5E5E5E] italic">{m.notas}</p>}
                     </div>
                     <button onClick={() => deleteMedicion(m.id)}
-                      className="ml-2 rounded p-1 text-[#333333] transition hover:text-red-500">
+                      className="ml-2 rounded p-1 text-[#9B9B9B] transition hover:text-red-500">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -354,7 +354,7 @@ export default function AlumnoPerfilPage() {
           </div>
 
           {/* Stats */}
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#202020] p-5">
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <p className={`mb-3 ${SL}`}>Estadísticas</p>
             <div className="space-y-2 text-sm">
               {[
@@ -364,8 +364,8 @@ export default function AlumnoPerfilPage() {
                 { label: 'Ejercicios distintos', value: ejerciciosUnicos.length },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between">
-                  <span className="text-[#888888]">{label}</span>
-                  <span className="font-semibold text-white">{value}</span>
+                  <span className="text-[#5E5E5E]">{label}</span>
+                  <span className="font-semibold text-[#121212]">{value}</span>
                 </div>
               ))}
             </div>

@@ -49,31 +49,31 @@ export default function CalendarioPage() {
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       <div className="mb-8">
-        <h1 className="text-xl font-bold tracking-tight text-white">Calendario</h1>
-        <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">
+        <h1 className="text-xl font-bold tracking-tight text-[#121212]">Calendario</h1>
+        <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#5E5E5E]">
           Vista mensual de rutinas programadas
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
         {/* Calendar grid */}
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] overflow-hidden">
+        <div className="rounded-xl border border-[#CACACA] bg-[#E4E4E4] overflow-hidden">
           {/* Month nav */}
-          <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 py-4">
-            <h2 className="text-sm font-semibold text-white">
+          <div className="flex items-center justify-between border-b border-[#CACACA] px-5 py-4">
+            <h2 className="text-sm font-semibold text-[#121212]">
               {MONTHS[month]} {year}
             </h2>
             <div className="flex items-center gap-1">
               <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-                className="rounded-md p-1.5 text-[#888888] transition hover:bg-[#2a2a2a] hover:text-white">
+                className="rounded-md p-1.5 text-[#5E5E5E] transition hover:bg-[#CACACA] hover:text-[#121212]">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button onClick={() => setCurrentDate(new Date())}
-                className="rounded-md px-3 py-1 text-xs font-medium text-[#888888] transition hover:bg-[#2a2a2a] hover:text-white">
+                className="rounded-md px-3 py-1 text-xs font-medium text-[#5E5E5E] transition hover:bg-[#CACACA] hover:text-[#121212]">
                 Hoy
               </button>
               <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-                className="rounded-md p-1.5 text-[#888888] transition hover:bg-[#2a2a2a] hover:text-white">
+                className="rounded-md p-1.5 text-[#5E5E5E] transition hover:bg-[#CACACA] hover:text-[#121212]">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -83,7 +83,7 @@ export default function CalendarioPage() {
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-2">
               {DAYS.map((d) => (
-                <div key={d} className="py-1 text-center text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">
+                <div key={d} className="py-1 text-center text-xs font-medium uppercase tracking-[0.1em] text-[#5E5E5E]">
                   {d}
                 </div>
               ))}
@@ -103,10 +103,10 @@ export default function CalendarioPage() {
                   <button key={i} onClick={() => setSelectedDay(day)}
                     className={`relative flex min-h-[48px] flex-col items-center rounded-lg p-1.5 text-sm transition ${
                       isSelected
-                        ? 'bg-white text-black'
+                        ? 'bg-[#121212] text-white'
                         : isToday
-                        ? 'bg-[#2a2a2a] font-semibold text-white'
-                        : 'text-[#888888] hover:bg-[#2a2a2a] hover:text-white'
+                        ? 'bg-[#CACACA] font-semibold text-[#121212]'
+                        : 'text-[#5E5E5E] hover:bg-[#CACACA] hover:text-[#121212]'
                     }`}>
                     <span className="font-medium">{i + 1}</span>
                     {rr.length > 0 && (
@@ -114,7 +114,7 @@ export default function CalendarioPage() {
                         {rr.slice(0, 2).map(({ isLast, routine }) => (
                           <span key={routine.id}
                             className={`h-1.5 w-1.5 rounded-full ${
-                              isSelected ? 'bg-black/40' : isLast ? 'bg-[#888888]' : 'bg-white'
+                              isSelected ? 'bg-white/40' : isLast ? 'bg-[#5E5E5E]' : 'bg-[#121212]'
                             }`}
                           />
                         ))}
@@ -132,29 +132,29 @@ export default function CalendarioPage() {
 
         {/* Side panel */}
         <div className="space-y-4">
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
+          <div className="rounded-xl border border-[#CACACA] bg-[#E4E4E4] p-5">
             {selectedDay ? (
               <>
-                <p className="text-sm font-semibold text-white capitalize">
+                <p className="text-sm font-semibold text-[#121212] capitalize">
                   {selectedDay.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </p>
-                <p className="mt-0.5 text-xs text-[#888888]">{selectedDay.getFullYear()}</p>
+                <p className="mt-0.5 text-xs text-[#5E5E5E]">{selectedDay.getFullYear()}</p>
 
                 {selectedRoutines.length === 0 ? (
-                  <p className="mt-4 text-sm text-[#888888]">Sin rutinas este día.</p>
+                  <p className="mt-4 text-sm text-[#5E5E5E]">Sin rutinas este día.</p>
                 ) : (
                   <div className="mt-4 space-y-2">
                     {selectedRoutines.map(({ routine, isLast }) => (
                       <div key={routine.id}
                         className={`rounded-lg border p-3 ${
-                          isLast ? 'border-[#444444] bg-[#111111]' : 'border-[#2a2a2a] bg-[#111111]'
+                          isLast ? 'border-[#888888] bg-[#F0F0F0]' : 'border-[#CACACA] bg-[#F0F0F0]'
                         }`}>
-                        <p className="text-sm font-semibold text-white">{routine.name}</p>
-                        <p className="text-xs text-[#888888]">
+                        <p className="text-sm font-semibold text-[#121212]">{routine.name}</p>
+                        <p className="text-xs text-[#5E5E5E]">
                           {routine.exercises.length} ejercicio{routine.exercises.length !== 1 ? 's' : ''}
                         </p>
                         {isLast && (
-                          <p className="mt-1.5 text-xs text-[#888888]">⚠ Última semana</p>
+                          <p className="mt-1.5 text-xs text-[#5E5E5E]">⚠ Última semana</p>
                         )}
                       </div>
                     ))}
@@ -162,32 +162,32 @@ export default function CalendarioPage() {
                 )}
               </>
             ) : (
-              <p className="text-sm text-[#888888]">Selecciona un día para ver las rutinas.</p>
+              <p className="text-sm text-[#5E5E5E]">Selecciona un día para ver las rutinas.</p>
             )}
           </div>
 
           {/* Legend */}
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">Leyenda</p>
+          <div className="rounded-xl border border-[#CACACA] bg-[#E4E4E4] p-5">
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.1em] text-[#5E5E5E]">Leyenda</p>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-[#888888]">
-                <span className="h-2 w-2 rounded-full bg-white" /> Rutina activa
+              <div className="flex items-center gap-2 text-xs text-[#5E5E5E]">
+                <span className="h-2 w-2 rounded-full bg-[#121212]" /> Rutina activa
               </div>
-              <div className="flex items-center gap-2 text-xs text-[#888888]">
-                <span className="h-2 w-2 rounded-full bg-[#888888]" /> Última semana
+              <div className="flex items-center gap-2 text-xs text-[#5E5E5E]">
+                <span className="h-2 w-2 rounded-full bg-[#5E5E5E]" /> Última semana
               </div>
             </div>
           </div>
 
           {/* Scheduled routines */}
           {routines.filter((r) => r.startDate && r.endDate).length > 0 && (
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-5">
-              <p className="mb-3 text-xs font-medium uppercase tracking-[0.1em] text-[#888888]">Programadas</p>
+            <div className="rounded-xl border border-[#CACACA] bg-[#E4E4E4] p-5">
+              <p className="mb-3 text-xs font-medium uppercase tracking-[0.1em] text-[#5E5E5E]">Programadas</p>
               <div className="space-y-3">
                 {routines.filter((r) => r.startDate && r.endDate).map((r) => (
                   <div key={r.id}>
-                    <p className="text-sm font-medium text-white">{r.name}</p>
-                    <p className="text-xs text-[#888888]">{r.startDate} → {r.endDate}</p>
+                    <p className="text-sm font-medium text-[#121212]">{r.name}</p>
+                    <p className="text-xs text-[#5E5E5E]">{r.startDate} → {r.endDate}</p>
                   </div>
                 ))}
               </div>

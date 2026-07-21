@@ -59,7 +59,7 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
   });
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-[#0d0d0d]"
+    <div className="overflow-hidden rounded-2xl border bg-[#F5F5F5]"
       style={{ borderColor: cfg.border }}>
 
       {/* ── Header ── */}
@@ -67,7 +67,7 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
         style={{ backgroundColor: cfg.bg, borderBottom: `1px solid ${cfg.border}` }}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-bold text-white">{plan.nombre}</p>
+            <p className="truncate font-bold text-[#121212]">{plan.nombre}</p>
             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
               style={{ backgroundColor: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cfg.dot }} />
@@ -79,25 +79,25 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-[#555555]">{PLAN_TIPO_LABEL[plan.tipo]}</p>
+          <p className="mt-0.5 text-xs text-[#777777]">{PLAN_TIPO_LABEL[plan.tipo]}</p>
         </div>
         {isAdmin && (
           <div className="flex shrink-0 items-center gap-1.5">
             {onLogClase && estado !== 'vencido' && clasesRest > 0 && (
               <button onClick={onLogClase}
-                className="flex items-center gap-1.5 rounded-xl border border-[#f9731630] bg-[#f9731610] px-3 py-1.5 text-xs font-bold text-[#f97316] transition hover:bg-[#f9731620]">
+                className="flex items-center gap-1.5 rounded-xl border border-[#12121230] bg-[#12121210] px-3 py-1.5 text-xs font-bold text-[#121212] transition hover:bg-[#12121220]">
                 <Dumbbell className="h-3.5 w-3.5" /> Registrar clase
               </button>
             )}
             {onEdit && (
               <button onClick={onEdit}
-                className="rounded-xl border border-[#2a2a2a] px-3 py-1.5 text-xs font-medium text-[#888888] transition hover:border-[#444444] hover:text-white">
+                className="rounded-xl border border-[#C8C8C8] px-3 py-1.5 text-xs font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
                 Editar
               </button>
             )}
             {onExtend && (
               <button onClick={onExtend}
-                className="rounded-xl border border-[#2a2a2a] px-3 py-1.5 text-xs font-medium text-[#888888] transition hover:border-[#444444] hover:text-white">
+                className="rounded-xl border border-[#C8C8C8] px-3 py-1.5 text-xs font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
                 Extender
               </button>
             )}
@@ -107,12 +107,12 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
 
       {/* ── Alertas ── */}
       {alerts.length > 0 && (
-        <div className="space-y-2 border-b border-[#1e1e1e] px-5 py-3">
+        <div className="space-y-2 border-b border-[#DEDEDE] px-5 py-3">
           {alerts.map((a, i) => (
             <div key={i} className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs ${
               a.level === 'error'
-                ? 'bg-red-950/30 text-red-400'
-                : 'bg-[#f9731615] text-[#f97316]'
+                ? 'bg-[#FAEAEA] text-[#B44040]'
+                : 'bg-[#12121215] text-[#121212]'
             }`}>
               {a.level === 'error'
                 ? <XCircle className="mt-px h-3.5 w-3.5 shrink-0" />
@@ -127,12 +127,12 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
       {/* ── Progress bar ── */}
       <div className="px-5 py-4">
         <div className="mb-1.5 flex items-center justify-between text-xs">
-          <span className="text-[#555555]">Clases utilizadas</span>
-          <span className="font-bold text-white">
-            {plan.usedClases} <span className="font-normal text-[#555555]">/ {plan.totalClases}</span>
+          <span className="text-[#777777]">Clases utilizadas</span>
+          <span className="font-bold text-[#121212]">
+            {plan.usedClases} <span className="font-normal text-[#777777]">/ {plan.totalClases}</span>
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#1a1a1a]">
+        <div className="h-2 overflow-hidden rounded-full bg-[#E4E4E4]">
           <div className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${Math.max(2, progress * 100)}%`,
@@ -143,7 +143,7 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
       </div>
 
       {/* ── Stats grid ── */}
-      <div className="grid grid-cols-2 gap-px border-t border-[#1a1a1a] sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px border-t border-[#E4E4E4] sm:grid-cols-4">
         {[
           {
             icon: <Dumbbell className="h-4 w-4" />,
@@ -169,8 +169,8 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
             highlight: estado === 'vencido',
           },
         ].map(({ icon, label, value, highlight }, i) => (
-          <div key={i} className="flex flex-col gap-1.5 bg-[#0d0d0d] px-4 py-3.5">
-            <div className="flex items-center gap-1.5 text-[#444444]"
+          <div key={i} className="flex flex-col gap-1.5 bg-[#F5F5F5] px-4 py-3.5">
+            <div className="flex items-center gap-1.5 text-[#888888]"
               style={highlight ? { color: cfg.color } : undefined}>
               {icon}
               <span className="text-[10px] font-bold uppercase tracking-widest"
@@ -179,7 +179,7 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
               </span>
             </div>
             <p className="text-lg font-bold leading-none"
-              style={highlight ? { color: cfg.color } : { color: '#ffffff' }}>
+              style={highlight ? { color: cfg.color } : { color: '#121212' }}>
               {value}
             </p>
           </div>
@@ -188,28 +188,28 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
 
       {/* ── Próxima clase + reagendas pendientes ── */}
       {(proximaClase || reagendasPendientes.length > 0) && (
-        <div className="space-y-2 border-t border-[#1a1a1a] px-5 py-4">
+        <div className="space-y-2 border-t border-[#E4E4E4] px-5 py-4">
           {proximaClase && (
             <div className="flex items-center gap-3 rounded-xl border border-[#3b82f630] bg-[#3b82f610] px-3 py-2.5">
               <TrendingUp className="h-4 w-4 shrink-0 text-[#3b82f6]" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white">
+                <p className="text-xs font-semibold text-[#121212]">
                   Próxima clase · {formatDate(proximaClase.fecha)}
                   {proximaClase.hora && ` · ${proximaClase.hora}`}
                 </p>
                 {proximaClase.descripcion && (
-                  <p className="truncate text-[11px] text-[#555555]">{proximaClase.descripcion}</p>
+                  <p className="truncate text-[11px] text-[#777777]">{proximaClase.descripcion}</p>
                 )}
               </div>
             </div>
           )}
           {reagendasPendientes.map(r => (
-            <div key={r.id} className="flex items-center gap-3 rounded-xl border border-[#f9731630] bg-[#f9731610] px-3 py-2.5">
-              <RefreshCw className="h-4 w-4 shrink-0 text-[#f97316]" />
+            <div key={r.id} className="flex items-center gap-3 rounded-xl border border-[#12121230] bg-[#12121210] px-3 py-2.5">
+              <RefreshCw className="h-4 w-4 shrink-0 text-[#121212]" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-[#f97316]">Clase reagendada pendiente</p>
-                <p className="text-[11px] text-[#555555]">
-                  Puedes reagendar esta clase hasta el <strong className="text-[#f97316]">{formatDate(r.fechaLimite)}</strong>
+                <p className="text-xs font-semibold text-[#121212]">Clase reagendada pendiente</p>
+                <p className="text-[11px] text-[#777777]">
+                  Puedes reagendar esta clase hasta el <strong className="text-[#121212]">{formatDate(r.fechaLimite)}</strong>
                   {r.motivo && ` · ${r.motivo}`}
                 </p>
               </div>
@@ -220,8 +220,8 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
 
       {/* ── Notas admin ── */}
       {plan.adminNota && (
-        <div className="border-t border-[#1a1a1a] px-5 py-3">
-          <p className="text-[11px] text-[#444444] italic">Nota: {plan.adminNota}</p>
+        <div className="border-t border-[#E4E4E4] px-5 py-3">
+          <p className="text-[11px] text-[#888888] italic">Nota: {plan.adminNota}</p>
         </div>
       )}
     </div>

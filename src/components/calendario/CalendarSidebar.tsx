@@ -53,59 +53,59 @@ export default function CalendarSidebar({
       {/* Athlete / calendar selector */}
       <button
         onClick={onOpenSelector}
-        className="flex w-full items-center gap-3 rounded-2xl border border-[#2a2a2a] bg-[#0d0d0d] px-4 py-3.5 text-left transition hover:border-[#444444] hover:bg-[#111111]"
+        className="flex w-full items-center gap-3 rounded-2xl border border-[#C8C8C8] bg-[#F5F5F5] px-4 py-3.5 text-left transition hover:border-[#888888] hover:bg-[#F0F0F0]"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1a1a1a] text-sm font-bold text-white">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E4E4E4] text-sm font-bold text-[#121212]">
           {selectedAlumno?.foto
             ? <img src={selectedAlumno.foto} alt="" className="h-9 w-9 rounded-xl object-cover" />
             : (selectedAlumno?.nombre[0]?.toUpperCase() ?? '?')
           }
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">
+          <p className="truncate text-sm font-semibold text-[#121212]">
             {selectedAlumno
               ? `${selectedAlumno.nombre}${selectedAlumno.apellido ? ' ' + selectedAlumno.apellido : ''}`
               : 'Seleccionar calendario'
             }
           </p>
-          <p className="truncate text-[11px] text-[#444444]">
+          <p className="truncate text-[11px] text-[#888888]">
             {routine ? routine.name : 'Sin programa activo'}
           </p>
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-[#333333]" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-[#9B9B9B]" />
       </button>
 
       {/* Mini calendar */}
-      <div className="overflow-hidden rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d]">
+      <div className="overflow-hidden rounded-2xl border border-[#DEDEDE] bg-[#F5F5F5]">
         {/* Month nav */}
-        <div className="flex items-center gap-1 border-b border-[#1e1e1e] px-2 py-2">
-          <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:bg-[#1a1a1a] hover:text-white">
+        <div className="flex items-center gap-1 border-b border-[#DEDEDE] px-2 py-2">
+          <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
             <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="flex flex-1 items-center justify-center gap-2">
-            <span className="text-sm font-bold text-white">{MONTHS_ES[viewMonth]} {viewYear}</span>
+            <span className="text-sm font-bold text-[#121212]">{MONTHS_ES[viewMonth]} {viewYear}</span>
             {!isCurrentMonth && (
               <button onClick={goToday}
-                className="rounded-full border border-[#222222] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#444444] transition hover:text-[#888888]">
+                className="rounded-full border border-[#D8D8D8] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#888888] transition hover:text-[#5E5E5E]">
                 Hoy
               </button>
             )}
           </div>
-          <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:bg-[#1a1a1a] hover:text-white">
+          <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
         {/* DOW headers */}
-        <div className="grid grid-cols-7 border-b border-[#1a1a1a]">
+        <div className="grid grid-cols-7 border-b border-[#DEDEDE]">
           {DOW_LABEL.map(d => (
-            <div key={d} className="py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-[#333333]">{d}</div>
+            <div key={d} className="py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">{d}</div>
           ))}
         </div>
 
         {/* Day grid */}
         {grid.map((week, wi) => (
-          <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}>
+          <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#DEDEDE]' : ''}`}>
             {week.map((date, di) => {
               const ds        = toDateStr(date);
               const isThisM   = date.getMonth() === viewMonth;
@@ -114,34 +114,34 @@ export default function CalendarSidebar({
               const inRange   = isInRange(ds);
               const sess      = sessions[ds];
               const primary   = sess ? getMuscleGroups(sess.exercises)[0] : null;
-              const chipColor = primary ? (MUSCLE_HEX[primary] ?? '#ffffff') : '#ffffff';
+              const chipColor = primary ? (MUSCLE_HEX[primary] ?? '#3E3E3E') : '#3E3E3E';
 
               return (
                 <button
                   key={di}
                   onClick={() => onSelectDate(ds)}
                   className={`group relative flex min-h-[48px] flex-col items-start p-1 text-left transition-colors
-                    ${di < 6 ? 'border-r border-[#1a1a1a]' : ''}
-                    ${isSel ? 'bg-white/[0.04]' : 'hover:bg-[#141414]'}
+                    ${di < 6 ? 'border-r border-[#DEDEDE]' : ''}
+                    ${isSel ? 'bg-black/[0.04]' : 'hover:bg-[#EBEBEB]'}
                     ${!isThisM || !inRange ? 'opacity-20' : ''}
                   `}
                 >
                   <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition
-                    ${isToday ? 'bg-white text-black'
-                    : isSel   ? 'bg-white/20 text-white'
-                    : 'text-[#666666] group-hover:text-white'}
+                    ${isToday ? 'bg-[#121212] text-white'
+                    : isSel   ? 'bg-[#121212]/10 text-[#121212]'
+                    : 'text-[#6E6E6E] group-hover:text-[#121212]'}
                   `}>
                     {date.getDate()}
                   </span>
                   {sess && sess.exercises.length > 0 && (
                     <div className="mt-0.5 w-full overflow-hidden">
-                      <div className="truncate rounded-sm py-px pl-1 pr-1 text-[8px] font-semibold leading-tight text-white"
+                      <div className="truncate rounded-sm py-px pl-1 pr-1 text-[8px] font-semibold leading-tight text-[#121212]"
                         style={{ backgroundColor: chipColor + '20', borderLeft: `2px solid ${chipColor}` }}>
                         {sess.name || `${sess.exercises.length}ej`}
                       </div>
                     </div>
                   )}
-                  {isSel && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-white" />}
+                  {isSel && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#121212]" />}
                 </button>
               );
             })}
@@ -153,11 +153,11 @@ export default function CalendarSidebar({
       <div className="flex items-center gap-2 px-1">
         <div className="flex gap-1">
           {[...new Set(Object.values(sessions).flatMap(s => getMuscleGroups(s.exercises)))].slice(0, 6).map(m => (
-            <span key={m} className="h-2 w-2 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] ?? '#555555' }} />
+            <span key={m} className="h-2 w-2 rounded-full" style={{ backgroundColor: MUSCLE_HEX[m] ?? '#777777' }} />
           ))}
         </div>
         {sessionCount > 0 && (
-          <span className="text-xs text-[#444444]">{sessionCount} entrenam. este mes</span>
+          <span className="text-xs text-[#888888]">{sessionCount} entrenam. este mes</span>
         )}
       </div>
     </div>

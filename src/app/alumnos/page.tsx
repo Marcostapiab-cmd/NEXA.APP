@@ -66,9 +66,9 @@ function Avatar({ alumno, size = 36 }: { alumno: Pick<Alumno, 'nombre' | 'apelli
 // ─── Badge de estado ──────────────────────────────────────────────────────────
 
 const ESTADO_CFG = {
-  activo:    { label: 'Activo',    color: '#D4AF37' },
-  pendiente: { label: 'Pendiente', color: '#D4AF37' },
-  archivado: { label: 'Archivado', color: '#555555' },
+  activo:    { label: 'Activo',    color: '#4A8A5A' },
+  pendiente: { label: 'Pendiente', color: '#C4783A' },
+  archivado: { label: 'Archivado', color: '#9B9B9B' },
 } as const;
 
 function EstadoText({ estado }: { estado: Alumno['estado'] }) {
@@ -82,8 +82,8 @@ function EstadoText({ estado }: { estado: Alumno['estado'] }) {
 
 // ─── Modal crear / editar ─────────────────────────────────────────────────────
 
-const IC = 'w-full rounded-lg border border-[#252525] bg-[#111111] px-3 py-2.5 text-sm text-[#f4f4f5] placeholder-[#444] outline-none transition focus:border-[#444]';
-const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#555]';
+const IC = 'w-full rounded-lg border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2.5 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#CACACA]';
+const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#777777]';
 
 function AlumnoModal({ initial, onSave, onClose }: {
   initial?: Alumno;
@@ -104,17 +104,17 @@ function AlumnoModal({ initial, onSave, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="w-full max-w-md rounded-xl border border-[#252525] bg-[#111111] shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] shadow-2xl"
         style={{ animation: 'scale-in 0.18s ease-out forwards' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1d1d1d] px-6 py-4">
-          <h2 className="text-sm font-semibold text-[#f4f4f5]">
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] px-6 py-4">
+          <h2 className="text-sm font-semibold text-[#121212]">
             {initial ? 'Editar alumno' : 'Nuevo alumno'}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-[#555] transition hover:bg-[#1a1a1a] hover:text-[#f4f4f5]">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-[#777777] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -128,12 +128,12 @@ function AlumnoModal({ initial, onSave, onClose }: {
             <Avatar alumno={{ ...form, id: '' } as Alumno} size={48} />
             <div className="flex gap-2">
               <button type="button" onClick={() => fileRef.current?.click()}
-                className="rounded-lg border border-[#252525] px-3 py-1.5 text-xs text-[#888] transition hover:border-[#444] hover:text-[#f4f4f5]">
+                className="rounded-lg border border-[#D8D8D8] px-3 py-1.5 text-xs text-[#5E5E5E] transition hover:border-[#CACACA] hover:text-[#121212]">
                 Subir foto
               </button>
               {form.foto && (
                 <button type="button" onClick={() => set('foto', '')}
-                  className="text-xs text-[#ef4444] transition hover:text-red-400">
+                  className="text-xs text-[#B44040] transition hover:text-[#8B3030]">
                   Quitar
                 </button>
               )}
@@ -195,11 +195,11 @@ function AlumnoModal({ initial, onSave, onClose }: {
           {/* Botones */}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 rounded-lg border border-[#333] py-2.5 text-sm font-medium text-[#888] transition hover:border-[#555] hover:text-[#f4f4f5]">
+              className="flex-1 rounded-lg border border-[#D8D8D8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#CACACA] hover:text-[#121212]">
               Cancelar
             </button>
             <button type="submit"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#f4f4f5] py-2.5 text-sm font-semibold text-black transition hover:bg-white">
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#121212] py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A2A2A]">
               <Save className="h-4 w-4" />
               {initial ? 'Guardar' : 'Agregar'}
             </button>
@@ -278,23 +278,23 @@ export default function AlumnosPage() {
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-[#f4f4f5] tracking-tight">Alumnos</h1>
-          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#555]">
+          <h1 className="text-xl font-bold text-[#121212] tracking-tight">Alumnos</h1>
+          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#777777]">
             {alumnos.length} registrado{alumnos.length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {/* Tab toggle estilo TeamBuildr */}
+        {/* Tab toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-xl border border-[#1d1d1d] bg-[#0d0d0d] p-1 gap-0.5">
+          <div className="flex items-center rounded-xl border border-[#E0E0E0] bg-[#F5F5F5] p-1 gap-0.5">
             {(['activos', 'archivados'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => { setTab(t); setSelected(new Set()); }}
                 className="px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition-all duration-150"
                 style={tab === t
-                  ? { background: '#D4AF37', color: '#000' }
-                  : { color: '#555', background: 'transparent' }
+                  ? { background: '#121212', color: '#FFFFFF' }
+                  : { color: '#777777', background: 'transparent' }
                 }
               >
                 {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -303,7 +303,7 @@ export default function AlumnosPage() {
           </div>
           <button
             onClick={() => setModal('new')}
-            className="flex items-center gap-1.5 rounded-xl border border-[#252525] bg-[#0d0d0d] px-4 py-2 text-sm font-semibold text-[#a1a1aa] transition hover:border-[#333] hover:text-[#f4f4f5]"
+            className="flex items-center gap-1.5 rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] px-4 py-2 text-sm font-semibold text-[#5E5E5E] transition hover:border-[#CACACA] hover:text-[#121212]"
           >
             <Plus className="h-4 w-4" />
             Nuevo alumno
@@ -313,20 +313,20 @@ export default function AlumnosPage() {
 
       {/* ── Buscador ───────────────────────────────────────────────────────── */}
       <div className="relative mb-4">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#444] pointer-events-none" />
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9B9B9B] pointer-events-none" />
         <input
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar por nombre, apellido o email..."
-          className="w-full rounded-xl border border-[#1d1d1d] bg-[#0d0d0d] py-2.5 pl-10 pr-4 text-sm text-[#f4f4f5] placeholder-[#444] outline-none transition focus:border-[#333]"
+          className="w-full rounded-xl border border-[#E0E0E0] bg-[#F5F5F5] py-2.5 pl-10 pr-4 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#D8D8D8]"
         />
       </div>
 
       {/* ── Tabla ─────────────────────────────────────────────────────────── */}
       {filtrados.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#1d1d1d] py-20 text-center">
-          <Users className="mx-auto mb-3 h-10 w-10 text-[#2a2a2a]" />
-          <p className="text-sm text-[#555]">
+        <div className="rounded-xl border border-dashed border-[#E0E0E0] py-20 text-center">
+          <Users className="mx-auto mb-3 h-10 w-10 text-[#CACACA]" />
+          <p className="text-sm text-[#777777]">
             {busqueda
               ? 'Sin resultados para esa búsqueda'
               : tab === 'archivados'
@@ -337,20 +337,20 @@ export default function AlumnosPage() {
             <button
               onClick={() => setModal('new')}
               className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium transition"
-              style={{ color: '#D4AF37' }}
+              style={{ color: '#121212' }}
             >
               <Plus className="h-3.5 w-3.5" /> Agregar el primero
             </button>
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#1d1d1d]">
+        <div className="overflow-hidden rounded-xl border border-[#E0E0E0]">
           {/* Desktop — tabla */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse">
               {/* Cabecera */}
               <thead>
-                <tr className="border-b border-[#1d1d1d] bg-[#0d0d0d]">
+                <tr className="border-b border-[#E0E0E0] bg-[#F5F5F5]">
                   <th className="w-10 pl-4 pr-2 py-3">
                     <input
                       type="checkbox"
@@ -365,7 +365,7 @@ export default function AlumnosPage() {
                   <Th>Email</Th>
                   <Th>Estado</Th>
                   <th className="px-5 py-3 text-right">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#444]">Acciones</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#9B9B9B]">Acciones</span>
                   </th>
                 </tr>
               </thead>
@@ -388,7 +388,7 @@ export default function AlumnosPage() {
           </div>
 
           {/* Mobile — cards */}
-          <div className="md:hidden divide-y divide-[#1d1d1d]">
+          <div className="md:hidden divide-y divide-[#E0E0E0]">
             {filtrados.map(a => (
               <MobileRow
                 key={a.id}
@@ -400,13 +400,13 @@ export default function AlumnosPage() {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-[#1d1d1d] bg-[#0a0a0a] px-5 py-2.5">
-            <span className="text-[11px] text-[#444] tabular-nums">
+          <div className="flex items-center justify-between border-t border-[#E0E0E0] bg-[#F8F8F8] px-5 py-2.5">
+            <span className="text-[11px] text-[#9B9B9B] tabular-nums">
               {filtrados.length} {filtrados.length === 1 ? 'alumno' : 'alumnos'}
               {busqueda && ` · filtrado de ${porTab.length}`}
             </span>
             {selected.size > 0 && (
-              <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#D4AF37' }}>
+              <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#121212' }}>
                 {selected.size} seleccionados
               </span>
             )}
@@ -431,7 +431,7 @@ export default function AlumnosPage() {
 function Th({ children }: { children: React.ReactNode }) {
   return (
     <th className="px-4 py-3 text-left">
-      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#444]">{children}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#9B9B9B]">{children}</span>
     </th>
   );
 }
@@ -449,12 +449,12 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
   const isZebra = idx % 2 === 1;
   return (
     <tr
-      className="border-b border-[#141414] last:border-0 transition-colors duration-75"
+      className="border-b border-[#E8E8E8] last:border-0 transition-colors duration-75"
       style={{
-        backgroundColor: checked ? 'rgba(212,175,55,0.04)' : isZebra ? '#0d0d0d' : '#0a0a0a',
+        backgroundColor: checked ? 'rgba(18,18,18,0.04)' : isZebra ? '#F5F5F5' : '#F8F8F8',
       }}
-      onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(212,175,55,0.05)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = checked ? 'rgba(212,175,55,0.04)' : isZebra ? '#0d0d0d' : '#0a0a0a'; }}
+      onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(18,18,18,0.04)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = checked ? 'rgba(18,18,18,0.04)' : isZebra ? '#F5F5F5' : '#F8F8F8'; }}
     >
       {/* Checkbox */}
       <td className="w-10 pl-4 pr-2 py-3">
@@ -470,9 +470,9 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
       <td className="px-4 py-3">
         <Link
           href={`/alumnos/${alumno.id}`}
-          className="text-sm font-semibold text-[#f4f4f5] transition"
-          onMouseEnter={e => (e.currentTarget.style.color = '#D4AF37')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#f4f4f5')}
+          className="text-sm font-semibold text-[#121212] transition"
+          onMouseEnter={e => (e.currentTarget.style.color = '#3E3E3E')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#121212')}
         >
           {alumno.nombre}
         </Link>
@@ -480,12 +480,12 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
 
       {/* Apellido */}
       <td className="px-4 py-3">
-        <span className="text-sm text-[#a1a1aa]">{alumno.apellido || '—'}</span>
+        <span className="text-sm text-[#3E3E3E]">{alumno.apellido || '—'}</span>
       </td>
 
       {/* Email */}
       <td className="max-w-[220px] px-4 py-3">
-        <span className="block truncate text-sm text-[#a1a1aa]">{alumno.email || '—'}</span>
+        <span className="block truncate text-sm text-[#3E3E3E]">{alumno.email || '—'}</span>
       </td>
 
       {/* Estado */}
@@ -500,24 +500,24 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
             href={`/alumnos/${alumno.id}`}
             icon={<BarChart2 className="h-3.5 w-3.5" />}
             label="Estadísticas"
-            bg="rgba(34,197,94,0.12)" color="#22c55e" hoverBg="rgba(34,197,94,0.2)"
+            bg="rgba(74,138,90,0.10)" color="#4A8A5A" hoverBg="rgba(74,138,90,0.18)"
           />
           <ActionBtn
             icon={<Pencil className="h-3.5 w-3.5" />}
             label="Editar"
-            bg="rgba(96,165,250,0.12)" color="#60a5fa" hoverBg="rgba(96,165,250,0.2)"
+            bg="rgba(96,165,250,0.10)" color="#4A7AAA" hoverBg="rgba(96,165,250,0.18)"
             onClick={onEdit}
           />
           <ActionBtn
             href={`/alumnos/${alumno.id}`}
             icon={<Eye className="h-3.5 w-3.5" />}
             label="Ver perfil"
-            bg="rgba(161,161,170,0.08)" color="#a1a1aa" hoverBg="rgba(161,161,170,0.15)"
+            bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
           />
           <ActionBtn
             icon={<Trash2 className="h-3.5 w-3.5" />}
             label="Eliminar"
-            bg="rgba(239,68,68,0.1)" color="#ef4444" hoverBg="rgba(239,68,68,0.18)"
+            bg="rgba(180,64,64,0.08)" color="#B44040" hoverBg="rgba(180,64,64,0.15)"
             onClick={onDelete}
           />
         </div>
@@ -557,30 +557,30 @@ function MobileRow({ alumno, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 bg-[#0a0a0a] px-4 py-3.5 transition hover:bg-[#0d0d0d]">
+    <div className="flex items-center gap-3 bg-[#F8F8F8] px-4 py-3.5 transition hover:bg-[#F0F0F0]">
       <Avatar alumno={alumno} size={38} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <Link href={`/alumnos/${alumno.id}`} className="text-sm font-semibold text-[#f4f4f5]">
+          <Link href={`/alumnos/${alumno.id}`} className="text-sm font-semibold text-[#121212]">
             {alumno.nombre} {alumno.apellido}
           </Link>
           <EstadoText estado={alumno.estado} />
         </div>
         {alumno.email && (
-          <p className="mt-0.5 text-xs text-[#555] truncate">{alumno.email}</p>
+          <p className="mt-0.5 text-xs text-[#777777] truncate">{alumno.email}</p>
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <ActionBtn
           icon={<Pencil className="h-3.5 w-3.5" />}
           label="Editar"
-          bg="rgba(96,165,250,0.12)" color="#60a5fa" hoverBg="rgba(96,165,250,0.2)"
+          bg="rgba(96,165,250,0.10)" color="#4A7AAA" hoverBg="rgba(96,165,250,0.18)"
           onClick={onEdit}
         />
         <ActionBtn
           icon={<Trash2 className="h-3.5 w-3.5" />}
           label="Eliminar"
-          bg="rgba(239,68,68,0.1)" color="#ef4444" hoverBg="rgba(239,68,68,0.18)"
+          bg="rgba(180,64,64,0.08)" color="#B44040" hoverBg="rgba(180,64,64,0.15)"
           onClick={onDelete}
         />
       </div>

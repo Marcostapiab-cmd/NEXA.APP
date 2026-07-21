@@ -38,15 +38,15 @@ export default function VideoUrlInput({ value, onChange, className }: Props) {
     <div className={className}>
       <div className={`flex items-center overflow-hidden rounded-xl border transition ${
         !valid && hasUrl
-          ? 'border-red-900 bg-[#0a0a0a]'
+          ? 'border-[#B44040]/30 bg-[#F8F8F8]'
           : focused
-          ? 'border-[#f97316] bg-[#0a0a0a]'
-          : 'border-[#2a2a2a] bg-[#0a0a0a]'
+          ? 'border-[#121212] bg-[#F8F8F8]'
+          : 'border-[#C8C8C8] bg-[#F8F8F8]'
       }`}>
         {/* Icon */}
-        <div className="flex items-center px-3 text-[#444444]">
+        <div className="flex items-center px-3 text-[#888888]">
           {!valid && hasUrl
-            ? <AlertCircle className="h-4 w-4 text-red-500" />
+            ? <AlertCircle className="h-4 w-4 text-[#B44040]" />
             : <Video className="h-4 w-4" />
           }
         </div>
@@ -59,14 +59,14 @@ export default function VideoUrlInput({ value, onChange, className }: Props) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="https://youtube.com/watch?v=... (opcional)"
-          className="flex-1 bg-transparent py-2.5 pr-2 text-sm text-white placeholder-[#333333] outline-none"
+          className="flex-1 bg-transparent py-2.5 pr-2 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none"
         />
 
         {/* Actions */}
         <div className="flex items-center gap-1 pr-2">
           {hasUrl && valid && (
             <a href={value} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-[#2a2a2a] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#888888] transition hover:border-[#f97316] hover:text-[#f97316]"
+              className="flex items-center gap-1.5 rounded-lg border border-[#C8C8C8] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]"
               onClick={e => e.stopPropagation()}>
               <ExternalLink className="h-3 w-3" />
               Ver{platform ? ` (${platform})` : ''}
@@ -74,7 +74,7 @@ export default function VideoUrlInput({ value, onChange, className }: Props) {
           )}
           {hasUrl && (
             <button type="button" onClick={() => onChange('')}
-              className="rounded-lg p-1.5 text-[#333333] transition hover:text-red-500">
+              className="rounded-lg p-1.5 text-[#9B9B9B] transition hover:text-[#B44040]">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
@@ -83,14 +83,14 @@ export default function VideoUrlInput({ value, onChange, className }: Props) {
 
       {/* Error message */}
       {!valid && hasUrl && (
-        <p className="mt-1.5 text-xs text-red-500">
+        <p className="mt-1.5 text-xs text-[#B44040]">
           URL inválida. Usa un link completo que empiece con https://
         </p>
       )}
 
       {/* Platform hint */}
       {valid && hasUrl && (
-        <p className="mt-1.5 text-[11px] text-[#444444]">
+        <p className="mt-1.5 text-[11px] text-[#888888]">
           {isYT ? 'YouTube detectado' : isVimeo ? 'Vimeo detectado' : 'URL de video personalizada'}
           {' · El atleta podrá ver el video de referencia del ejercicio.'}
         </p>

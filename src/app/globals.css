@@ -3,45 +3,54 @@
 /* ── Tailwind theme bridge ───────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--nexa-black);
-  --color-foreground: var(--nexa-white);
+  --color-background: var(--nexa-bg);
+  --color-foreground: var(--nexa-text);
   --font-sans: var(--font-inter);
 }
 
-/* ── NEXA Design Tokens ──────────────────────────────────────────────────────── */
+/* ── NEXA Design Tokens — Carbón Moderno ─────────────────────────────────────── */
 
 :root {
-  /* Core surfaces */
-  --nexa-black:        #0A0A0A;
-  --nexa-dark:         #111111;
-  --nexa-surface:      #1A1A1A;
-  --nexa-card:         #202020;
-  --nexa-border:       #2A2A2A;
-
-  /* Accent — dorado clásico */
-  --nexa-accent:       #D4AF37;
-  --nexa-accent-dim:   #B8942E;
-  --nexa-accent-glow:  rgba(212, 175, 55, 0.15);
-  --nexa-accent-sub:   rgba(212, 175, 55, 0.08);
+  /* Core palette */
+  --nexa-bg:           #F8F8F8;
+  --nexa-surface:      #F2F2F2;
+  --nexa-card:         #EBEBEB;
+  --nexa-card-alt:     #E4E4E4;
+  --nexa-border:       #D8D8D8;
+  --nexa-border-sub:   #E8E8E8;
 
   /* Text hierarchy */
-  --nexa-white:        #FFFFFF;
-  --nexa-muted:        #888888;
-  --nexa-faint:        #444444;
-  --nexa-ghost:        #2A2A2A;
+  --nexa-text:         #121212;
+  --nexa-text-sub:     #3E3E3E;
+  --nexa-muted:        #9B9B9B;
+  --nexa-faint:        #C4C4C4;
+  --nexa-ghost:        #DCDCDC;
 
-  /* Semantic */
-  --nexa-success:      #D4AF37;
-  --nexa-warning:      #F59E0B;
-  --nexa-danger:       #FF4444;
+  /* Primary action */
+  --nexa-accent:       #121212;
+  --nexa-accent-dim:   #3E3E3E;
+  --nexa-accent-glow:  rgba(18, 18, 18, 0.08);
+  --nexa-accent-sub:   rgba(18, 18, 18, 0.05);
 
-  /* Legacy aliases (backward compat) */
-  --background:        var(--nexa-black);
-  --foreground:        var(--nexa-white);
+  /* Legacy aliases */
+  --nexa-black:        var(--nexa-bg);
+  --nexa-dark:         var(--nexa-surface);
+  --nexa-white:        var(--nexa-text);
+
+  /* Semantic — muted tones */
+  --nexa-success:      #4A8A5A;
+  --nexa-success-bg:   #EBF5EE;
+  --nexa-warning:      #C4783A;
+  --nexa-warning-bg:   #FBF3EB;
+  --nexa-danger:       #B44040;
+  --nexa-danger-bg:    #FAEAEA;
 
   /* Layout */
   --sidebar-w:         220px;
   --header-h:          60px;
+
+  --background:        var(--nexa-bg);
+  --foreground:        var(--nexa-text);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────────── */
@@ -56,8 +65,8 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--nexa-black);
-  color: var(--nexa-white);
+  background: var(--nexa-bg);
+  color: var(--nexa-text);
   font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.6;
@@ -69,27 +78,21 @@ body {
 
 /* ── Form elements ───────────────────────────────────────────────────────────── */
 
-button, input, textarea, select {
-  font: inherit;
-  letter-spacing: inherit;
-}
-input, textarea, select {
-  -webkit-appearance: none;
-  appearance: none;
-}
+button, input, textarea, select { font: inherit; letter-spacing: inherit; }
+input, textarea, select { -webkit-appearance: none; appearance: none; }
 button { cursor: pointer; }
 
 /* ── Selection ───────────────────────────────────────────────────────────────── */
 
 ::selection {
-  background: rgba(212, 175, 55, 0.2);
+  background: rgba(18, 18, 18, 0.12);
   color: inherit;
 }
 
 /* ── Focus ───────────────────────────────────────────────────────────────────── */
 
 :focus-visible {
-  outline: 2px solid rgba(212, 175, 55, 0.5);
+  outline: 2px solid rgba(18, 18, 18, 0.35);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -98,93 +101,88 @@ button { cursor: pointer; }
 
 .nexa-input {
   width: 100%;
-  background: var(--nexa-surface);
+  background: var(--nexa-bg);
   border: 1px solid var(--nexa-border);
   border-radius: 8px;
-  color: var(--nexa-white);
-  padding: 12px 16px;
+  color: var(--nexa-text);
+  padding: 10px 14px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.nexa-input::placeholder { color: var(--nexa-faint); }
+.nexa-input::placeholder { color: var(--nexa-muted); }
 .nexa-input:focus {
-  border-color: var(--nexa-accent);
+  border-color: var(--nexa-text);
   box-shadow: 0 0 0 3px var(--nexa-accent-glow);
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 
 .nexa-btn-primary {
-  background: var(--nexa-accent);
-  color: #000000;
-  font-weight: 700;
+  background: var(--nexa-text);
+  color: #FFFFFF;
+  font-weight: 600;
   border-radius: 8px;
-  padding: 12px 24px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  padding: 10px 18px;
   font-size: 13px;
   border: none;
   cursor: pointer;
-  transition: filter 0.2s ease, transform 0.2s ease;
+  transition: background 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.nexa-btn-primary:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-}
-.nexa-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.nexa-btn-primary:hover { background: var(--nexa-accent-dim); }
+.nexa-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .nexa-btn-secondary {
-  background: transparent;
-  color: var(--nexa-white);
+  background: var(--nexa-bg);
+  color: var(--nexa-text-sub);
   font-weight: 600;
   border-radius: 8px;
-  padding: 11px 20px;
+  padding: 9px 16px;
   border: 1px solid var(--nexa-border);
   cursor: pointer;
   font-size: 13px;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color 0.15s ease, color 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 .nexa-btn-secondary:hover {
-  border-color: var(--nexa-accent);
-  color: var(--nexa-accent);
+  border-color: var(--nexa-text);
+  color: var(--nexa-text);
 }
 
 /* ── Badges ──────────────────────────────────────────────────────────────────── */
 
 .nexa-badge-active {
-  background: rgba(212, 175, 55, 0.15);
-  color: #D4AF37;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: var(--nexa-success-bg);
+  color: var(--nexa-success);
+  border: 1px solid rgba(74, 138, 90, 0.2);
   border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .nexa-badge-danger {
-  background: rgba(255, 68, 68, 0.15);
-  color: #FF4444;
-  border: 1px solid rgba(255, 68, 68, 0.3);
+  background: var(--nexa-danger-bg);
+  color: var(--nexa-danger);
+  border: 1px solid rgba(180, 64, 64, 0.2);
   border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .nexa-badge-pending {
-  background: rgba(212, 175, 55, 0.15);
-  color: #D4AF37;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: var(--nexa-warning-bg);
+  color: var(--nexa-warning);
+  border: 1px solid rgba(196, 120, 58, 0.2);
   border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -199,20 +197,20 @@ button { cursor: pointer; }
 /* ── Date / time inputs ──────────────────────────────────────────────────────── */
 
 input[type="date"],
-input[type="time"] { color-scheme: dark; }
+input[type="time"] { color-scheme: light; }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.4) sepia(1) saturate(2) hue-rotate(50deg);
+  filter: none;
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.45;
 }
-input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 0.75; }
 
 /* ── Select options ──────────────────────────────────────────────────────────── */
 
 select option {
-  background-color: var(--nexa-dark);
-  color: var(--nexa-white);
+  background-color: var(--nexa-bg);
+  color: var(--nexa-text);
 }
 
 /* ── Checkbox (custom) ───────────────────────────────────────────────────────── */
@@ -223,7 +221,7 @@ input[type="checkbox"] {
   height: 15px;
   border: 1.5px solid var(--nexa-border);
   border-radius: 4px;
-  background: transparent;
+  background: var(--nexa-bg);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
@@ -231,21 +229,21 @@ input[type="checkbox"] {
 }
 input[type="checkbox"]:hover { border-color: var(--nexa-muted); }
 input[type="checkbox"]:checked {
-  background: var(--nexa-accent);
-  border-color: var(--nexa-accent);
+  background: var(--nexa-text);
+  border-color: var(--nexa-text);
 }
 input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 6l3 3 5-5' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 6l3 3 5-5' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-position: center;
   background-repeat: no-repeat;
   background-size: 10px;
 }
 input[type="checkbox"]:indeterminate {
-  background: var(--nexa-surface);
-  border-color: var(--nexa-faint);
+  background: var(--nexa-card);
+  border-color: var(--nexa-border);
 }
 input[type="checkbox"]:indeterminate::after {
   content: '';
@@ -287,13 +285,8 @@ input[type="checkbox"]:indeterminate::after {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
-  50%       { box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.15); }
-}
 
 .anim-fade-up    { animation: fade-up    0.18s ease-out forwards; }
 .anim-fade-in    { animation: fade-in    0.15s ease-out forwards; }
 .anim-scale-in   { animation: scale-in   0.18s ease-out forwards; }
 .anim-slide-down { animation: slide-down 0.16s ease-out forwards; }
-.anim-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }

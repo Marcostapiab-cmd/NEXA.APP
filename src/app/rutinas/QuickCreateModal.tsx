@@ -54,18 +54,18 @@ Running 4x400 metros`;
 function ConfidenceBadge({ confidence, needsReview }: { confidence: number; needsReview: boolean }) {
   if (confidence === 0)
     return (
-      <span className="shrink-0 rounded-md bg-red-950/30 px-2 py-0.5 text-[10px] font-bold text-red-400">
+      <span className="shrink-0 rounded-md bg-[#FAEAEA] px-2 py-0.5 text-[10px] font-bold text-[#B44040]">
         Buscar
       </span>
     );
   if (needsReview)
     return (
-      <span className="shrink-0 rounded-md bg-yellow-950/30 px-2 py-0.5 text-[10px] font-bold text-yellow-400">
+      <span className="shrink-0 rounded-md bg-[#FFF3E8] px-2 py-0.5 text-[10px] font-bold text-[#C4783A]">
         ⚠ Revisar
       </span>
     );
   return (
-    <span className="shrink-0 rounded-md bg-emerald-950/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+    <span className="shrink-0 rounded-md bg-[#EBF5EE] px-2 py-0.5 text-[10px] font-bold text-[#4A8A5A]">
       ✓ OK
     </span>
   );
@@ -98,10 +98,10 @@ function PreviewRow({
       : [];
 
   const dotColor =
-    row.confidence === 0 ? '#ef4444' : row.needsReview ? '#eab308' : '#22c55e';
+    row.confidence === 0 ? '#B44040' : row.needsReview ? '#C4783A' : '#4A8A5A';
 
   return (
-    <div className="border-b border-[#0f0f0f] py-3 last:border-none">
+    <div className="border-b border-[#EBEBEB] py-3 last:border-none">
       {/* ── Main row ── */}
       <div className="flex items-start gap-2">
         {/* Status dot */}
@@ -112,7 +112,7 @@ function PreviewRow({
           {row.selectedExercise ? (
             <button
               onClick={() => onUpdate({ showSearch: !row.showSearch, searchQuery: '' })}
-              className="text-left text-sm font-semibold text-white transition hover:text-[#D4AF37]"
+              className="text-left text-sm font-semibold text-[#121212] transition hover:text-[#3E3E3E]"
             >
               {row.selectedExercise.nombre}
             </button>
@@ -120,11 +120,11 @@ function PreviewRow({
             <input
               value={row.exerciseName}
               onChange={e => onUpdate({ exerciseName: e.target.value })}
-              className="w-full bg-transparent text-sm font-semibold text-red-400 outline-none placeholder-[#444444]"
+              className="w-full bg-transparent text-sm font-semibold text-[#B44040] outline-none placeholder-[#9B9B9B]"
               placeholder="Nombre del ejercicio"
             />
           )}
-          <p className="truncate text-[10px] text-[#2a2a2a]">{row.originalText}</p>
+          <p className="truncate text-[10px] text-[#AAAAAA]">{row.originalText}</p>
         </div>
 
         {/* Sets × Reps */}
@@ -135,13 +135,13 @@ function PreviewRow({
             max="20"
             value={row.sets}
             onChange={e => onUpdate({ sets: Math.max(1, parseInt(e.target.value) || 1) })}
-            className="w-9 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] py-1 text-center text-sm text-white outline-none focus:border-[#333333] tabular-nums"
+            className="w-9 rounded-lg border border-[#E0E0E0] bg-[#F8F8F8] py-1 text-center text-sm text-[#121212] outline-none focus:border-[#9B9B9B] tabular-nums"
           />
-          <span className="text-[11px] text-[#2a2a2a]">×</span>
+          <span className="text-[11px] text-[#AAAAAA]">×</span>
           <input
             value={row.repsStr}
             onChange={e => onUpdate({ repsStr: e.target.value })}
-            className="w-14 rounded-lg border border-[#1e1e1e] bg-[#0a0a0a] py-1 text-center text-sm text-white outline-none focus:border-[#333333]"
+            className="w-14 rounded-lg border border-[#E0E0E0] bg-[#F8F8F8] py-1 text-center text-sm text-[#121212] outline-none focus:border-[#9B9B9B]"
           />
         </div>
 
@@ -151,7 +151,7 @@ function PreviewRow({
         {/* Delete */}
         <button
           onClick={onDelete}
-          className="mt-0.5 shrink-0 rounded-lg p-1 text-[#1e1e1e] transition hover:text-[#ef4444]"
+          className="mt-0.5 shrink-0 rounded-lg p-1 text-[#E0E0E0] transition hover:text-[#B44040]"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -164,14 +164,14 @@ function PreviewRow({
             <button
               key={m.exercise.id}
               onClick={() => onSelect(m.exercise)}
-              className="flex w-full items-center gap-2 rounded-lg border border-[#1a1a1a] bg-[#111111] px-3 py-1.5 text-left transition hover:border-[#D4AF37]/20 hover:bg-[#D4AF37]/5"
+              className="flex w-full items-center gap-2 rounded-lg border border-[#E4E4E4] bg-[#F0F0F0] px-3 py-1.5 text-left transition hover:border-[#121212]/15 hover:bg-[#121212]/4"
             >
-              <span className="min-w-0 flex-1 truncate text-xs text-[#888888]">
+              <span className="min-w-0 flex-1 truncate text-xs text-[#5E5E5E]">
                 {m.exercise.nombre}
               </span>
               <span
                 className="shrink-0 text-[9px] font-bold tabular-nums"
-                style={{ color: m.confidence >= 0.9 ? '#22c55e' : m.confidence >= 0.65 ? '#eab308' : '#888888' }}
+                style={{ color: m.confidence >= 0.9 ? '#4A8A5A' : m.confidence >= 0.65 ? '#C4783A' : '#5E5E5E' }}
               >
                 {Math.round(m.confidence * 100)}%
               </span>
@@ -179,7 +179,7 @@ function PreviewRow({
           ))}
           <button
             onClick={() => onUpdate({ showSearch: true, searchQuery: '' })}
-            className="mt-1 flex items-center gap-1.5 text-[11px] text-[#333333] transition hover:text-[#D4AF37]"
+            className="mt-1 flex items-center gap-1.5 text-[11px] text-[#9B9B9B] transition hover:text-[#121212]"
           >
             <Search className="h-3 w-3" /> Buscar en biblioteca
           </button>
@@ -194,28 +194,28 @@ function PreviewRow({
             value={row.searchQuery}
             onChange={e => onUpdate({ searchQuery: e.target.value })}
             placeholder="Buscar ejercicio en biblioteca..."
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-3 py-2 text-sm text-white placeholder-[#333333] outline-none focus:border-[#444444]"
+            className="w-full rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#9B9B9B]"
           />
           {liveResults.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-[#1a1a1a]">
+            <div className="overflow-hidden rounded-xl border border-[#E4E4E4]">
               {liveResults.map(m => (
                 <button
                   key={m.exercise.id}
                   onClick={() => onSelect(m.exercise)}
-                  className="flex w-full items-center gap-2 border-b border-[#0f0f0f] px-3 py-2 text-left transition last:border-none hover:bg-[#141414]"
+                  className="flex w-full items-center gap-2 border-b border-[#EBEBEB] px-3 py-2 text-left transition last:border-none hover:bg-[#EBEBEB]"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm text-white">{m.exercise.nombre}</span>
-                  <span className="shrink-0 text-[10px] text-[#444444]">{m.exercise.grupo}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-[#121212]">{m.exercise.nombre}</span>
+                  <span className="shrink-0 text-[10px] text-[#888888]">{m.exercise.grupo}</span>
                 </button>
               ))}
             </div>
           )}
           {row.searchQuery.trim().length >= 2 && liveResults.length === 0 && (
-            <p className="text-xs text-[#333333]">Sin resultados</p>
+            <p className="text-xs text-[#9B9B9B]">Sin resultados</p>
           )}
           <button
             onClick={() => onUpdate({ showSearch: false, searchQuery: '' })}
-            className="text-[10px] text-[#333333] transition hover:text-white"
+            className="text-[10px] text-[#9B9B9B] transition hover:text-[#121212]"
           >
             Cerrar búsqueda
           </button>
@@ -339,27 +339,27 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
 
   if (step === 'input') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-xl rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-xl rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] shadow-2xl">
 
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#1e1e1e] px-5 py-4">
+          <div className="flex items-center justify-between border-b border-[#E0E0E0] px-5 py-4">
             <div className="flex items-center gap-2.5">
-              <FileText className="h-4 w-4 text-[#D4AF37]" />
-              <p className="text-sm font-bold text-white">Crear desde texto</p>
+              <FileText className="h-4 w-4 text-[#121212]" />
+              <p className="text-sm font-bold text-[#121212]">Crear desde texto</p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-xl border border-[#1e1e1e] p-1.5 text-[#444444] transition hover:border-[#333333] hover:text-white"
+              className="rounded-xl border border-[#E0E0E0] p-1.5 text-[#888888] transition hover:border-[#9B9B9B] hover:text-[#121212]"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           <div className="space-y-4 p-5">
-            <p className="text-xs text-[#444444]">
+            <p className="text-xs text-[#888888]">
               Escribe cada ejercicio en una línea.{' '}
-              <span className="text-[#555555]">Formato: Ejercicio Series×Reps</span>
+              <span className="text-[#777777]">Formato: Ejercicio Series×Reps</span>
             </p>
 
             <textarea
@@ -369,32 +369,32 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) interpret(); }}
               rows={10}
               placeholder={PLACEHOLDER}
-              className="w-full resize-none rounded-xl border border-[#1e1e1e] bg-[#111111] px-4 py-3 font-mono text-sm leading-relaxed text-white placeholder-[#2a2a2a] outline-none focus:border-[#2a2a2a]"
+              className="w-full resize-none rounded-xl border border-[#E0E0E0] bg-[#F0F0F0] px-4 py-3 font-mono text-sm leading-relaxed text-[#121212] placeholder-[#AAAAAA] outline-none focus:border-[#D8D8D8]"
             />
 
             <div className="flex items-center gap-2">
               <button
                 onClick={interpret}
                 disabled={!text.trim()}
-                className="flex-1 rounded-xl bg-[#D4AF37] py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-25"
+                className="flex-1 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-25"
               >
                 Interpretar rutina
               </button>
               <button
                 onClick={() => setText('')}
-                className="rounded-xl border border-[#1e1e1e] px-3 py-2.5 text-xs font-medium text-[#555555] transition hover:border-[#333333] hover:text-white"
+                className="rounded-xl border border-[#E0E0E0] px-3 py-2.5 text-xs font-medium text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#121212]"
               >
                 Limpiar
               </button>
               <button
                 onClick={onClose}
-                className="rounded-xl border border-[#1e1e1e] px-3 py-2.5 text-xs font-medium text-[#555555] transition hover:border-[#333333] hover:text-white"
+                className="rounded-xl border border-[#E0E0E0] px-3 py-2.5 text-xs font-medium text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#121212]"
               >
                 Cancelar
               </button>
             </div>
 
-            <p className="text-[10px] text-[#222222]">
+            <p className="text-[10px] text-[#B0B0B0]">
               ⌘+Enter para interpretar · Soporta: 3x12 · 3 x 10-12 · 3x30s · 3x30 segundos · 4x400 metros · 3 series de 12
             </p>
           </div>
@@ -406,24 +406,24 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
   // ── Step 2: Preview ────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/90 p-4 pt-6 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 p-4 pt-6 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e1e1e] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] px-5 py-4">
           <div>
-            <p className="text-sm font-bold text-white">
+            <p className="text-sm font-bold text-[#121212]">
               Vista previa — {rows.length} ejercicio{rows.length !== 1 ? 's' : ''}
             </p>
             {needsReviewCount > 0 && (
-              <p className="mt-0.5 text-[11px] text-yellow-500/70">
+              <p className="mt-0.5 text-[11px] text-[#C4783A]">
                 {needsReviewCount} ejercicio{needsReviewCount !== 1 ? 's' : ''} {needsReviewCount !== 1 ? 'necesitan' : 'necesita'} revisión
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl border border-[#1e1e1e] p-1.5 text-[#444444] transition hover:border-[#333333] hover:text-white"
+            className="rounded-xl border border-[#E0E0E0] p-1.5 text-[#888888] transition hover:border-[#9B9B9B] hover:text-[#121212]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -431,22 +431,22 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
 
         {/* Warnings */}
         {warnings.length > 0 && (
-          <div className="border-b border-[#1e1e1e] bg-yellow-950/10 px-5 py-3">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-yellow-700">
+          <div className="border-b border-[#E0E0E0] bg-[#FFF3E8] px-5 py-3">
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#C4783A]">
               Líneas no interpretadas
             </p>
             {warnings.map((w, i) => (
-              <p key={i} className="text-xs text-[#444444]">{w}</p>
+              <p key={i} className="text-xs text-[#888888]">{w}</p>
             ))}
           </div>
         )}
 
         {/* Column headers */}
         {rows.length > 0 && (
-          <div className="flex items-center gap-2 border-b border-[#0f0f0f] px-5 py-2">
-            <div className="ml-3.5 flex-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#2a2a2a]">Ejercicio</div>
-            <div className="w-[85px] shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-[#2a2a2a]">Series × Reps</div>
-            <div className="w-[68px] shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-[#2a2a2a]">Estado</div>
+          <div className="flex items-center gap-2 border-b border-[#EBEBEB] px-5 py-2">
+            <div className="ml-3.5 flex-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#AAAAAA]">Ejercicio</div>
+            <div className="w-[85px] shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-[#AAAAAA]">Series × Reps</div>
+            <div className="w-[68px] shrink-0 text-[9px] font-bold uppercase tracking-[0.14em] text-[#AAAAAA]">Estado</div>
             <div className="w-5" />
           </div>
         )}
@@ -454,7 +454,7 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
         {/* Rows */}
         <div className="max-h-[55vh] overflow-y-auto px-5">
           {rows.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[#333333]">
+            <p className="py-10 text-center text-sm text-[#9B9B9B]">
               Sin ejercicios interpretados
             </p>
           ) : (
@@ -472,12 +472,12 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
         </div>
 
         {/* Footer */}
-        <div className="space-y-3 border-t border-[#1e1e1e] p-4">
+        <div className="space-y-3 border-t border-[#E0E0E0] p-4">
           <div className="flex gap-2">
             <button
               onClick={confirmAdd}
               disabled={rows.length === 0}
-              className="flex-1 rounded-xl bg-[#D4AF37] py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-25"
+              className="flex-1 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-25"
             >
               <span className="flex items-center justify-center gap-2">
                 <Plus className="h-4 w-4" />
@@ -486,13 +486,13 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
             </button>
             <button
               onClick={() => setStep('input')}
-              className="rounded-xl border border-[#1e1e1e] px-4 py-3 text-sm font-medium text-[#555555] transition hover:border-[#333333] hover:text-white"
+              className="rounded-xl border border-[#E0E0E0] px-4 py-3 text-sm font-medium text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#121212]"
             >
               ← Editar texto
             </button>
           </div>
           {needsReviewCount > 0 && (
-            <p className="text-center text-[10px] text-[#333333]">
+            <p className="text-center text-[10px] text-[#9B9B9B]">
               Puedes agregar igual — los ejercicios con revisión usarán el nombre tal como fue detectado
             </p>
           )}

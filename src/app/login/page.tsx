@@ -39,7 +39,7 @@ export default function LoginPage() {
       className="flex min-h-screen items-center justify-center p-4"
       style={{
         background: 'var(--nexa-black)',
-        backgroundImage: 'radial-gradient(ellipse at top right, rgba(212,175,55,0.08) 0%, transparent 60%)',
+        backgroundImage: 'radial-gradient(ellipse at top right, rgba(18,18,18,0.08) 0%, transparent 60%)',
       }}
     >
       <div
@@ -118,9 +118,9 @@ export default function LoginPage() {
             <div
               className="rounded-lg px-4 py-3 text-[13px]"
               style={{
-                background: 'rgba(255,68,68,0.1)',
-                border: '1px solid rgba(255,68,68,0.25)',
-                color: '#FF4444',
+                background: '#FAEAEA',
+                border: '1px solid rgba(180,64,64,0.20)',
+                color: '#B44040',
               }}
             >
               {error}

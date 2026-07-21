@@ -20,7 +20,7 @@ interface PreviewProps {
 }
 
 function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
-  const IC = 'rounded-lg border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1.5 text-xs text-white outline-none focus:border-[#f97316] w-full';
+  const IC = 'rounded-lg border border-[#C8C8C8] bg-[#F8F8F8] px-2 py-1.5 text-xs text-[#121212] outline-none focus:border-[#121212] w-full';
 
   function setName(exerciseName: string) { onChange({ ...parsed, exerciseName }); }
   function setNotes(generalNotes: string) { onChange({ ...parsed, generalNotes }); }
@@ -47,44 +47,44 @@ function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
     <div className="space-y-4">
       {/* Exercise name */}
       <div>
-        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]">
+        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
           Ejercicio
         </label>
         <input value={parsed.exerciseName} onChange={e => setName(e.target.value)}
           placeholder="Nombre del ejercicio"
-          className="w-full rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-[#f97316]" />
+          className="w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm font-semibold text-[#121212] outline-none focus:border-[#121212]" />
       </div>
 
       {/* Series table */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]">
+          <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
             Series ({parsed.series.length})
           </label>
           <button type="button" onClick={addSerie}
-            className="flex items-center gap-1 text-[10px] text-[#f97316] transition hover:text-[#ea6c0c]">
+            className="flex items-center gap-1 text-[10px] text-[#121212] transition hover:text-[#3E3E3E]">
             <Plus className="h-3 w-3" /> Agregar
           </button>
         </div>
 
         {parsed.series.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[#2a2a2a] py-6 text-center text-xs text-[#444444]">
+          <p className="rounded-xl border border-dashed border-[#C8C8C8] py-6 text-center text-xs text-[#888888]">
             No se detectaron series. Edita el nombre o agrega manualmente.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+          <div className="overflow-hidden rounded-xl border border-[#C8C8C8]">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#2a2a2a] bg-[#0d0d0d]">
+                <tr className="border-b border-[#C8C8C8] bg-[#F5F5F5]">
                   {['#', 'Reps', 'Kg', 'RIR', 'RPE', 'Notas', ''].map((h, i) => (
-                    <th key={i} className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest text-[#333333]">{h}</th>
+                    <th key={i} className="px-2 py-2 text-left text-[9px] font-bold uppercase tracking-widest text-[#9B9B9B]">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1a1a]">
+              <tbody className="divide-y divide-[#DEDEDE]">
                 {parsed.series.map((s, i) => (
-                  <tr key={i} className="bg-[#0a0a0a]">
-                    <td className="px-2 py-2 font-mono text-[#444444]">{s.setNumber}</td>
+                  <tr key={i} className="bg-[#F8F8F8]">
+                    <td className="px-2 py-2 font-mono text-[#888888]">{s.setNumber}</td>
                     <td className="px-2 py-2">
                       <input type="number" value={s.reps ?? ''} onChange={e => setSerie(i, 'reps', e.target.value ? parseInt(e.target.value) : null)}
                         placeholder="—" className={IC + ' w-14'} />
@@ -107,7 +107,7 @@ function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
                     </td>
                     <td className="px-2 py-2">
                       <button type="button" onClick={() => removeSerie(i)}
-                        className="text-[#333333] transition hover:text-red-500">
+                        className="text-[#9B9B9B] transition hover:text-[#B44040]">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </td>
@@ -121,12 +121,12 @@ function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
 
       {/* General notes */}
       <div>
-        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]">
+        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
           Notas generales
         </label>
         <textarea value={parsed.generalNotes} onChange={e => setNotes(e.target.value)}
           rows={2} placeholder="Observaciones del entrenamiento..."
-          className="w-full resize-none rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none focus:border-[#f97316]" />
+          className="w-full resize-none rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2 text-xs text-[#121212] outline-none focus:border-[#121212]" />
       </div>
     </div>
   );
@@ -252,7 +252,7 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
       <div onClick={openModal} className="cursor-pointer">
         {trigger ?? (
           <button type="button"
-            className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] px-3.5 py-2 text-xs font-medium text-[#888888] transition hover:border-[#f97316] hover:text-[#f97316]">
+            className="flex items-center gap-2 rounded-xl border border-[#C8C8C8] px-3.5 py-2 text-xs font-medium text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
             <Mic className="h-3.5 w-3.5" />
             Registrar con voz
           </button>
@@ -261,29 +261,29 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/92 p-4 pt-12 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-[#2a2a2a] bg-[#141414] shadow-2xl">
+        <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/35 p-4 pt-12 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-[#C8C8C8] bg-[#EBEBEB] shadow-2xl">
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 py-4">
+            <div className="flex items-center justify-between border-b border-[#C8C8C8] px-5 py-4">
               <div className="flex items-center gap-3">
                 <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
-                  phase === 'listening' ? 'animate-pulse bg-red-500/20' : 'bg-[#1a1a1a]'
+                  phase === 'listening' ? 'animate-pulse bg-red-500/20' : 'bg-[#E4E4E4]'
                 }`}>
                   {phase === 'listening'
                     ? <Mic className="h-4 w-4 text-red-400" />
-                    : <Mic className="h-4 w-4 text-[#888888]" />
+                    : <Mic className="h-4 w-4 text-[#5E5E5E]" />
                   }
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold text-[#121212]">
                     {phase === 'idle'        ? 'Registrar con voz'
                     : phase === 'listening'  ? 'Escuchando...'
                     : phase === 'processing' ? 'Procesando...'
                     : phase === 'preview'    ? 'Confirmar datos'
                     : 'Voz no disponible'}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-[#555555]">
+                  <p className="mt-0.5 text-[11px] text-[#777777]">
                     {phase === 'idle' && 'Di el ejercicio y las series que completaste'}
                     {phase === 'listening' && 'Habla claro y luego presiona Detener'}
                     {phase === 'preview' && 'Revisa y edita antes de confirmar'}
@@ -291,7 +291,7 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
                 </div>
               </div>
               <button onClick={closeModal}
-                className="rounded-xl border border-[#2a2a2a] p-2 text-[#555555] transition hover:border-[#444444] hover:text-white">
+                className="rounded-xl border border-[#C8C8C8] p-2 text-[#777777] transition hover:border-[#888888] hover:text-[#121212]">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -300,9 +300,9 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
 
               {/* Unsupported */}
               {phase === 'unsupported' && (
-                <div className="flex items-start gap-3 rounded-xl border border-yellow-900/50 bg-yellow-950/20 px-4 py-3.5">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
-                  <p className="text-sm text-yellow-200">
+                <div className="flex items-start gap-3 rounded-xl border border-yellow-400/50 bg-yellow-50 px-4 py-3.5">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                  <p className="text-sm text-yellow-800">
                     Tu navegador no soporta dictado por voz. Puedes ingresar los datos manualmente desde la tabla de series.
                   </p>
                 </div>
@@ -311,29 +311,29 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
               {/* Idle — instructions */}
               {phase === 'idle' && isSupported && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-[#1e1e1e] bg-[#0d0d0d] p-4">
-                    <p className="mb-2.5 text-xs font-bold uppercase tracking-widest text-[#444444]">
+                  <div className="rounded-xl border border-[#DEDEDE] bg-[#F5F5F5] p-4">
+                    <p className="mb-2.5 text-xs font-bold uppercase tracking-widest text-[#888888]">
                       Ejemplo de dictado
                     </p>
-                    <p className="text-sm leading-relaxed text-[#888888] italic">
+                    <p className="text-sm leading-relaxed text-[#5E5E5E] italic">
                       "Press banca, primera serie 4 repeticiones con 30 kilos, segunda serie 7 repeticiones con 30 kilos, tercera serie 6 repeticiones con 27 kilos"
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-[#444444]">
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-[#888888]">
                       {['Primera/Segunda/Tercera serie', 'N repeticiones', 'con N kilos', 'RIR N', 'RPE N'].map(t => (
-                        <span key={t} className="rounded-md border border-[#2a2a2a] px-2 py-1">{t}</span>
+                        <span key={t} className="rounded-md border border-[#C8C8C8] px-2 py-1">{t}</span>
                       ))}
                     </div>
                   </div>
 
                   {error && (
-                    <div className="flex items-start gap-2.5 rounded-xl border border-red-900/50 bg-red-950/20 px-3.5 py-3 text-sm text-red-400">
+                    <div className="flex items-start gap-2.5 rounded-xl border border-[#B44040]/30 bg-[#FAEAEA] px-3.5 py-3 text-sm text-[#B44040]">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                       {error}
                     </div>
                   )}
 
                   <button onClick={startListening}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#f97316] py-3.5 text-sm font-bold text-white transition hover:bg-[#ea6c0c]">
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-[#121212] py-3.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E]">
                     <Mic className="h-4 w-4" />
                     Iniciar dictado
                   </button>
@@ -352,19 +352,19 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
                         <Mic className="h-7 w-7 text-red-400" />
                       </div>
                     </div>
-                    <p className="text-sm font-medium text-[#888888] animate-pulse">Escuchando... habla ahora</p>
+                    <p className="text-sm font-medium text-[#5E5E5E] animate-pulse">Escuchando... habla ahora</p>
                   </div>
 
                   {/* Live transcript */}
                   {transcript && (
-                    <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-4 py-3">
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#444444]">Transcripción en vivo</p>
-                      <p className="text-sm text-white leading-relaxed">{transcript}</p>
+                    <div className="rounded-xl border border-[#C8C8C8] bg-[#F5F5F5] px-4 py-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#888888]">Transcripción en vivo</p>
+                      <p className="text-sm text-[#121212] leading-relaxed">{transcript}</p>
                     </div>
                   )}
 
                   <button onClick={stopAndProcess}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] py-3 text-sm font-medium text-white transition hover:bg-[#1a1a1a]">
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#C8C8C8] py-3 text-sm font-medium text-[#121212] transition hover:bg-[#E4E4E4]">
                     <MicOff className="h-4 w-4" />
                     Detener y procesar
                   </button>
@@ -374,28 +374,28 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
               {/* Processing */}
               {phase === 'processing' && (
                 <div className="flex flex-col items-center gap-3 py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#f97316]" />
-                  <p className="text-sm text-[#888888]">Interpretando dictado...</p>
+                  <Loader2 className="h-8 w-8 animate-spin text-[#121212]" />
+                  <p className="text-sm text-[#5E5E5E]">Interpretando dictado...</p>
                 </div>
               )}
 
               {/* Preview */}
               {phase === 'preview' && parsed && (
                 <>
-                  <div className="flex items-start gap-2.5 rounded-xl border border-[#2a2a2a] bg-[#111111] px-3.5 py-3 text-xs text-[#888888]">
-                    <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#f97316]" />
+                  <div className="flex items-start gap-2.5 rounded-xl border border-[#C8C8C8] bg-[#F0F0F0] px-3.5 py-3 text-xs text-[#5E5E5E]">
+                    <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#121212]" />
                     Esto fue lo que entendí. Edita cualquier campo antes de confirmar.
                   </div>
 
                   <VoiceParsingPreview parsed={parsed} onChange={setParsed} />
 
-                  <div className="flex gap-2.5 border-t border-[#1e1e1e] pt-4">
+                  <div className="flex gap-2.5 border-t border-[#DEDEDE] pt-4">
                     <button onClick={() => { setPhase('idle'); setTrans(''); transcriptRef.current = ''; setParsed(null); }}
-                      className="flex items-center gap-1.5 rounded-xl border border-[#2a2a2a] px-4 py-2.5 text-xs font-medium text-[#888888] transition hover:border-[#444444] hover:text-white">
+                      className="flex items-center gap-1.5 rounded-xl border border-[#C8C8C8] px-4 py-2.5 text-xs font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
                       <Mic className="h-3.5 w-3.5" /> Repetir
                     </button>
                     <button onClick={handleConfirm}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f97316] py-2.5 text-sm font-bold text-white transition hover:bg-[#ea6c0c]">
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E]">
                       <Check className="h-4 w-4" />
                       Confirmar y guardar
                     </button>

@@ -21,7 +21,7 @@ const DOW    = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 const ESTADO_DOT: Record<EstadoSesion, string> = {
-  completado: '#22c55e', en_progreso: '#eab308', incompleto: '#ef4444', pendiente: '#52525b',
+  completado: '#4A8A5A', en_progreso: '#eab308', incompleto: '#B44040', pendiente: '#9B9B9B',
 };
 const ESTADO_LABEL: Record<EstadoSesion, string> = {
   completado: 'Completado', en_progreso: 'En progreso', incompleto: 'Incompleto', pendiente: 'Pendiente',
@@ -63,19 +63,19 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/90 p-4 pt-8 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/35 p-4 pt-8 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-[#DEDEDE] bg-[#F5F5F5] shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e1e1e] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[#DEDEDE] px-5 py-4">
           <div>
-            <p className="text-sm font-bold text-white">Calendario de entrenamiento</p>
-            <p className="mt-0.5 text-xs text-[#444444]">
+            <p className="text-sm font-bold text-[#121212]">Calendario de entrenamiento</p>
+            <p className="mt-0.5 text-xs text-[#888888]">
               {alumno.nombre}{alumno.apellido ? ` ${alumno.apellido}` : ''}
             </p>
           </div>
           <button onClick={onClose}
-            className="rounded-xl border border-[#1e1e1e] p-2 text-[#444444] transition hover:text-white">
+            className="rounded-xl border border-[#DEDEDE] p-2 text-[#888888] transition hover:text-[#121212]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -84,18 +84,18 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
 
           {/* Month nav */}
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold capitalize text-white">{MONTHS[month]} {year}</p>
+            <p className="text-sm font-semibold capitalize text-[#121212]">{MONTHS[month]} {year}</p>
             <div className="flex items-center gap-1">
               <button onClick={() => setCursor(new Date(year, month - 1, 1))}
-                className="rounded-lg p-1.5 text-[#555555] transition hover:bg-[#1a1a1a] hover:text-white">
+                className="rounded-lg p-1.5 text-[#777777] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
-                className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#555555] transition hover:bg-[#1a1a1a] hover:text-white">
+                className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#777777] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
                 Hoy
               </button>
               <button onClick={() => setCursor(new Date(year, month + 1, 1))}
-                className="rounded-lg p-1.5 text-[#555555] transition hover:bg-[#1a1a1a] hover:text-white">
+                className="rounded-lg p-1.5 text-[#777777] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -104,7 +104,7 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
           {/* Day headers */}
           <div className="grid grid-cols-7">
             {DOW.map(d => (
-              <div key={d} className="py-1 text-center text-[10px] font-bold uppercase tracking-widest text-[#333333]">{d}</div>
+              <div key={d} className="py-1 text-center text-[10px] font-bold uppercase tracking-widest text-[#9B9B9B]">{d}</div>
             ))}
           </div>
 
@@ -123,15 +123,15 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
                 <button key={day} onClick={() => setSelected(fecha)}
                   className={`relative flex min-h-[40px] flex-col items-center justify-center gap-0.5 rounded-xl text-[13px] transition ${
                     isSel
-                      ? 'bg-white font-bold text-black'
+                      ? 'bg-[#121212]/8 font-bold text-[#121212] ring-1 ring-[#121212]/18'
                       : isToday
-                      ? 'bg-[#1a1a1a] font-semibold text-white'
-                      : 'text-[#666666] hover:bg-[#141414] hover:text-white'
+                      ? 'bg-[#E4E4E4] font-semibold text-[#121212] ring-1 ring-[#D8D8D8]'
+                      : 'text-[#6E6E6E] hover:bg-[#EBEBEB] hover:text-[#121212]'
                   }`}>
                   <span>{day}</span>
                   {estado && (
                     <span className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: isSel ? 'rgba(0,0,0,0.45)' : ESTADO_DOT[estado] }} />
+                      style={{ backgroundColor: isSel ? 'rgba(18,18,18,0.35)' : ESTADO_DOT[estado] }} />
                   )}
                 </button>
               );
@@ -139,7 +139,7 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-[#1e1e1e] pt-3 text-[10px] text-[#444444]">
+          <div className="flex flex-wrap items-center gap-3 border-t border-[#DEDEDE] pt-3 text-[10px] text-[#888888]">
             {(['completado', 'en_progreso', 'incompleto', 'pendiente'] as EstadoSesion[]).map(e => (
               <span key={e} className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ESTADO_DOT[e] }} />
@@ -150,9 +150,9 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
 
           {/* Selected day detail */}
           {selected && (
-            <div className="rounded-xl border border-[#1e1e1e] bg-[#111111] p-4">
+            <div className="rounded-xl border border-[#DEDEDE] bg-[#F0F0F0] p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold capitalize text-white">
+                <p className="text-sm font-semibold capitalize text-[#121212]">
                   {new Date(selected + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </p>
                 {selectedEstado && (
@@ -165,8 +165,8 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
 
               {!selectedSession ? (
                 <div className="mt-4 flex flex-col items-center gap-2 py-4 text-center">
-                  <CalendarDays className="h-6 w-6 text-[#1e1e1e]" />
-                  <p className="text-sm text-[#333333]">No hay rutina asignada para este día</p>
+                  <CalendarDays className="h-6 w-6 text-[#DEDEDE]" />
+                  <p className="text-sm text-[#9B9B9B]">No hay rutina asignada para este día</p>
                 </div>
               ) : (
                 <>
@@ -177,17 +177,17 @@ export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClo
                         ? getEstadoEjercicio(sesEj, selectedEstado ?? 'pendiente')
                         : (selectedEstado === 'incompleto' ? 'incompleto' : 'pendiente');
                       return (
-                        <div key={ex.id} className="flex items-center gap-2.5 rounded-lg bg-[#0a0a0a] px-3 py-2">
+                        <div key={ex.id} className="flex items-center gap-2.5 rounded-lg bg-[#F8F8F8] px-3 py-2">
                           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ESTADO_DOT[estadoEj] }} />
-                          <span className="flex-1 truncate text-[13px] text-[#cccccc]">{ex.name}</span>
-                          <span className="shrink-0 text-[10px] text-[#444444]">{ex.series} × {ex.reps}</span>
+                          <span className="flex-1 truncate text-[13px] text-[#3E3E3E]">{ex.name}</span>
+                          <span className="shrink-0 text-[10px] text-[#888888]">{ex.series} × {ex.reps}</span>
                         </div>
                       );
                     })}
                   </div>
 
                   <button onClick={handleLoad}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#f97316] py-2.5 text-sm font-bold text-white transition hover:bg-[#ea6c0c]">
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E]">
                     <CheckSquare className="h-4 w-4" />
                     Cargar rutina de este día
                   </button>

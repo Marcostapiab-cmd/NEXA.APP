@@ -10,6 +10,8 @@ export interface SesionEjercicio {
   nombre: string;
   grupo: string;
   series: SesionSerie[];
+  notas?: string;
+  nombreOriginal?: string;
 }
 
 export interface Sesion {

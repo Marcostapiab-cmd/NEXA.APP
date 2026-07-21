@@ -19,9 +19,9 @@ export default function NotificacionesPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-semibold text-slate-900">Notificaciones</h1>
-        <p className="mt-2 text-slate-600">Activa recordatorios para mantener el ritmo y revisar tu progreso regularmente.</p>
+      <section className="rounded-3xl border border-[#D8D8D8] bg-[#F8F8F8] p-8 shadow-sm">
+        <h1 className="text-3xl font-semibold text-[#121212]">Notificaciones</h1>
+        <p className="mt-2 text-[#3E3E3E]">Activa recordatorios para mantener el ritmo y revisar tu progreso regularmente.</p>
       </section>
 
       <section className="mt-8 space-y-4">
@@ -32,16 +32,16 @@ export default function NotificacionesPage() {
             onClick={() => toggleNotification(item.id)}
             className={`w-full rounded-3xl border px-6 py-5 text-left transition ${
               activeNotifications.includes(item.id)
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                ? 'border-[#121212] bg-[#121212] text-white'
+                : 'border-[#D8D8D8] bg-[#F8F8F8] text-[#121212] hover:border-[#C0C0C0] hover:bg-[#EBEBEB]'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">{item.label}</h2>
-                <p className="mt-2 text-slate-600">{item.description}</p>
+                <p className={`mt-2 ${activeNotifications.includes(item.id) ? 'text-white/70' : 'text-[#3E3E3E]'}`}>{item.description}</p>
               </div>
-              <span className="text-sm uppercase tracking-[0.2em] text-slate-500">
+              <span className={`text-sm uppercase tracking-[0.2em] ${activeNotifications.includes(item.id) ? 'text-white/60' : 'text-[#9B9B9B]'}`}>
                 {activeNotifications.includes(item.id) ? 'Activo' : 'Inactivo'}
               </span>
             </div>

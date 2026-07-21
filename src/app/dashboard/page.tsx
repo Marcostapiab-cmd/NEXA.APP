@@ -144,10 +144,10 @@ export default function DashboardPage() {
 
       {/* ── Page header ─────────────────────────────────────── */}
       <div className="mb-8">
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#333333]">
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#9B9B9B]">
           {displayDate}
         </p>
-        <h1 className="text-[20px] font-bold tracking-tight text-[#f4f4f5]">
+        <h1 className="text-[20px] font-bold tracking-tight text-[#121212]">
           {getGreeting()}, Coach
         </h1>
       </div>
@@ -156,17 +156,17 @@ export default function DashboardPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map(({ label, value, Icon, href, accent }) => (
           <Link key={label} href={href}
-            className="group flex flex-col gap-3 rounded-xl border border-[#141414] bg-[#0d0d0d] p-4 transition-all hover:border-[#1e1e1e] hover:bg-[#0f0f0f]">
+            className="group flex flex-col gap-3 rounded-xl border border-[#E8E8E8] bg-[#F5F5F5] p-4 transition-all hover:border-[#D8D8D8] hover:bg-[#F0F0F0]">
             <Icon
               size={14}
               strokeWidth={1.75}
-              className={`transition-colors ${accent ? 'text-[#D4AF37]' : 'text-[#2a2a2a] group-hover:text-[#3d3d3d]'}`}
+              className={`transition-colors ${accent ? 'text-[#121212]' : 'text-[#CACACA] group-hover:text-[#9B9B9B]'}`}
             />
             <div>
-              <p className={`text-[22px] font-black tracking-tight ${accent ? 'text-[#D4AF37]' : 'text-[#f4f4f5]'}`}>
+              <p className={`text-[22px] font-black tracking-tight ${accent ? 'text-[#121212]' : 'text-[#121212]'}`}>
                 {value}
               </p>
-              <p className="mt-0.5 text-[11px] text-[#333333]">{label}</p>
+              <p className="mt-0.5 text-[11px] text-[#9B9B9B]">{label}</p>
             </div>
           </Link>
         ))}
@@ -180,10 +180,10 @@ export default function DashboardPage() {
 
           {/* Expiring programs alert */}
           {expirandoPronto.length > 0 && (
-            <div className="rounded-xl border border-[#FF4444]/15 bg-[#FF4444]/5 p-4 anim-fade-in">
+            <div className="rounded-xl border border-[#B44040]/20 bg-[#FAEAEA] p-4 anim-fade-in">
               <div className="mb-2.5 flex items-center gap-2">
-                <AlertTriangle size={13} className="text-[#FF4444]" />
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#FF4444]">
+                <AlertTriangle size={13} className="text-[#B44040]" />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#B44040]">
                   {expirandoPronto.length} programa{expirandoPronto.length !== 1 ? 's' : ''} por vencer
                 </p>
               </div>
@@ -193,16 +193,16 @@ export default function DashboardPage() {
                   const asignados = (r.alumnoIds ?? []).map(id => alumnoMap[id]).filter(Boolean);
                   return (
                     <div key={r.id}
-                      className="flex items-center justify-between rounded-lg border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2">
+                      className="flex items-center justify-between rounded-lg border border-[#E0E0E0] bg-[#F5F5F5] px-3 py-2">
                       <div>
-                        <p className="text-[13px] font-medium text-[#f4f4f5]">{r.name}</p>
+                        <p className="text-[13px] font-medium text-[#121212]">{r.name}</p>
                         {asignados.length > 0 && (
-                          <p className="text-[11px] text-[#444444]">
+                          <p className="text-[11px] text-[#888888]">
                             {asignados.map(a => a.nombre).join(', ')}
                           </p>
                         )}
                       </div>
-                      <span className={`shrink-0 text-[12px] font-semibold ${d === 0 ? 'text-[#FF4444]' : 'text-[#444444]'}`}>
+                      <span className={`shrink-0 text-[12px] font-semibold ${d === 0 ? 'text-[#B44040]' : 'text-[#888888]'}`}>
                         {d === 0 ? 'Hoy' : `${d}d`}
                       </span>
                     </div>
@@ -213,22 +213,22 @@ export default function DashboardPage() {
           )}
 
           {/* Today's schedule */}
-          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
-            <div className="flex items-center justify-between border-b border-[#111111] px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+          <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
+            <div className="flex items-center justify-between border-b border-[#EBEBEB] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]">
                 Agenda de hoy
               </p>
               <Link href="/weightroom"
-                className="text-[11px] text-[#2e2e2e] transition hover:text-[#666666]">
+                className="text-[11px] text-[#AAAAAA] transition hover:text-[#6E6E6E]">
                 Weightroom →
               </Link>
             </div>
 
             {alumnosHoy.length === 0 ? (
               <div className="px-5 py-8 text-center">
-                <p className="text-[13px] text-[#2e2e2e]">Sin sesiones programadas para hoy.</p>
+                <p className="text-[13px] text-[#AAAAAA]">Sin sesiones programadas para hoy.</p>
                 <Link href="/rutinas"
-                  className="mt-2 inline-block text-[12px] text-[#3a3a3a] transition hover:text-[#666666]">
+                  className="mt-2 inline-block text-[12px] text-[#9B9B9B] transition hover:text-[#6E6E6E]">
                   Ir al Calendario →
                 </Link>
               </div>
@@ -240,23 +240,23 @@ export default function DashboardPage() {
                   const count  = getTodayEjerciciosCount(r);
                   return (
                     <Link key={a.id} href={`/alumnos/${a.id}`}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-[#111111]">
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-[#EBEBEB]">
                       {a.foto
                         ? <img src={a.foto} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-                        : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#141414] text-[13px] font-bold text-[#3a3a3a]">
+                        : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EBEBEB] text-[13px] font-bold text-[#9B9B9B]">
                             {a.nombre[0]?.toUpperCase()}
                           </div>
                       }
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-[#f4f4f5]">
+                        <p className="text-[13px] font-semibold text-[#121212]">
                           {a.nombre} {a.apellido}
                         </p>
-                        <p className="text-[11px] text-[#3a3a3a]">
+                        <p className="text-[11px] text-[#9B9B9B]">
                           {bloque ?? r.name}
                           {count > 0 && ` · ${count} ejercicios`}
                         </p>
                       </div>
-                      <ChevronRight size={13} className="shrink-0 text-[#1e1e1e]" />
+                      <ChevronRight size={13} className="shrink-0 text-[#D8D8D8]" />
                     </Link>
                   );
                 })}
@@ -266,9 +266,9 @@ export default function DashboardPage() {
 
           {/* Recent sessions */}
           {recentSesiones.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
-              <div className="border-b border-[#111111] px-5 py-3.5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+            <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
+              <div className="border-b border-[#EBEBEB] px-5 py-3.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]">
                   Últimas sesiones registradas
                 </p>
               </div>
@@ -280,16 +280,16 @@ export default function DashboardPage() {
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5">
                       {a?.foto
                         ? <img src={a.foto} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
-                        : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#141414] text-[12px] font-bold text-[#3a3a3a]">
+                        : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EBEBEB] text-[12px] font-bold text-[#9B9B9B]">
                             {a?.nombre[0]?.toUpperCase() || '?'}
                           </div>
                       }
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-[#d4d4d4]">
+                        <p className="text-[13px] text-[#2A2A2A]">
                           <span className="font-medium">{a?.nombre || 'Alumno'}</span>
-                          <span className="text-[#3d3d3d]"> · {s.bloqueNombre}</span>
+                          <span className="text-[#9B9B9B]"> · {s.bloqueNombre}</span>
                         </p>
-                        <p className="text-[11px] text-[#2e2e2e]">
+                        <p className="text-[11px] text-[#AAAAAA]">
                           {s.ejercicios.length} ejercicios ·{' '}
                           {s.fecha === TODAY ? 'Hoy' : s.fecha}
                         </p>
@@ -303,12 +303,12 @@ export default function DashboardPage() {
 
           {/* Empty sessions state */}
           {sesionesHoy.length === 0 && recentSesiones.length === 0 && (
-            <div className="rounded-xl border border-dashed border-[#141414] py-10 text-center">
-              <p className="text-[13px] text-[#2a2a2a]">
+            <div className="rounded-xl border border-dashed border-[#D8D8D8] py-10 text-center">
+              <p className="text-[13px] text-[#AAAAAA]">
                 Sin sesiones registradas aún.
               </p>
               <Link href="/weightroom"
-                className="mt-2 inline-block text-[12px] text-[#3a3a3a] transition hover:text-[#666666]">
+                className="mt-2 inline-block text-[12px] text-[#9B9B9B] transition hover:text-[#6E6E6E]">
                 Ir al Weightroom →
               </Link>
             </div>
@@ -319,22 +319,22 @@ export default function DashboardPage() {
         <div className="space-y-4">
 
           {/* Alumnos list */}
-          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
-            <div className="flex items-center justify-between border-b border-[#111111] px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+          <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
+            <div className="flex items-center justify-between border-b border-[#EBEBEB] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]">
                 Alumnos
               </p>
               <Link href="/alumnos"
-                className="text-[11px] text-[#2e2e2e] transition hover:text-[#666666]">
+                className="text-[11px] text-[#AAAAAA] transition hover:text-[#6E6E6E]">
                 Ver todos →
               </Link>
             </div>
 
             {alumnos.length === 0 ? (
               <div className="px-5 py-6 text-center">
-                <p className="text-[13px] text-[#2e2e2e]">Sin alumnos aún.</p>
+                <p className="text-[13px] text-[#AAAAAA]">Sin alumnos aún.</p>
                 <Link href="/alumnos"
-                  className="mt-1.5 inline-block text-[12px] text-[#D4AF37]">
+                  className="mt-1.5 inline-block text-[12px] text-[#121212]">
                   Agregar alumno →
                 </Link>
               </div>
@@ -346,18 +346,18 @@ export default function DashboardPage() {
                   );
                   return (
                     <Link key={a.id} href={`/alumnos/${a.id}`}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-[#111111]">
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-[#EBEBEB]">
                       {a.foto
                         ? <img src={a.foto} alt="" className="h-7 w-7 shrink-0 rounded-md object-cover" />
-                        : <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#141414] text-[11px] font-bold text-[#3a3a3a]">
+                        : <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#EBEBEB] text-[11px] font-bold text-[#9B9B9B]">
                             {a.nombre[0]?.toUpperCase()}
                           </div>
                       }
-                      <span className="flex-1 truncate text-[13px] text-[#c4c4c4]">
+                      <span className="flex-1 truncate text-[13px] text-[#3E3E3E]">
                         {a.nombre} {a.apellido}
                       </span>
                       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                        tieneRutina ? 'bg-[#D4AF37]' : 'bg-[#1e1e1e]'
+                        tieneRutina ? 'bg-[#4A8A5A]' : 'bg-[#D8D8D8]'
                       }`} />
                     </Link>
                   );
@@ -367,9 +367,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick actions */}
-          <div className="overflow-hidden rounded-xl border border-[#141414] bg-[#0d0d0d]">
-            <div className="border-b border-[#111111] px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#333333]">
+          <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
+            <div className="border-b border-[#EBEBEB] px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]">
                 Acceso rápido
               </p>
             </div>
@@ -381,9 +381,9 @@ export default function DashboardPage() {
                 { href: '/biblioteca', label: 'Ejercicios' },
               ].map(({ href, label }) => (
                 <Link key={href} href={href}
-                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-[#3d3d3d] transition hover:bg-[#111111] hover:text-[#D4AF37]">
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-[#9B9B9B] transition hover:bg-[#EBEBEB] hover:text-[#121212]">
                   {label}
-                  <ChevronRight size={12} className="text-[#222222]" />
+                  <ChevronRight size={12} className="text-[#DCDCDC]" />
                 </Link>
               ))}
             </div>

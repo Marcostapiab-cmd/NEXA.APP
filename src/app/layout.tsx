@@ -20,7 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es" className={`${inter.variable} h-full`}>
       <body
         className="min-h-full antialiased"
-        style={{ background: 'var(--nexa-black)', color: 'var(--nexa-white)' }}
+        style={{ background: 'var(--nexa-bg)', color: 'var(--nexa-text)' }}
       >
         <div className="flex min-h-screen">
           <Sidebar />

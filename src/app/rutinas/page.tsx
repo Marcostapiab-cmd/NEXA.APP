@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Trash2, Plus, ChevronLeft, ChevronRight,
   X, Download, Copy, Save, FolderOpen, GripVertical, Search, FileText,
-  Users, ArrowLeft,
+  Users, ArrowLeft, PlayCircle,
 } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getMergedEjercicios, getEjerciciosPropios, saveEjercicioPropio, type EjBiblioteca } from '@/lib/ejercicios';
@@ -105,8 +105,8 @@ function buildMonthGrid(year: number, month: number): Date[][] {
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
 
-const IC = 'w-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-3 py-2.5 text-sm text-white placeholder-[#444444] outline-none transition focus:border-[#444444]';
-const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#555555]';
+const IC = 'w-full rounded-lg border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2.5 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#9B9B9B]';
+const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]';
 
 // ─── Plan status helper ───────────────────────────────────────────────────────
 
@@ -119,8 +119,8 @@ function getAlumnoPlanBadge(alumnoId: string): { label: string; color: string } 
     const active = planes.find(p =>
       p.alumnoId === alumnoId && p.endDate >= today && (p.totalClases - p.usedClases) > 0
     );
-    if (active) return { label: `${active.totalClases - active.usedClases} clases`, color: '#22c55e' };
-    if (planes.some(p => p.alumnoId === alumnoId)) return { label: 'Plan vencido', color: '#ef4444' };
+    if (active) return { label: `${active.totalClases - active.usedClases} clases`, color: '#4A8A5A' };
+    if (planes.some(p => p.alumnoId === alumnoId)) return { label: 'Plan vencido', color: '#B44040' };
     return null;
   } catch { return null; }
 }
@@ -189,47 +189,47 @@ function ExerciseSearch({ onAdd, onCancel }: {
   // ── Step 1: Search ──────────────────────────────────────────────────────────
   if (step === 'search') {
     return (
-      <div className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-4">
-        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">
+      <div className="rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] p-4">
+        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">
           Agregar ejercicio
         </p>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#333333]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9B9B9B]" />
           <input ref={inputRef} autoFocus value={q} onChange={e => setQ(e.target.value)}
             placeholder="Buscar ejercicio (sentadilla, press banca...)"
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] py-2.5 pl-10 pr-4 text-sm text-white placeholder-[#333333] outline-none focus:border-[#444444]" />
+            className="w-full rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] py-2.5 pl-10 pr-4 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#9B9B9B]" />
         </div>
 
         {(suggestions.length > 0 || canCreate) && (
-          <div className="mt-2 overflow-hidden rounded-xl border border-[#1e1e1e]">
+          <div className="mt-2 overflow-hidden rounded-xl border border-[#E0E0E0]">
             {suggestions.map(ej => (
               <button key={ej.id}
                 onClick={() => pick(ej)}
-                className="flex w-full items-center gap-3 border-b border-[#0f0f0f] px-3 py-2.5 text-left transition last:border-none hover:bg-[#141414]">
+                className="flex w-full items-center gap-3 border-b border-[#EBEBEB] px-3 py-2.5 text-left transition last:border-none hover:bg-[#EBEBEB]">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white">{ej.nombre}</p>
+                  <p className="text-sm font-medium text-[#121212]">{ej.nombre}</p>
                 </div>
                 {ej.videoUrl
-                  ? <span className="shrink-0 text-[9px] font-bold text-[#D4AF37]/60">VIDEO</span>
-                  : <Plus className="h-3.5 w-3.5 shrink-0 text-[#333333]" />}
+                  ? <span className="shrink-0 text-[9px] font-bold text-[#121212]/60">VIDEO</span>
+                  : <Plus className="h-3.5 w-3.5 shrink-0 text-[#9B9B9B]" />}
               </button>
             ))}
             {canCreate && (
               <button onClick={createNew}
-                className="flex w-full items-center gap-2 border-t border-[#1e1e1e] px-3 py-2.5 text-left transition hover:bg-[#141414]">
-                <Plus className="h-3.5 w-3.5 text-[#D4AF37]" />
-                <span className="text-sm text-[#D4AF37]">Crear "{q.trim()}"</span>
+                className="flex w-full items-center gap-2 border-t border-[#E0E0E0] px-3 py-2.5 text-left transition hover:bg-[#EBEBEB]">
+                <Plus className="h-3.5 w-3.5 text-[#121212]" />
+                <span className="text-sm text-[#121212]">Crear "{q.trim()}"</span>
               </button>
             )}
           </div>
         )}
 
         {q.trim().length >= 2 && suggestions.length === 0 && !canCreate && (
-          <p className="mt-2 text-xs text-[#333333]">Sin resultados para "{q}"</p>
+          <p className="mt-2 text-xs text-[#9B9B9B]">Sin resultados para "{q}"</p>
         )}
 
         <button onClick={onCancel}
-          className="mt-3 text-xs text-[#333333] transition hover:text-[#666666]">
+          className="mt-3 text-xs text-[#9B9B9B] transition hover:text-[#6E6E6E]">
           Cancelar
         </button>
       </div>
@@ -238,16 +238,16 @@ function ExerciseSearch({ onAdd, onCancel }: {
 
   // ── Step 2: Configure ───────────────────────────────────────────────────────
   return (
-    <form onSubmit={submit} className="rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] p-4">
+    <form onSubmit={submit} className="rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] p-4">
       <div className="mb-4 flex items-center gap-2.5">
-        <p className="flex-1 text-sm font-bold text-white">{picked?.name}</p>
+        <p className="flex-1 text-sm font-bold text-[#121212]">{picked?.name}</p>
         {picked?.youtubeUrl && (
-          <span className="rounded-md bg-[#D4AF37]/10 px-2 py-0.5 text-[9px] font-bold text-[#D4AF37]">
+          <span className="rounded-md bg-[#121212]/6 px-2 py-0.5 text-[9px] font-bold text-[#121212]">
             Video incluido
           </span>
         )}
         <button type="button" onClick={() => setStep('search')}
-          className="text-[10px] text-[#333333] transition hover:text-white">
+          className="text-[10px] text-[#9B9B9B] transition hover:text-[#121212]">
           ← Cambiar
         </button>
       </div>
@@ -290,11 +290,11 @@ function ExerciseSearch({ onAdd, onCancel }: {
 
       <div className="mt-4 flex gap-2">
         <button type="submit"
-          className="rounded-xl bg-[#D4AF37] px-5 py-2.5 text-xs font-bold text-black transition hover:brightness-110">
+          className="rounded-xl bg-[#121212] px-5 py-2.5 text-xs font-bold text-white transition hover:brightness-110">
           Agregar ejercicio
         </button>
         <button type="button" onClick={onCancel}
-          className="rounded-xl border border-[#2a2a2a] px-4 py-2.5 text-xs font-medium text-[#555555] transition hover:border-[#444444] hover:text-white">
+          className="rounded-xl border border-[#D8D8D8] px-4 py-2.5 text-xs font-medium text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#121212]">
           Cancelar
         </button>
       </div>
@@ -371,15 +371,15 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/92 p-4 pt-6 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-6 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#D8D8D8] bg-[#F5F5F5] shadow-2xl">
 
         {/* ── Conflict overlay ── */}
         {conflictMode === 'asking' && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/85 backdrop-blur-sm">
-            <div className="mx-6 w-full max-w-sm rounded-2xl border border-[#2a2a2a] bg-[#141414] p-6">
-              <p className="text-sm font-bold text-white">Conflicto de fechas</p>
-              <p className="mt-2 text-xs text-[#555555]">
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/30 backdrop-blur-sm">
+            <div className="mx-6 w-full max-w-sm rounded-2xl border border-[#D8D8D8] bg-[#EBEBEB] p-6">
+              <p className="text-sm font-bold text-[#121212]">Conflicto de fechas</p>
+              <p className="mt-2 text-xs text-[#777777]">
                 {overwriteDates.length} fecha{overwriteDates.length !== 1 ? 's' : ''} ya
                 {overwriteDates.length === 1 ? ' tiene' : ' tienen'} rutina asignada.
                 ¿Qué deseas hacer?
@@ -387,17 +387,17 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
               <div className="mt-5 flex flex-col gap-2">
                 <button
                   onClick={() => { onCopy(sortedDates.filter(d => !routine.sessions[d])); onClose(); }}
-                  className="rounded-xl border border-[#2a2a2a] py-2.5 text-sm font-semibold text-[#888888] transition hover:border-[#444444] hover:text-white">
+                  className="rounded-xl border border-[#D8D8D8] py-2.5 text-sm font-semibold text-[#5E5E5E] transition hover:border-[#9B9B9B] hover:text-[#121212]">
                   Saltar esas fechas
                 </button>
                 <button
                   onClick={() => { onCopy(sortedDates); onClose(); }}
-                  className="rounded-xl bg-[#D4AF37] py-2.5 text-sm font-bold text-black transition hover:brightness-110">
+                  className="rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110">
                   Reemplazar todas
                 </button>
                 <button
                   onClick={() => setConflictMode(null)}
-                  className="py-1.5 text-xs text-[#333333] transition hover:text-white">
+                  className="py-1.5 text-xs text-[#9B9B9B] transition hover:text-[#121212]">
                   Cancelar
                 </button>
               </div>
@@ -406,17 +406,17 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1e1e1e] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[#D8D8D8] px-5 py-4">
           <div>
-            <p className="text-sm font-bold text-white">Copiar rutina</p>
-            <p className="mt-0.5 text-[11px] text-[#444444]">
+            <p className="text-sm font-bold text-[#121212]">Copiar rutina</p>
+            <p className="mt-0.5 text-[11px] text-[#888888]">
               {srcD.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
               {session.name ? ` · ${session.name}` : ''}
               {session.exercises.length > 0 ? ` · ${session.exercises.length} ejercicios` : ''}
             </p>
           </div>
           <button onClick={onClose}
-            className="rounded-xl border border-[#1e1e1e] p-2 text-[#444444] transition hover:text-white">
+            className="rounded-xl border border-[#D8D8D8] p-2 text-[#888888] transition hover:text-[#121212]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -425,32 +425,32 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
 
           {/* 1. Date range */}
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#333333]">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#9B9B9B]">
               Copiar dentro del rango
             </p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-[#444444]">Desde</label>
+                <label className="mb-1 block text-[10px] text-[#888888]">Desde</label>
                 <input type="date" value={rangeStart}
                   onChange={e => { setRangeStart(e.target.value); setSelected(new Set()); }}
-                  className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-3 py-2 text-xs text-white outline-none focus:border-[#444444]" />
+                  className="w-full rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2 text-xs text-[#121212] outline-none focus:border-[#9B9B9B]" />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[#444444]">Hasta</label>
+                <label className="mb-1 block text-[10px] text-[#888888]">Hasta</label>
                 <input type="date" value={rangeEnd}
                   onChange={e => { setRangeEnd(e.target.value); setSelected(new Set()); }}
-                  className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-3 py-2 text-xs text-white outline-none focus:border-[#444444]" />
+                  className="w-full rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2 text-xs text-[#121212] outline-none focus:border-[#9B9B9B]" />
               </div>
             </div>
           </div>
 
           {/* 2. Weekday checkboxes */}
           <div>
-            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#333333]">
+            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#9B9B9B]">
               Días de la semana
             </p>
             {(!rangeStart || !rangeEnd) ? (
-              <p className="text-xs text-[#2a2a2a]">Define el rango de fechas para activar esta opción.</p>
+              <p className="text-xs text-[#AAAAAA]">Define el rango de fechas para activar esta opción.</p>
             ) : (
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                 {DOW_FULL.map((label, dow) => {
@@ -461,24 +461,24 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
                     <button key={dow} onClick={() => toggleWeekday(dow)}
                       className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
                         checked || partial
-                          ? 'border-[#D4AF37]/25 bg-[#D4AF37]/5'
-                          : 'border-[#1a1a1a] hover:border-[#2a2a2a]'
+                          ? 'border-[#121212]/18 bg-[#121212]/7'
+                          : 'border-[#DEDEDE] hover:border-[#C8C8C8]'
                       }`}>
                       <span className="flex shrink-0 items-center justify-center rounded border transition"
                         style={{
                           width: 17, height: 17,
-                          borderColor: checked ? '#D4AF37' : partial ? 'rgba(212,175,55,0.5)' : '#2a2a2a',
-                          backgroundColor: checked ? '#D4AF37' : partial ? 'rgba(212,175,55,0.15)' : '#111111',
+                          borderColor: checked ? '#121212' : partial ? 'rgba(18,18,18,0.5)' : '#D8D8D8',
+                          backgroundColor: checked ? '#121212' : partial ? 'rgba(18,18,18,0.15)' : '#F0F0F0',
                         }}>
-                        {checked && <span className="text-[8px] font-black leading-none text-black">✓</span>}
-                        {partial && !checked && <span className="block h-px w-2 rounded-full bg-[#D4AF37]" />}
+                        {checked && <span className="text-[8px] font-black leading-none text-white">✓</span>}
+                        {partial && !checked && <span className="block h-px w-2 rounded-full bg-[#121212]" />}
                       </span>
                       <div>
-                        <p className={`text-xs font-semibold leading-none ${checked || partial ? 'text-white' : 'text-[#555555]'}`}>
+                        <p className={`text-xs font-semibold leading-none ${checked || partial ? 'text-[#121212]' : 'text-[#777777]'}`}>
                           {label}
                         </p>
                         {count > 0 && (
-                          <p className="mt-0.5 text-[9px] text-[#333333]">{count} {count === 1 ? 'vez' : 'veces'}</p>
+                          <p className="mt-0.5 text-[9px] text-[#9B9B9B]">{count} {count === 1 ? 'vez' : 'veces'}</p>
                         )}
                       </div>
                     </button>
@@ -490,28 +490,28 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
 
           {/* 3. Calendar picker */}
           <div>
-            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#333333]">
+            <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#9B9B9B]">
               O selecciona fechas específicas
             </p>
-            <div className="overflow-hidden rounded-xl border border-[#1e1e1e]">
-              <div className="flex items-center border-b border-[#1e1e1e] bg-[#0a0a0a] px-2 py-1.5">
-                <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:text-white">
+            <div className="overflow-hidden rounded-xl border border-[#E0E0E0]">
+              <div className="flex items-center border-b border-[#E0E0E0] bg-[#F8F8F8] px-2 py-1.5">
+                <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:text-[#121212]">
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
-                <span className="flex-1 text-center text-xs font-bold text-white">
+                <span className="flex-1 text-center text-xs font-bold text-[#121212]">
                   {MONTHS_ES[viewMonth]} {viewYear}
                 </span>
-                <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:text-white">
+                <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:text-[#121212]">
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="grid grid-cols-7 border-b border-[#0f0f0f] bg-[#0a0a0a]">
+              <div className="grid grid-cols-7 border-b border-[#EBEBEB] bg-[#F8F8F8]">
                 {DOW_LABEL.map(d => (
-                  <div key={d} className="py-1.5 text-center text-[9px] font-bold uppercase text-[#2a2a2a]">{d}</div>
+                  <div key={d} className="py-1.5 text-center text-[9px] font-bold uppercase text-[#AAAAAA]">{d}</div>
                 ))}
               </div>
               {grid.map((week, wi) => (
-                <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#0f0f0f]' : ''}`}>
+                <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#EBEBEB]' : ''}`}>
                   {week.map((date, di) => {
                     const ds          = toDateStr(date);
                     const isThisMonth = date.getMonth() === viewMonth;
@@ -523,19 +523,19 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
                       <button key={di} onClick={() => canClick && toggleDate(ds)}
                         disabled={isSource || !canClick}
                         className={`relative flex h-9 w-full flex-col items-center justify-center gap-[2px] transition
-                          ${di < 6 ? 'border-r border-[#0f0f0f]' : ''}
+                          ${di < 6 ? 'border-r border-[#EBEBEB]' : ''}
                           ${!isThisMonth ? 'pointer-events-none opacity-0' : ''}
-                          ${isSource ? 'cursor-default' : canClick ? 'cursor-pointer hover:bg-[#141414]' : 'cursor-default opacity-20'}
+                          ${isSource ? 'cursor-default' : canClick ? 'cursor-pointer hover:bg-[#EBEBEB]' : 'cursor-default opacity-20'}
                         `}>
-                        {isSource && <div className="absolute inset-0.5 rounded-lg border border-[#D4AF37]/40 bg-[#D4AF37]/5" />}
-                        {isSel && !isSource && <div className="absolute inset-0.5 rounded-lg bg-[#D4AF37]/15" />}
+                        {isSource && <div className="absolute inset-0.5 rounded-lg border border-[#121212]/28 bg-[#121212]/6" />}
+                        {isSel && !isSource && <div className="absolute inset-0.5 rounded-lg bg-[#121212]/8" />}
                         <span className={`relative z-10 text-[11px] font-semibold ${
-                          isSource ? 'text-[#D4AF37]' : isSel ? 'text-white' : canClick ? 'text-[#555555]' : 'text-[#1a1a1a]'
+                          isSource ? 'text-[#121212]' : isSel ? 'text-[#121212]' : canClick ? 'text-[#777777]' : 'text-[#DEDEDE]'
                         }`}>
                           {date.getDate()}
                         </span>
                         {hasSess && (
-                          <div className={`relative z-10 h-[2px] w-3 rounded-full ${isSel ? 'bg-[#D4AF37]/50' : 'bg-[#2a2a2a]'}`} />
+                          <div className={`relative z-10 h-[2px] w-3 rounded-full ${isSel ? 'bg-[#121212]/50' : 'bg-[#D4D4D4]'}`} />
                         )}
                       </button>
                     );
@@ -547,13 +547,13 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
 
           {/* 4. Selected dates preview */}
           {sortedDates.length > 0 && (
-            <div className="rounded-xl border border-[#1e1e1e] bg-[#0a0a0a] p-3.5 space-y-2.5">
+            <div className="rounded-xl border border-[#E0E0E0] bg-[#F8F8F8] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">
                   Días seleccionados — {sortedDates.length} fecha{sortedDates.length !== 1 ? 's' : ''}
                 </p>
                 <button onClick={() => setSelected(new Set())}
-                  className="text-[10px] text-[#333333] transition hover:text-[#888888]">
+                  className="text-[10px] text-[#9B9B9B] transition hover:text-[#5E5E5E]">
                   Limpiar todo
                 </button>
               </div>
@@ -565,8 +565,8 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
                     <span key={ds}
                       className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold ${
                         isOverwrite
-                          ? 'border border-amber-900/40 bg-amber-950/30 text-amber-400'
-                          : 'border border-[#1e1e1e] bg-[#141414] text-[#666666]'
+                          ? 'border border-[#C4783A]/30 bg-[#FFF3E8] text-[#C4783A]'
+                          : 'border border-[#E0E0E0] bg-[#EBEBEB] text-[#6E6E6E]'
                       }`}>
                       {DOW_LABEL[(d.getDay() + 6) % 7]} {d.getDate()}/{d.getMonth() + 1}
                       <button onClick={() => toggleDate(ds)}
@@ -578,7 +578,7 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
                 })}
               </div>
               {overwriteDates.length > 0 && (
-                <p className="text-[10px] text-amber-500/80">
+                <p className="text-[10px] text-[#C4783A]">
                   ⚠ {overwriteDates.length} fecha{overwriteDates.length !== 1 ? 's' : ''} ya
                   {overwriteDates.length === 1 ? ' tiene' : ' tienen'} rutina — se te preguntará cómo proceder.
                 </p>
@@ -588,7 +588,7 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
 
           {/* 5. CTA */}
           <button onClick={handleCopyClick} disabled={sortedDates.length === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-25">
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-25">
             <Copy className="h-4 w-4" />
             {sortedDates.length > 0
               ? `Copiar rutina a ${sortedDates.length} día${sortedDates.length !== 1 ? 's' : ''}`
@@ -640,34 +640,34 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
   function handleDragEnd() { dragIdx.current = null; }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#111111]">
+    <div className="overflow-hidden rounded-2xl border border-[#D8D8D8] bg-[#F0F0F0]">
       {/* Header */}
-      <div className="border-b border-[#2a2a2a] px-5 py-4">
+      <div className="border-b border-[#D8D8D8] px-5 py-4">
         <div className="flex items-start gap-4">
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-3 pb-2 pt-2.5 min-w-[52px]">
-            <span className="text-3xl font-black leading-none tabular-nums text-white">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#D8D8D8] bg-[#F8F8F8] px-3 pb-2 pt-2.5 min-w-[52px]">
+            <span className="text-3xl font-black leading-none tabular-nums text-[#121212]">
               {d.getDate().toString().padStart(2, '0')}
             </span>
-            <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.15em] text-[#444444]">
+            <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.15em] text-[#888888]">
               {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]}
             </span>
           </div>
           <div className="flex-1 pt-0.5">
-            <p className="text-base font-bold capitalize text-white">
+            <p className="text-base font-bold capitalize text-[#121212]">
               {MONTHS_ES[d.getMonth()]} {d.getFullYear()}
             </p>
             {exs.length === 0 && (
-              <p className="mt-1 text-xs text-[#333333]">Sin ejercicios — agrega el primero</p>
+              <p className="mt-1 text-xs text-[#9B9B9B]">Sin ejercicios — agrega el primero</p>
             )}
           </div>
           {exs.length > 0 && (
             <div className="flex shrink-0 items-center gap-1.5 pt-1">
               <button onClick={onCopy}
-                className="flex items-center gap-1.5 rounded-xl border border-[#2a2a2a] px-3 py-1.5 text-xs font-medium text-[#888888] transition hover:border-[#444444] hover:text-white">
+                className="flex items-center gap-1.5 rounded-xl border border-[#D8D8D8] px-3 py-1.5 text-xs font-medium text-[#5E5E5E] transition hover:border-[#9B9B9B] hover:text-[#121212]">
                 <Copy className="h-3 w-3" /> Copiar
               </button>
               <button onClick={onClear}
-                className="rounded-xl border border-[#2a2a2a] p-1.5 text-[#555555] transition hover:border-red-900 hover:text-red-500">
+                className="rounded-xl border border-[#D8D8D8] p-1.5 text-[#777777] transition hover:border-[#B44040]/30 hover:text-[#B44040]">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -679,49 +679,54 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
         <input value={session?.name ?? ''}
           onChange={e => onUpdate({ ...ensure(), name: e.target.value })}
           placeholder="Nombre del entrenamiento (ej: Piernas · Empuje)"
-          className="w-full bg-transparent text-sm font-medium text-white placeholder-[#2a2a2a] outline-none" />
+          className="w-full bg-transparent text-sm font-medium text-[#121212] placeholder-[#AAAAAA] outline-none" />
 
         {exs.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-[#1e1e1e]">
+          <div className="overflow-x-auto rounded-xl border border-[#E0E0E0]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
+                <tr className="border-b border-[#E0E0E0] bg-[#F5F5F5]">
                   {['','#','Ejercicio','S × Reps','Descanso',''].map((h, i) => (
-                    <th key={i} className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-[0.12em] text-[#333333] first:pl-2 last:pr-2">{h}</th>
+                    <th key={i} className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B] first:pl-2 last:pr-2">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1a1a1a]">
+              <tbody className="divide-y divide-[#E4E4E4]">
                 {exs.map((ex, idx) => (
                   <tr key={ex.id} draggable
                     onDragStart={() => handleDragStart(idx)}
                     onDragOver={e => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
-                    className="group cursor-grab transition-colors hover:bg-white/[0.02]">
-                    <td className="py-2.5 pl-2 pr-1 text-[#2a2a2a] group-hover:text-[#444444]">
+                    className="group cursor-grab transition-colors hover:bg-black/[0.02]">
+                    <td className="py-2.5 pl-2 pr-1 text-[#AAAAAA] group-hover:text-[#888888]">
                       <GripVertical className="h-3.5 w-3.5" />
                     </td>
-                    <td className="px-2 py-2.5 text-xs font-mono text-[#333333]">{idx + 1}</td>
+                    <td className="px-2 py-2.5 text-xs font-mono text-[#9B9B9B]">{idx + 1}</td>
                     <td className="px-3 py-2.5">
-                      <p className="font-semibold text-white">{ex.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-[#121212]">{ex.name}</p>
+                        {ex.youtubeUrl && (
+                          <a href={ex.youtubeUrl} target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title="Ver video"
+                            className="shrink-0 text-[#BBBBBB] transition hover:text-[#121212]">
+                            <PlayCircle className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
                       {(ex.tempo || ex.notes) && (
-                        <p className="mt-0.5 max-w-[180px] truncate text-[10px] text-[#333333]">
+                        <p className="mt-0.5 max-w-[180px] truncate text-[10px] text-[#9B9B9B]">
                           {[ex.tempo && `Tempo ${ex.tempo}`, ex.notes].filter(Boolean).join(' · ')}
                         </p>
                       )}
-                      {ex.youtubeUrl && (
-                        <span className="mt-0.5 inline-flex items-center gap-1 text-[9px] font-bold text-[#D4AF37]/70">
-                          ▶ video
-                        </span>
-                      )}
                     </td>
-                    <td className="px-3 py-2.5 text-sm font-medium text-white">
-                      {ex.series} <span className="text-[#333333]">×</span> {ex.reps}
+                    <td className="px-3 py-2.5 text-sm font-medium text-[#121212]">
+                      {ex.series} <span className="text-[#9B9B9B]">×</span> {ex.reps}
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-[#555555]">{ex.rest}</td>
+                    <td className="px-3 py-2.5 text-sm text-[#777777]">{ex.rest}</td>
                     <td className="pr-2 py-2.5 text-right">
                       <button onClick={() => delEx(ex.id)}
-                        className="rounded-lg p-1 text-[#2a2a2a] transition hover:bg-red-950/40 hover:text-red-500">
+                        className="rounded-lg p-1 text-[#AAAAAA] transition hover:bg-[#FAEAEA] hover:text-[#B44040]">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </td>
@@ -737,11 +742,11 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
           : (
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setShowSearch(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#222222] px-3.5 py-2 text-xs font-medium text-[#444444] transition hover:border-[#444444] hover:text-[#888888]">
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#D0D0D0] px-3.5 py-2 text-xs font-medium text-[#888888] transition hover:border-[#9B9B9B] hover:text-[#5E5E5E]">
                 <Plus className="h-3.5 w-3.5" /> Agregar ejercicio
               </button>
               <button onClick={() => setShowQuickCreate(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#1a1a1a] px-3.5 py-2 text-xs font-medium text-[#333333] transition hover:border-[#D4AF37]/30 hover:text-[#D4AF37]">
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#DEDEDE] px-3.5 py-2 text-xs font-medium text-[#9B9B9B] transition hover:border-[#121212]/22 hover:text-[#121212]">
                 <FileText className="h-3.5 w-3.5" /> Crear desde texto
               </button>
             </div>
@@ -765,21 +770,21 @@ function SavePlantillaModal({ onSave, onClose }: { onSave: (nombre: string) => v
   const [nombre, setNombre] = useState('');
   function submit() { if (nombre.trim()) { onSave(nombre.trim()); onClose(); } }
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-[#2a2a2a] bg-[#141414] p-6 shadow-2xl">
-        <p className="text-sm font-bold text-white">Guardar como plantilla</p>
-        <p className="mt-1 text-xs text-[#444444]">Elige un nombre para reutilizar estos ejercicios en otros días.</p>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-[#D8D8D8] bg-[#EBEBEB] p-6 shadow-2xl">
+        <p className="text-sm font-bold text-[#121212]">Guardar como plantilla</p>
+        <p className="mt-1 text-xs text-[#888888]">Elige un nombre para reutilizar estos ejercicios en otros días.</p>
         <input autoFocus value={nombre} onChange={e => setNombre(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && submit()}
           placeholder="Ej: Piernas A · Empuje pesado..."
-          className="mt-4 w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-3 py-2.5 text-sm text-white placeholder-[#333333] outline-none focus:border-[#444444]" />
+          className="mt-4 w-full rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2.5 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#9B9B9B]" />
         <div className="mt-4 flex gap-2">
           <button onClick={submit} disabled={!nombre.trim()}
-            className="flex-1 rounded-xl bg-[#D4AF37] py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-30">
+            className="flex-1 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-30">
             Guardar
           </button>
           <button onClick={onClose}
-            className="rounded-xl border border-[#2a2a2a] px-5 py-2.5 text-sm font-medium text-[#555555] transition hover:text-white">
+            className="rounded-xl border border-[#D8D8D8] px-5 py-2.5 text-sm font-medium text-[#777777] transition hover:text-[#121212]">
             Cancelar
           </button>
         </div>
@@ -819,41 +824,41 @@ function PlantillaPanel({ exercises, onLoad }: { exercises: Exercise[]; onLoad: 
     {showSaveModal && (
       <SavePlantillaModal onSave={guardar} onClose={() => setShowSaveModal(false)} />
     )}
-    <div className="overflow-hidden rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d]">
+    <div className="overflow-hidden rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5]">
       <div className="flex items-center justify-between px-4 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">Plantillas de día</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">Plantillas de día</p>
         <div className="flex gap-2">
           {exercises.length > 0 && (
             <button onClick={() => setShowSaveModal(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-[#222222] px-3 py-1.5 text-xs text-[#555555] transition hover:border-[#333333] hover:text-[#888888]">
+              className="flex items-center gap-1.5 rounded-xl border border-[#DCDCDC] px-3 py-1.5 text-xs text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#5E5E5E]">
               <Save className="h-3 w-3" /> Guardar
             </button>
           )}
           <button onClick={() => setOpen(!open)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#222222] px-3 py-1.5 text-xs text-[#555555] transition hover:border-[#333333] hover:text-[#888888]">
+            className="flex items-center gap-1.5 rounded-xl border border-[#DCDCDC] px-3 py-1.5 text-xs text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#5E5E5E]">
             <FolderOpen className="h-3 w-3" /> Cargar
           </button>
         </div>
       </div>
       {open && (
-        <div className="border-t border-[#1e1e1e] p-3">
+        <div className="border-t border-[#E0E0E0] p-3">
           {plantillas.length === 0
-            ? <p className="py-4 text-center text-xs text-[#333333]">Sin plantillas guardadas</p>
+            ? <p className="py-4 text-center text-xs text-[#9B9B9B]">Sin plantillas guardadas</p>
             : <div className="space-y-1.5">
                 {plantillas.map(p => {
                   return (
-                    <div key={p.id} className="flex items-center gap-3 rounded-xl border border-[#1e1e1e] bg-[#111111] px-3 py-2.5">
+                    <div key={p.id} className="flex items-center gap-3 rounded-xl border border-[#E0E0E0] bg-[#F0F0F0] px-3 py-2.5">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-white">{p.nombre}</p>
+                        <p className="truncate text-sm font-medium text-[#121212]">{p.nombre}</p>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <span className="text-[10px] text-[#333333]">{p.exercises.length} ej. · {p.creadaEn}</span>
+                          <span className="text-[10px] text-[#9B9B9B]">{p.exercises.length} ej. · {p.creadaEn}</span>
                         </div>
                       </div>
                       <button onClick={() => cargar(p)}
-                        className="rounded-xl border border-[#2a2a2a] px-2.5 py-1 text-xs text-[#555555] transition hover:border-[#444444] hover:text-white">
+                        className="rounded-xl border border-[#D8D8D8] px-2.5 py-1 text-xs text-[#777777] transition hover:border-[#9B9B9B] hover:text-[#121212]">
                         Cargar
                       </button>
-                      <button onClick={() => del(p.id)} className="p-1 text-[#2a2a2a] transition hover:text-red-500">
+                      <button onClick={() => del(p.id)} className="p-1 text-[#AAAAAA] transition hover:text-[#B44040]">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -938,15 +943,15 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
       {/* ── Alumno header ── */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <button onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-[#1e1e1e] px-3 py-2 text-xs text-[#444444] transition hover:border-[#2a2a2a] hover:text-white">
+          className="flex items-center gap-2 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#888888] transition hover:border-[#D8D8D8] hover:text-[#121212]">
           <ArrowLeft className="h-3.5 w-3.5" /> Alumnos
         </button>
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-xs font-black text-[#D4AF37]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#121212]/6 text-xs font-black text-[#121212]">
             {initials}
           </div>
           <div>
-            <p className="text-base font-bold text-white">
+            <p className="text-base font-bold text-[#121212]">
               {alumno.nombre}{alumno.apellido ? ` ${alumno.apellido}` : ''}
             </p>
             {plan && (
@@ -958,11 +963,11 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
           <input value={routine.name}
             onChange={e => patch({ name: e.target.value })}
             placeholder="Nombre del programa"
-            className="w-full bg-transparent text-right text-sm font-medium text-[#444444] outline-none placeholder-[#222222] transition focus:text-white" />
+            className="w-full bg-transparent text-right text-sm font-medium text-[#888888] outline-none placeholder-[#B0B0B0] transition focus:text-[#121212]" />
         </div>
         {sessionCount > 0 && (
           <button onClick={() => exportToPDF(routine, `${alumno.nombre}${alumno.apellido ? ' ' + alumno.apellido : ''}`)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#1e1e1e] px-3 py-2 text-xs text-[#333333] transition hover:border-[#2a2a2a] hover:text-[#888888]">
+            className="flex items-center gap-1.5 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#9B9B9B] transition hover:border-[#D8D8D8] hover:text-[#5E5E5E]">
             <Download className="h-3.5 w-3.5" /> PDF
           </button>
         )}
@@ -978,41 +983,41 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
             <div>
               <label className={LC}>Inicio</label>
               <input type="date" value={routine.startDate} onChange={e => patch({ startDate: e.target.value })}
-                className="w-full rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-xs text-white outline-none transition focus:border-[#444444]" />
+                className="w-full rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] px-3 py-2 text-xs text-[#121212] outline-none transition focus:border-[#9B9B9B]" />
             </div>
             <div>
               <label className={LC}>Fin</label>
               <input type="date" value={routine.endDate} onChange={e => patch({ endDate: e.target.value })}
-                className="w-full rounded-xl border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-xs text-white outline-none transition focus:border-[#444444]" />
+                className="w-full rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] px-3 py-2 text-xs text-[#121212] outline-none transition focus:border-[#9B9B9B]" />
             </div>
           </div>
 
           {/* Mini calendar */}
-          <div className="overflow-hidden rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d]">
-            <div className="flex items-center gap-1 border-b border-[#1e1e1e] px-2 py-2">
-              <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:bg-[#1a1a1a] hover:text-white">
+          <div className="overflow-hidden rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5]">
+            <div className="flex items-center gap-1 border-b border-[#E0E0E0] px-2 py-2">
+              <button onClick={prevMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <div className="flex flex-1 items-center justify-center gap-2">
-                <span className="text-sm font-bold text-white">{MONTHS_ES[viewMonth]} {viewYear}</span>
+                <span className="text-sm font-bold text-[#121212]">{MONTHS_ES[viewMonth]} {viewYear}</span>
                 {!isCurrentMonthView && (
                   <button onClick={goToday}
-                    className="rounded-full border border-[#222222] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#444444] transition hover:text-[#888888]">
+                    className="rounded-full border border-[#DCDCDC] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#888888] transition hover:text-[#5E5E5E]">
                     Hoy
                   </button>
                 )}
               </div>
-              <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#444444] transition hover:bg-[#1a1a1a] hover:text-white">
+              <button onClick={nextMonth} className="rounded-lg p-1.5 text-[#888888] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid grid-cols-7 border-b border-[#1a1a1a]">
+            <div className="grid grid-cols-7 border-b border-[#E4E4E4]">
               {DOW_LABEL.map(d => (
-                <div key={d} className="py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-[#333333]">{d}</div>
+                <div key={d} className="py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">{d}</div>
               ))}
             </div>
             {grid.map((week, wi) => (
-              <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}>
+              <div key={wi} className={`grid grid-cols-7 ${wi < grid.length - 1 ? 'border-b border-[#E4E4E4]' : ''}`}>
                 {week.map((date, di) => {
                   const ds       = toDateStr(date);
                   const isThisM  = date.getMonth() === viewMonth;
@@ -1020,28 +1025,28 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
                   const isSel    = ds === selDate;
                   const inRange  = isInRange(ds);
                   const sess     = routine.sessions[ds];
-                  const chipColor = '#D4AF37';
+                  const chipColor = '#121212';
                   return (
                     <button key={di} onClick={() => setSelDate(isSel ? null : ds)}
                       className={`group relative flex min-h-[58px] flex-col items-start p-1.5 text-left transition-colors
-                        ${di < 6 ? 'border-r border-[#1a1a1a]' : ''}
-                        ${isSel ? 'bg-white/[0.04]' : 'hover:bg-[#141414]'}
+                        ${di < 6 ? 'border-r border-[#E4E4E4]' : ''}
+                        ${isSel ? 'bg-black/[0.04]' : 'hover:bg-[#EBEBEB]'}
                         ${(!isThisM || (!inRange && isThisM)) ? 'opacity-20' : ''}
                       `}>
                       <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition
-                        ${isToday ? 'bg-white text-black' : isSel ? 'bg-white/20 text-white' : 'text-[#666666] group-hover:text-white'}
+                        ${isToday ? 'bg-[#121212] text-white' : isSel ? 'bg-[#121212]/10 text-[#121212]' : 'text-[#6E6E6E] group-hover:text-[#121212]'}
                       `}>
                         {date.getDate()}
                       </span>
                       {sess && sess.exercises.length > 0 && (
                         <div className="mt-0.5 w-full overflow-hidden">
                           <div className="truncate rounded-sm py-px pl-1.5 pr-1 text-[9px] font-semibold leading-tight text-white"
-                            style={{ backgroundColor: chipColor + '20', borderLeft: `2px solid ${chipColor}` }}>
+                            style={{ backgroundColor: chipColor + '20', borderLeft: `2px solid ${chipColor}`, color: chipColor }}>
                             {sess.name || `${sess.exercises.length} ej.`}
                           </div>
                         </div>
                       )}
-                      {isSel && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-white" />}
+                      {isSel && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#121212]" />}
                     </button>
                   );
                 })}
@@ -1052,7 +1057,7 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
           {/* Summary */}
           {sessionCount > 0 && (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#444444]">{sessionCount} días planificados</span>
+              <span className="text-xs text-[#888888]">{sessionCount} días planificados</span>
             </div>
           )}
         </div>
@@ -1078,16 +1083,16 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
               />
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#1e1e1e] bg-[#0a0a0a] py-16 text-center lg:py-24">
-              <svg viewBox="0 0 40 40" className="h-10 w-10 text-[#1e1e1e]" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#E0E0E0] bg-[#F8F8F8] py-16 text-center lg:py-24">
+              <svg viewBox="0 0 40 40" className="h-10 w-10 text-[#E0E0E0]" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="4" y="8" width="32" height="28" rx="4" />
                 <path d="M4 15h32" /><path d="M13 4v7M27 4v7" strokeLinecap="round" />
                 <rect x="10" y="21" width="6" height="6" rx="1.5" fill="currentColor" opacity=".5" stroke="none" />
                 <rect x="22" y="21" width="6" height="6" rx="1.5" fill="currentColor" opacity=".25" stroke="none" />
               </svg>
               <div>
-                <p className="text-sm font-semibold text-[#333333]">Selecciona un día</p>
-                <p className="mt-1 text-xs text-[#222222]">Haz click en cualquier fecha del calendario para agregar ejercicios</p>
+                <p className="text-sm font-semibold text-[#9B9B9B]">Selecciona un día</p>
+                <p className="mt-1 text-xs text-[#B0B0B0]">Haz click en cualquier fecha del calendario para agregar ejercicios</p>
               </div>
             </div>
           )}
@@ -1134,8 +1139,8 @@ function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Calendario</h1>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#333333]">
+          <h1 className="text-xl font-bold tracking-tight text-[#121212]">Calendario</h1>
+          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#9B9B9B]">
             Selecciona un alumno para ver su programa
           </p>
         </div>
@@ -1143,22 +1148,22 @@ function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
 
       {/* Search */}
       <div className="relative mb-6">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#333333]" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9B9B9B]" />
         <input value={q} onChange={e => setQ(e.target.value)} autoFocus
           placeholder="Buscar alumno..."
-          className="w-full rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] py-3.5 pl-11 pr-4 text-sm text-white placeholder-[#2a2a2a] outline-none transition focus:border-[#2a2a2a]" />
+          className="w-full rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] py-3.5 pl-11 pr-4 text-sm text-[#121212] placeholder-[#AAAAAA] outline-none transition focus:border-[#D8D8D8]" />
       </div>
 
       {/* Empty state */}
       {alumnos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#1e1e1e] py-20 text-center">
-          <Users className="h-10 w-10 text-[#1e1e1e]" />
-          <p className="mt-4 text-sm font-semibold text-[#333333]">Sin alumnos registrados</p>
-          <p className="mt-1 text-xs text-[#222222]">Agrega alumnos primero para crear sus calendarios de entrenamiento</p>
-          <a href="/alumnos" className="mt-4 text-xs text-[#D4AF37] transition hover:underline">Ir a Alumnos →</a>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E0E0E0] py-20 text-center">
+          <Users className="h-10 w-10 text-[#E0E0E0]" />
+          <p className="mt-4 text-sm font-semibold text-[#9B9B9B]">Sin alumnos registrados</p>
+          <p className="mt-1 text-xs text-[#B0B0B0]">Agrega alumnos primero para crear sus calendarios de entrenamiento</p>
+          <a href="/alumnos" className="mt-4 text-xs text-[#121212] transition hover:underline">Ir a Alumnos →</a>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[#333333]">Sin resultados para "{q}"</p>
+        <p className="py-8 text-center text-sm text-[#9B9B9B]">Sin resultados para "{q}"</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(alumno => {
@@ -1169,31 +1174,31 @@ function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
 
             return (
               <button key={alumno.id} onClick={() => onSelect(alumno)}
-                className="group flex items-center gap-4 rounded-2xl border border-[#1e1e1e] bg-[#0d0d0d] p-4 text-left transition hover:border-[#2a2a2a] hover:bg-[#111111]">
+                className="group flex items-center gap-4 rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] p-4 text-left transition hover:border-[#D8D8D8] hover:bg-[#F0F0F0]">
                 {/* Avatar */}
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-base font-black text-[#D4AF37]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#121212]/6 text-base font-black text-[#121212]">
                   {initials}
                 </div>
                 {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-white">
+                  <p className="truncate text-sm font-bold text-[#121212]">
                     {alumno.nombre}{alumno.apellido ? ` ${alumno.apellido}` : ''}
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     {plan
                       ? <span className="text-[10px] font-semibold" style={{ color: plan.color }}>{plan.label}</span>
-                      : <span className="text-[10px] text-[#2a2a2a]">Sin plan</span>}
+                      : <span className="text-[10px] text-[#AAAAAA]">Sin plan</span>}
                     {sessions > 0 && (
-                      <span className="text-[10px] text-[#333333]">· {sessions} día{sessions !== 1 ? 's' : ''}</span>
+                      <span className="text-[10px] text-[#9B9B9B]">· {sessions} día{sessions !== 1 ? 's' : ''}</span>
                     )}
                   </div>
                   {r?.startDate && (
-                    <p className="mt-0.5 text-[9px] text-[#222222]">
+                    <p className="mt-0.5 text-[9px] text-[#B0B0B0]">
                       {r.startDate}{r.endDate ? ` → ${r.endDate}` : ''}
                     </p>
                   )}
                 </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[#2a2a2a] transition group-hover:text-[#444444]" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-[#AAAAAA] transition group-hover:text-[#888888]" />
               </button>
             );
           })}
