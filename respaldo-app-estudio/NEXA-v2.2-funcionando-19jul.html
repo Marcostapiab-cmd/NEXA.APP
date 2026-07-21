@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXA Training Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --black: #0A0A0A;
+      --dark: #111111;
+      --surface: #1A1A1A;
+      --card: #202020;
+      --border: #2A2A2A;
+      --accent: #C9A96E;
+      --accent-dim: #A98B54;
+      --accent-glow: rgba(201,169,110,0.15);
+      --white: #FFFFFF;
+      --muted: #888888;
+      --danger: #FF4444;
+      --success: #00CC88;
+      --warning: #FFAA00;
+      --gold: #C9A96E;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; }
+
+    /* \u2500\u2500 TOAST \u2500\u2500 */
+    #toast { position:fixed; bottom:24px; right:24px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 20px; font-size:14px; color:var(--white); z-index:9999; display:none; max-width:300px; }
+    #toast.show { display:block; animation: fadeIn .3s; }
+    #toast.ok  { border-color: var(--success); color: var(--success); }
+    #toast.err { border-color: var(--danger);  color: var(--danger);  }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    /* \u2500\u2500 LOGIN \u2500\u2500 */
+    #loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:radial-gradient(ellipse at 30% 40%, rgba(201,169,110,.06) 0%, transparent 60%), var(--black); }
+    .login-card {
+      background: rgba(16,16,16,.98);
+      border: 1px solid rgba(201,169,110,.18);
+      padding: 52px 48px;
+      width: 420px;
+      max-width: 92vw;
+      box-shadow: 0 40px 100px rgba(0,0,0,.7), inset 0 1px 0 rgba(201,169,110,.08);
+    }
+    .login-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 44px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: .06em;
+      text-align: center;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .login-sub {
+      font-size: 9px;
+      color: var(--gold);
+      letter-spacing: .3em;
+      text-transform: uppercase;
+      text-align: center;
+      opacity: .7;
+      margin-bottom: 0;
+    }
+    .gold-line-login {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 30px 0 36px;
+      opacity: .4;
+    }
+    .login-field { margin-bottom: 20px; }
+    .login-field label {
+      font-size: 10px;
+      color: rgba(255,255,255,.35);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .login-field { position: relative; }
+    .login-field input {
+      width: 100%;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--white);
+      font-size: 15px;
+      padding: 14px 18px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color .2s, background .2s;
+      box-sizing: border-box;
+      margin-bottom: 0;
+    }
+    .login-field input:focus {
+      border-color: rgba(201,169,110,.6);
+      background: rgba(201,169,110,.04);
+    }
+    .login-field input.login-input-err {
+      border-color: rgba(224,112,96,.5);
+      animation: loginShake .35s ease;
+    }
+    .login-field input::placeholder { color: rgba(255,255,255,.18); }
+    .login-pass-wrap { position: relative; }
+    .login-pass-wrap input { padding-right: 48px; }
+    .login-eye {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 4px;
+      color: rgba(255,255,255,.28); line-height: 1; font-size: 16px;
+      transition: color .15s;
+    }
+    .login-eye:hover { color: rgba(255,255,255,.55); }
+    @keyframes loginShake {
+      0%,100%{ transform:translateX(0) }
+      20%{ transform:translateX(-6px) }
+      40%{ transform:translateX(6px) }
+      60%{ transform:translateX(-4px) }
+      80%{ transform:translateX(4px) }
+    }
+    .btn-login {
+      width: 100%;
+      background: var(--gold);
+      color: #0A0A0A;
+      border: none;
+      padding: 16px 24px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      margin-top: 12px;
+      transition: opacity .15s, transform .1s;
+      display: block;
+    }
+    .btn-login:hover { opacity: .88; }
+    .btn-login:active { transform: scale(.99); opacity: .8; }
+    .btn-accent { width:100%; background:var(--gold); color:#0A0A0A; font-weight:700; font-size:14px; border:none; padding:14px; cursor:pointer; transition:.2s; letter-spacing:.1em; text-transform:uppercase; font-family:'Inter',sans-serif; }
+    .btn-accent:hover { opacity:.88; }
+    .login-err { color:#E07060; font-size:11px; margin-top:14px; display:none; text-align:center; letter-spacing:.04em; padding: 10px 14px; background: rgba(224,112,96,.08); border: 1px solid rgba(224,112,96,.2); }
+    .login-tagline { font-size:9px; color:rgba(255,255,255,.12); text-align:center; letter-spacing:.16em; text-transform:uppercase; margin-top:36px; }
+
+    /* \u2500\u2500 APP SHELL \u2500\u2500 */
+    #app { display:none; flex-direction:row; min-height:100vh; }
+
+    /* \u2500\u2500 SIDEBAR \u2500\u2500 */
+    #sidebar { width:220px; min-width:220px; background:var(--dark); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:24px 0; position:sticky; top:0; height:100vh; }
+    .sb-logo { font-size:22px; font-weight:800; color:var(--accent); letter-spacing:-0.03em; padding:0 20px 28px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:11px 20px; font-size:14px; color:var(--muted); cursor:pointer; transition:.2s; border-left:3px solid transparent; }
+    .sb-item:hover { color:var(--white); }
+    .sb-item.active { color:var(--accent); background:rgba(201,169,110,0.08); border-left-color:var(--accent); }
+    .sb-icon { font-size:18px; }
+    .sb-bottom { margin-top:auto; padding:16px 20px; }
+    .sb-user { font-size:12px; color:var(--muted); margin-bottom:12px; }
+    .btn-sm { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:7px 14px; color:var(--muted); font-size:12px; cursor:pointer; transition:.2s; }
+    .btn-sm:hover { color:var(--white); border-color:var(--muted); }
+
+    /* \u2500\u2500 MAIN CONTENT \u2500\u2500 */
+    #main { flex:1; padding:32px; overflow-y:auto; }
+    .page { display:none; }
+    .page.active { display:block; }
+    .page-title { font-size:24px; font-weight:800; letter-spacing:-0.03em; margin-bottom:24px; }
+
+    /* \u2500\u2500 CARDS & KPIs \u2500\u2500 */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:28px; }
+    .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .kpi-label { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+    .kpi-value { font-size:28px; font-weight:800; letter-spacing:-0.03em; }
+    .kpi-value.accent { color:var(--accent); }
+    .kpi-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+
+    /* \u2500\u2500 TABLE \u2500\u2500 */
+    .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th { background:var(--surface); color:var(--muted); font-size:11px; letter-spacing:.08em; text-transform:uppercase; padding:12px 16px; text-align:left; font-weight:500; }
+    td { padding:13px 16px; border-bottom:1px solid var(--border); font-size:14px; color:var(--white); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(201,169,110,0.03); }
+    .avatar { width:36px; height:36px; border-radius:50%; background:var(--accent); color:var(--black); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .name-cell { display:flex; align-items:center; gap:10px; }
+
+    /* \u2500\u2500 BADGES \u2500\u2500 */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:.04em; }
+    .badge-green  { background:rgba(0,204,136,0.15); color:var(--success); }
+    .badge-yellow { background:rgba(255,170,0,0.15);  color:var(--warning); }
+    .badge-red    { background:rgba(255,68,68,0.15);  color:var(--danger); }
+    .badge-accent { background:rgba(201,169,110,0.15);  color:var(--accent); }
+    .badge-muted  { background:var(--surface); color:var(--muted); }
+
+    /* \u2500\u2500 SECTION HEADER \u2500\u2500 */
+    .sec-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .sec-title { font-size:16px; font-weight:700; }
+
+    /* \u2500\u2500 FORM ELEMENTS \u2500\u2500 */
+    input, select, textarea { font-family:'Inter',sans-serif; }
+    .input { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--white); font-size:14px; outline:none; transition:.2s; width:100%; }
+    .input:focus { border-color:var(--accent); }
+    .label { font-size:12px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; display:block; margin-bottom:6px; margin-top:14px; }
+
+    /* \u2500\u2500 MODAL \u2500\u2500 */
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:none; align-items:center; justify-content:center; }
+    .modal-bg.open { display:flex; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:32px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+    .modal-title { font-size:18px; font-weight:700; margin-bottom:20px; }
+    .modal-actions { display:flex; gap:10px; margin-top:24px; justify-content:flex-end; }
+    .btn-outline { background:transparent; border:1px solid var(--border); border-radius:8px; padding:9px 18px; color:var(--muted); font-size:14px; cursor:pointer; transition:.2s; }
+    .btn-outline:hover { border-color:var(--muted); color:var(--white); }
+    .btn-primary { background:var(--accent); color:var(--black); font-weight:700; border:none; border-radius:8px; padding:9px 18px; font-size:14px; cursor:pointer; transition:.2s; }
+    .btn-primary:hover { background:var(--accent-dim); }
+    .btn-danger { background:transparent; border:1px solid var(--danger); border-radius:8px; padding:9px 18px; color:var(--danger); font-size:14px; cursor:pointer; transition:.2s; }
+    .btn-danger:hover { background:rgba(255,68,68,0.1); }
+    .btn-danger-sm { background:transparent; border:1px solid var(--danger); border-radius:6px; padding:6px 12px; color:var(--danger); font-size:12px; cursor:pointer; transition:.2s; }
+    .btn-danger-sm:hover { background:rgba(255,68,68,0.1); }
+    .page-sub { font-size:13px; color:var(--muted); letter-spacing:.04em; margin-top:2px; }
+
+    /* \u2500\u2500 CRM PIPELINE \u2500\u2500 */
+    .pipeline { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+    .pipeline-col { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; min-height:200px; }
+    .pipeline-col-title { font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:12px; }
+    .pipeline-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:13px; cursor:grab; }
+    .pipeline-card .pc-name { font-weight:600; margin-bottom:3px; }
+    .pipeline-card .pc-date { font-size:11px; color:var(--muted); }
+
+    /* \u2500\u2500 PROGRESO \u2500\u2500 */
+    .prog-bar-wrap { background:var(--surface); border-radius:100px; height:6px; margin-top:8px; }
+    .prog-bar { background:var(--accent); border-radius:100px; height:6px; transition:.4s; }
+
+    /* \u2500\u2500 TABS \u2500\u2500 */
+    .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+    .tab { padding:10px 16px; font-size:14px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:.2s; }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+    /* \u2500\u2500 ALUMNO VIEW \u2500\u2500 */
+    .alu-hero { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px; margin-bottom:20px; display:flex; align-items:center; gap:20px; }
+    .alu-av { width:56px; height:56px; border-radius:50%; background:var(--accent); color:var(--black); font-weight:800; font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .alu-name { font-size:20px; font-weight:800; }
+    .alu-plan { font-size:13px; color:var(--muted); margin-top:4px; }
+    .logro-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+    .logro { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; font-size:12px; color:var(--muted); }
+    .logro.unlocked { border-color:var(--accent); color:var(--accent); }
+    .logro-icon { font-size:24px; margin-bottom:6px; }
+    .clase-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+    .clase-info .clase-hora { font-size:18px; font-weight:800; color:var(--accent); }
+    .clase-info .clase-tipo { font-size:13px; color:var(--muted); margin-top:2px; }
+
+    /* \u2500\u2500 METRICS \u2500\u2500 */
+    .metrics-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .chart-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .chart-title { font-size:13px; font-weight:600; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:16px; }
+    .heatmap { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; }
+    .hm-cell { height:28px; border-radius:4px; background:var(--surface); transition:.2s; }
+    .hm-label { font-size:10px; color:var(--muted); text-align:center; padding:2px 0; }
+    .donut-wrap { display:flex; align-items:center; gap:20px; }
+    .donut-legend { flex:1; }
+    .donut-item { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
+    .donut-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+    /* responsive */
+    @media(max-width:768px){
+      #sidebar{display:none;position:fixed;inset:0;z-index:200;width:100vw;overflow-y:auto;flex-direction:column}
+      #sidebar.mob-open{display:flex!important}
+      #main{padding:14px}
+      #app{flex-direction:column}
+      .kpi-grid{grid-template-columns:1fr 1fr}
+      .pipeline{grid-template-columns:1fr}
+      .metrics-grid{grid-template-columns:1fr}
+      .modal{margin:10px;max-width:calc(100vw - 20px)!important;max-height:92vh;border-radius:12px 12px 0 0}
+      .modal-bg{align-items:flex-end;padding:0}
+      table{font-size:12px}
+      td,th{padding:7px 8px}
+      .page-title{font-size:20px}
+      .btn-primary,.btn-login{min-height:44px;font-size:13px}
+      .sb-item{padding:14px 20px;font-size:13px}
+      .hor-outer{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    }
+    @media(min-width:769px){
+      #mobMenuBtn{display:none!important}
+      #mobOverlay{display:none!important}
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<script>
+// NEXA LOGIN
+var ACCOUNTS = [
+  { email: 'admin@nexa.cl',   pass: 'nexa2025', role: 'admin',    nombre: 'Administrador' },
+  { email: 'seba@nexa.cl',    pass: 'seba123',  role: 'profesor',  nombre: 'Seba Rodriguez',  entityId: 'p1' },
+  { email: 'ignacio@nexa.cl', pass: 'igna123',  role: 'profesor',  nombre: 'Ignacio Morales', entityId: 'p2' },
+  { email: 'cata@nexa.cl',    pass: 'cata123',  role: 'profesor',  nombre: 'Cata Carrasco',   entityId: 'p3' },
+  { email: 'martin@nexa.cl',  pass: 'mart123',  role: 'profesor',  nombre: 'Martin Pino',     entityId: 'p4' },
+];
+function loginClearErr() {
+  var errEl = document.getElementById('loginErr');
+  if (errEl) errEl.style.display = 'none';
+  var inp = document.getElementById('loginPass');
+  if (inp) inp.classList.remove('login-input-err');
+  var inp2 = document.getElementById('loginEmail');
+  if (inp2) inp2.classList.remove('login-input-err');
+}
+function loginTogglePass() {
+  var inp = document.getElementById('loginPass');
+  var btn = document.getElementById('loginEyeBtn');
+  if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; if (btn) btn.title = 'Ocultar contrasena'; }
+  else { inp.type = 'password'; if (btn) btn.title = 'Mostrar contrasena'; }
+}
+function doLogin() {
+  var email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+  var pass  = document.getElementById('loginPass').value || '';
+  var errEl = document.getElementById('loginErr');
+  var account = null;
+  for (var i = 0; i < ACCOUNTS.length; i++) {
+    if (ACCOUNTS[i].email === email && ACCOUNTS[i].pass === pass) { account = ACCOUNTS[i]; break; }
+  }
+  if (!account) {
+    errEl.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').classList.add('login-input-err');
+    document.getElementById('loginEmail').classList.add('login-input-err');
+    document.getElementById('loginPass').focus();
+    return;
+  }
+  errEl.style.display = 'none';
+  window.currentRole = account.role;
+  window.currentUser = account;
+  document.getElementById('sbUser').textContent = account.nombre;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  var na = document.getElementById('navAdmin');
+  var nl = document.getElementById('navAlumno');
+  if (account.role === 'admin') {
+    if(na) na.style.display=''; if(nl) nl.style.display='none';
+    if(typeof loadDashboard==='function') loadDashboard();
+  } else if (account.role === 'alumno') {
+    if(na) na.style.display='none'; if(nl) nl.style.display='';
+    if(typeof showPage==='function') showPage('alumnoHome');
+  } else if (account.role === 'profesor') {
+    if(na) na.style.display='none'; if(nl) nl.style.display='none';
+    window.currentUser = { id: account.entityId, nombre: account.nombre };
+    if(typeof loadDashboard==='function') loadDashboard();
+  }
+}
+window.doLogin = doLogin;
+window.loginClearErr = loginClearErr;
+window.loginTogglePass = loginTogglePass;
+</script>
+
+<button id="mobMenuBtn"
+  style="display:none;position:fixed;bottom:20px;right:20px;z-index:300;width:52px;height:52px;border-radius:50%;background:var(--gold);color:var(--black);border:none;cursor:pointer;font-size:22px;box-shadow:0 4px 20px rgba(0,0,0,.5);align-items:center;justify-content:center"
+  onclick="mobOpen()">&#9776;</button>
+<div id="mobOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:199" onclick="mobClose()"></div>
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">NEXA</div>
+    <div class="login-sub">Training Studio · v2.2</div>
+    <div class="gold-line-login"></div>
+
+    <div class="login-field">
+      <label for="loginEmail">Correo electronico</label>
+      <input type="email" id="loginEmail" placeholder="correo@ejemplo.com"
+        autocomplete="off"
+        oninput="loginClearErr()"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()" />
+    </div>
+
+    <div class="login-field">
+      <label for="loginPass">Contrasena</label>
+      <div class="login-pass-wrap">
+        <input type="password" id="loginPass" placeholder="Contrasena"
+          autocomplete="off"
+          oninput="loginClearErr()"
+          onkeydown="if(event.key==='Enter')doLogin()" />
+        <button type="button" class="login-eye" id="loginEyeBtn" onclick="loginTogglePass()" tabindex="-1" title="Mostrar contrasena">&#128065;</button>
+      </div>
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Ingresar</button>
+    <div class="login-err" id="loginErr">Correo o contrasena incorrectos</div>
+    <div class="login-tagline">Where Strength Connects</div>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo">NEXA</div>
+
+    <!-- Admin nav -->
+    <div id="navAdmin">
+      <div class="sb-item active" onclick="showPage('dashboard')"><span class="sb-icon">📊</span> Dashboard</div>
+      <div class="sb-item" onclick="showPage('alumnos')"><span class="sb-icon">👥</span> Alumnos</div>
+      <div class="sb-item" onclick="showPage('reservas')"><span class="sb-icon">📅</span> Reservas</div>
+      <div class="sb-item" onclick="showPage('crm')"><span class="sb-icon">🎯</span> CRM</div>
+      <div class="sb-item" onclick="showPage('metricas')"><span class="sb-icon">📈</span> Métricas</div>
+    </div>
+
+    <!-- Alumno nav -->
+    <div id="navAlumno" style="display:none">
+      <div class="sb-item active" onclick="showPage('alumnoHome')"><span class="sb-icon">🏠</span> Mi Perfil</div>
+      <div class="sb-item" onclick="showPage('alumnoClases')"><span class="sb-icon">📅</span> Mis Clases</div>
+    </div>
+
+    <div class="sb-bottom">
+      <div class="sb-user" id="sbUser"></div>
+      <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- ── DASHBOARD (ADMIN) ── -->
+    <div class="page active" id="pageDashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Alumnos Activos</div><div class="kpi-value accent" id="kpiActivos">—</div><div class="kpi-sub">total registrados</div></div>
+        <div class="kpi-card"><div class="kpi-label">Reservas Hoy</div><div class="kpi-value" id="kpiHoy">—</div><div class="kpi-sub">clases agendadas</div></div>
+        <div class="kpi-card"><div class="kpi-label">Por Vencer</div><div class="kpi-value" style="color:var(--warning)" id="kpiVence">—</div><div class="kpi-sub">próximos 7 días</div></div>
+        <div class="kpi-card"><div class="kpi-label">Vencidos</div><div class="kpi-value" style="color:var(--danger)" id="kpiVenc">—</div><div class="kpi-sub">requieren atención</div></div>
+      </div>
+
+      <div class="sec-header">
+        <div class="sec-title">Próximas vencimientos</div>
+      </div>
+      <div class="table-wrap" id="tblVenc" style="margin-bottom:28px">
+        <table><thead><tr><th>Alumno</th><th>Plan</th><th>Vence</th><th>Estado</th></tr></thead>
+        <tbody id="bodyVenc"><tr><td colspan="4" style="color:var(--muted);text-align:center">Cargando…</td></tr></tbody></table>
+      </div>
+
+      <div class="sec-header">
+        <div class="sec-title">Reservas de hoy</div>
+        <button class="btn-sm" onclick="showPage('reservas')">Ver todas →</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Hora</th><th>Alumno</th><th>Tipo</th><th>Estado</th></tr></thead>
+        <tbody id="bodyHoy"><tr><td colspan="4" style="color:var(--muted);text-align:center">Cargando…</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── ALUMNOS ── -->
+    <div class="page" id="pageAlumnos">
+      <div class="sec-header">
+        <div class="page-title" style="margin-bottom:0">Alumnos</div>
+        <button class="btn-primary" onclick="openModalAlumno()">+ Nuevo alumno</button>
+      </div>
+      <div style="margin-bottom:16px;margin-top:16px">
+        <input class="input" style="max-width:320px" id="searchAlumno" oninput="filterAlumnos()" placeholder="Buscar por nombre…" />
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Alumno</th><th>Email</th><th>Plan</th><th>Vence</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="bodyAlumnos"><tr><td colspan="6" style="color:var(--muted);text-align:center">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── RESERVAS ── -->
+    <div class="page" id="pageReservas">
+      <div class="sec-header">
+        <div class="page-title" style="margin-bottom:0">Reservas</div>
+        <button class="btn-primary" onclick="openModalReserva()">+ Nueva reserva</button>
+      </div>
+      <div style="margin:16px 0;display:flex;gap:12px;flex-wrap:wrap">
+        <input type="date" class="input" id="filtroFecha" style="max-width:200px" onchange="loadReservas()" />
+        <select class="input" id="filtroEstado" style="max-width:180px" onchange="loadReservas()">
+          <option value="">Todos los estados</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Hora</th><th>Alumno</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="bodyReservas"><tr><td colspan="6" style="color:var(--muted);text-align:center">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── CRM ── -->
+    <div class="page" id="pageCrm">
+      <div class="sec-header">
+        <div class="page-title" style="margin-bottom:0">Pipeline CRM</div>
+        <button class="btn-primary" onclick="openModalLead()">+ Nuevo lead</button>
+      </div>
+      <div class="pipeline" id="pipelineBoard" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ── MÉTRICAS ── -->
+    <div class="page" id="pageMetricas">
+      <div class="page-title">Métricas</div>
+      <div class="metrics-grid">
+        <div class="chart-card">
+          <div class="chart-title">Distribución de planes</div>
+          <div class="donut-wrap">
+            <svg width="100" height="100" viewBox="0 0 36 36" id="donutSvg">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1A1A1A" stroke-width="3.8"/>
+              <circle id="donutMensual" cx="18" cy="18" r="15.9" fill="none" stroke="var(--accent)" stroke-width="3.8" stroke-dasharray="60 40" stroke-dashoffset="25"/>
+              <circle id="donutTrimes" cx="18" cy="18" r="15.9" fill="none" stroke="var(--success)" stroke-width="3.8" stroke-dasharray="25 75" stroke-dashoffset="-35"/>
+              <circle id="donutCustom" cx="18" cy="18" r="15.9" fill="none" stroke="var(--warning)" stroke-width="3.8" stroke-dasharray="15 85" stroke-dashoffset="-60"/>
+            </svg>
+            <div class="donut-legend" id="donutLegend">
+              <div class="donut-item"><div class="donut-dot" style="background:var(--accent)"></div><span>Mensual</span></div>
+              <div class="donut-item"><div class="donut-dot" style="background:var(--success)"></div><span>Trimestral</span></div>
+              <div class="donut-item"><div class="donut-dot" style="background:var(--warning)"></div><span>Custom</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Ocupación por hora</div>
+          <div class="heatmap" id="heatmap"></div>
+        </div>
+        <div class="chart-card" style="grid-column:1/-1">
+          <div class="chart-title">Estado de planes</div>
+          <div id="estadoPlanes" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ALUMNO HOME ── -->
+    <div class="page" id="pageAlumnoHome">
+      <div class="alu-hero">
+        <div class="alu-av" id="aluAv">?</div>
+        <div>
+          <div class="alu-name" id="aluNombre">—</div>
+          <div class="alu-plan" id="aluPlanInfo">—</div>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Días restantes</div><div class="kpi-value accent" id="aluDias">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Clases este mes</div><div class="kpi-value" id="aluClasesMes">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Asistencia</div><div class="kpi-value" id="aluAsis">—</div></div>
+      </div>
+      <div class="sec-header" style="margin-top:24px"><div class="sec-title">Logros</div></div>
+      <div class="logro-grid" id="logroGrid"></div>
+    </div>
+
+    <!-- ── ALUMNO CLASES ── -->
+    <div class="page" id="pageAlumnoClases">
+      <div class="page-title">Mis Clases</div>
+      <div id="alumnoClasesLista"><div style="color:var(--muted)">Cargando…</div></div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Modal Alumno -->
+<div class="modal-bg" id="modalAlumno">
+  <div class="modal" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-title" id="modalAlumnoTitle">Nuevo Alumno</div>
+    <input type="hidden" id="alumnoId" />
+    <label class="label">Nombre completo *</label>
+    <input class="input" id="alumnoNombre" placeholder="Ej: María González" />
+    <label class="label">RUT * (identificador del alumno)</label>
+    <input class="input" id="alumnoRut" placeholder="12345678-9" />
+    <label class="label">Email</label>
+    <input class="input" id="alumnoEmail" type="email" placeholder="correo@email.com" />
+    <label class="label">Teléfono</label>
+    <input class="input" id="alumnoTel" placeholder="+56 9 XXXX XXXX" />
+    <label class="label">Plan (clases al mes)</label>
+    <select class="input" id="alumnoPlan">
+      <option value="8">8 clases/mes</option>
+      <option value="12">12 clases/mes</option>
+      <option value="16">16 clases/mes</option>
+      <option value="20">20 clases/mes</option>
+    </select>
+    <label class="label">Fecha inicio</label>
+    <input class="input" type="date" id="alumnoInicio" />
+    <label class="label">Fecha término</label>
+    <input class="input" type="date" id="alumnoFin" />
+    <label class="label">Objetivo</label>
+    <select class="input" id="alumnoObjetivo">
+      <option value="">— Seleccionar —</option>
+      <option>Pérdida de peso</option>
+      <option>Ganancia muscular</option>
+      <option>Rendimiento deportivo</option>
+      <option>Rehabilitación</option>
+      <option>Salud general</option>
+      <option>Otro</option>
+    </select>
+    <label class="label">Enfermedades / condiciones</label>
+    <input class="input" id="alumnoEnf" placeholder="Ninguna" />
+    <label class="label">Lesiones o limitaciones</label>
+    <input class="input" id="alumnoLesiones" placeholder="Ninguna" />
+    <label class="label">Medicamentos</label>
+    <input class="input" id="alumnoMedicamentos" placeholder="Ninguno" />
+    <label class="label">Notas internas</label>
+    <input class="input" id="alumnoNotas" placeholder="Observaciones del equipo" />
+    <label class="label">Etapa CRM</label>
+    <select class="input" id="alumnoEtapa">
+      <option value="lead">Lead</option>
+      <option value="clase_prueba">Clase prueba</option>
+      <option value="seguimiento">Seguimiento</option>
+      <option value="cierre">Cierre</option>
+      <option value="activo">Activo</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('modalAlumno')">Cancelar</button>
+      <button class="btn-danger" id="btnEliminarAlumno" style="display:none" onclick="eliminarAlumno()">Eliminar</button>
+      <button class="btn-primary" onclick="guardarAlumno()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reserva -->
+<style>
+.res-tab{padding:8px 16px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;letter-spacing:.04em}
+.res-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.dia-chip{padding:6px 12px;border:1px solid var(--border);font-size:12px;color:var(--muted);cursor:pointer;transition:.15s;user-select:none}
+.dia-chip.on{border-color:var(--gold);color:var(--gold);background:rgba(201,169,110,.1);font-weight:600}
+.res-preview{background:var(--surface);border:1px solid var(--border);padding:12px 14px;margin-top:14px;font-size:12px;color:var(--muted);display:none;line-height:1.8}
+</style>
+<div class="modal-bg" id="modalReserva">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title" id="resTitle">Nueva Reserva</div>
+    <input type="hidden" id="reservaId"/>
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin:16px 0 18px">
+      <div class="res-tab on" id="tabUnica" onclick="resSwitchTab('unica')">Clase unica</div>
+      <div class="res-tab" id="tabRecurrente" onclick="resSwitchTab('recurrente')">Recurrente</div>
+    </div>
+    <label class="label">Alumno</label>
+    <select class="input" id="reservaAlumno" onchange="resOnAlumnoChange()"></select>
+    <label class="label">Profesor</label>
+    <select class="input" id="reservaProfesor"></select>
+    <label class="label">Tipo de clase</label>
+    <select class="input" id="reservaTipo">
+      <option value="1:1 Individual">1:1 Individual</option>
+      <option value="2:1 Duo">2:1 Duo</option>
+      <option value="Grupal">Grupal</option>
+    </select>
+    <label class="label">Hora</label>
+    <input class="input" type="time" id="reservaHora" oninput="resUpdatePreview()"/>
+    <!-- Unica -->
+    <div id="secUnica">
+      <label class="label">Fecha</label>
+      <input class="input" type="date" id="reservaFecha"/>
+    </div>
+    <!-- Recurrente -->
+    <div id="secRecurrente" style="display:none">
+      <label class="label">Dias de la semana</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;margin-bottom:14px" id="diasWrap">
+        <div class="dia-chip" data-d="1" onclick="resToggleDia(this)">Lun</div>
+        <div class="dia-chip" data-d="2" onclick="resToggleDia(this)">Mar</div>
+        <div class="dia-chip" data-d="3" onclick="resToggleDia(this)">Mie</div>
+        <div class="dia-chip" data-d="4" onclick="resToggleDia(this)">Jue</div>
+        <div class="dia-chip" data-d="5" onclick="resToggleDia(this)">Vie</div>
+        <div class="dia-chip" data-d="6" onclick="resToggleDia(this)">Sab</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><label class="label">Fecha inicio</label><input class="input" type="date" id="resInicio" oninput="resUpdatePreview()"/></div>
+        <div><label class="label">Periodo</label>
+          <select class="input" id="resPeriodo" onchange="resUpdatePreview()">
+            <option value="4">1 mes (4 sem)</option>
+            <option value="8">2 meses (8 sem)</option>
+            <option value="12">3 meses (12 sem)</option>
+            <option value="24">6 meses (24 sem)</option>
+          </select>
+        </div>
+      </div>
+      <div class="res-preview" id="resPreview"></div>
+    </div>
+    <label class="label">Estado</label>
+    <select class="input" id="reservaEstado">
+      <option value="confirmada">Confirmada</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="cancelada">Cancelada</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('modalReserva')">Cancelar</button>
+      <button class="btn-primary" id="resBtnGuardar" onclick="guardarReserva()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Lead -->
+<div class="modal-bg" id="modalLead">
+  <div class="modal">
+    <div class="modal-title">Nuevo Lead</div>
+    <label class="label">Nombre</label>
+    <input class="input" id="leadNombre" placeholder="Nombre del prospecto" />
+    <label class="label">Etapa</label>
+    <select class="input" id="leadEtapa">
+      <option value="lead">Lead</option>
+      <option value="clase_prueba">Clase prueba</option>
+      <option value="seguimiento">Seguimiento</option>
+      <option value="cierre">Cierre</option>
+      <option value="activo">Activo</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal('modalLead')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarLead()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script defer>
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  SUPABASE CONFIG
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+const SB_URL = 'https://rzeuzkyepufldvwbcxzl.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6ZXV6a3llcHVmbGR2d2JjeHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDYzMTMsImV4cCI6MjA5NTAyMjMxM30.OYYdHOt1nmLTxs394w4f0nx87LXLlrf_6dGQxkbonLM';
+
+let sb = null;
+try {
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    sb = supabase.createClient(SB_URL, SB_KEY);
+  }
+} catch(e) { console.warn('[NEXA] Supabase no disponible:', e.message); }
+if (!sb) {
+  sb = { from: function(table) {
+    var chain = {
+      select:function(){return chain;}, insert:function(){return Promise.resolve({data:null,error:null});},
+      update:function(){return chain;}, delete:function(){return chain;},
+      eq:function(){return chain;}, is:function(){return chain;},
+      order:function(){return chain;}, limit:function(){return chain;},
+      gte:function(){return chain;}, lte:function(){return chain;},
+      ilike:function(){return chain;}, single:function(){return Promise.resolve({data:null,error:null});},
+      maybeSingle:function(){return Promise.resolve({data:null,error:null});},
+      then:function(fn){return Promise.resolve({data:null,error:null}).then(fn);}
+    };
+    return chain;
+  }, rpc: function(name, params) { return Promise.resolve({data:null,error:null}); },
+  auth: { signIn: function(){return Promise.resolve({user:null,error:null});} }
+  };
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  STATE
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+let currentRole = null;   // 'admin' | 'alumno'
+let currentUser = null;   // nombre del alumno (si rol alumno)
+let allAlumnos  = [];
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  TOAST
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  LOGIN / LOGOUT
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+// doLogin definido arriba
+
+
+function doLogout() {
+  currentRole = null; currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+}
+
+// Enter key login
+document.addEventListener('keydown', e => { if(e.key==='Enter' && document.getElementById('loginScreen').style.display!=='none') doLogin(); });
+window.doLogin   = doLogin;
+window.doLogout  = doLogout;
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  NAVIGATION
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+
+  const pageMap = {
+    dashboard:'pageDashboard', alumnos:'pageAlumnos', reservas:'pageReservas',
+    crm:'pageCrm', metricas:'pageMetricas',
+    alumnoHome:'pageAlumnoHome', alumnoClases:'pageAlumnoClases',
+    profesores:'pageProfesores', horario:'pageHorario'
+  };
+  const el = document.getElementById(pageMap[name]);
+  if (el) el.classList.add('active');
+
+  const nav = document.querySelectorAll('.sb-item');
+  nav.forEach(n => { if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes(`'${name}'`)) n.classList.add('active'); });
+
+  if (name==='alumnos')   loadAlumnos();
+  if (name==='reservas')  { setTodayFilter(); loadReservas(); }
+  if (name==='crm')       loadCRM();
+  if (name==='metricas')  loadMetricas();
+  if (name==='alumnoClases') loadAlumnoClases();
+  if (name==='profesores' && typeof loadProfesores==='function') loadProfesores();
+  if (name==='horario'    && typeof loadHorario==='function')    loadHorario();
+}
+window.showPage = showPage;
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  DASHBOARD
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+async function loadDashboard() {
+  if (!sb) return;
+  const today = new Date().toISOString().slice(0,10);
+  const in7   = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+
+  const { data: clientes } = await sb.from('clientes').select('*');
+  allAlumnos = clientes || [];
+  window.allAlumnos = allAlumnos;
+
+  const activos  = allAlumnos.filter(c => vigStatus(c) === 'activo').length;
+  const porVencer = allAlumnos.filter(c => { const s=vigStatus(c); return s==='por_vencer'; }).length;
+  const vencidos  = allAlumnos.filter(c => vigStatus(c) === 'vencido').length;
+
+  document.getElementById('kpiActivos').textContent = activos;
+  document.getElementById('kpiVence').textContent   = porVencer;
+  document.getElementById('kpiVenc').textContent    = vencidos;
+
+  // Reservas hoy (fecha es timestamp: rango del dia)
+  const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const { data: rsHoy } = await sb.from('reservas').select('*').gte('fecha', today+'T00:00:00').lt('fecha', tomorrow+'T00:00:00');
+  const _nm = {}; allAlumnos.forEach(c => { _nm[c.rut_norm] = c.nombre; if(c.rut) _nm[_normRut(c.rut)] = c.nombre; });
+  document.getElementById('kpiHoy').textContent = (rsHoy||[]).length;
+
+  // Tabla vencimientos pr\u00f3ximos
+  const prox = allAlumnos.filter(c => {
+    const s = vigStatus(c);
+    return s === 'por_vencer' || s === 'vencido';
+  }).slice(0,10);
+  const bv = document.getElementById('bodyVenc');
+  bv.innerHTML = prox.length ? prox.map(c => `
+    <tr>
+      <td><div class="name-cell"><div class="avatar">${initials(c.nombre)}</div>${c.nombre}</div></td>
+      <td>${c.plan||'\u2014'}</td>
+      <td>${c.fecha_fin ? fmtDate(c.fecha_fin) : '\u2014'}</td>
+      <td>${statusBadge(vigStatus(c))}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" style="color:var(--muted);text-align:center">Sin vencimientos pr\u00f3ximos</td></tr>';
+
+  // Tabla hoy
+  const bh = document.getElementById('bodyHoy');
+  bh.innerHTML = (rsHoy||[]).length ? (rsHoy||[]).map(r => `
+    <tr>
+      <td>${(r.fecha||'').slice(11,16)||'\u2014'}</td>
+      <td>${_nm[_normRut(r.rut)]||'\u2014'}</td>
+      <td>${r.tipo_clase||'\u2014'}</td>
+      <td>${estadoBadge(r.estado)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4" style="color:var(--muted);text-align:center">Sin reservas hoy</td></tr>';
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  ALUMNOS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+async function loadAlumnos() {
+  if (!sb) return;
+  const { data } = await sb.from('clientes').select('*').order('nombre');
+  allAlumnos = data || [];
+  window.allAlumnos = allAlumnos;
+  renderAlumnos(allAlumnos);
+}
+
+function renderAlumnos(list) {
+  const b = document.getElementById('bodyAlumnos');
+  b.innerHTML = list.length ? list.map(c => `
+    <tr>
+      <td><div class="name-cell"><div class="avatar">${initials(c.nombre)}</div>${c.nombre}</div></td>
+      <td style="color:var(--muted)">${c.correo||'\u2014'}</td>
+      <td>${c.plan ? c.plan+' clases/mes' : '\u2014'}</td>
+      <td>${c.fecha_fin ? fmtDate(c.fecha_fin) : '\u2014'}</td>
+      <td>${statusBadge(vigStatus(c))}</td>
+      <td><button class="btn-sm" onclick="editAlumno('${c.rut_norm}')">\u270f\ufe0f Editar</button></td>
+    </tr>
+  `).join('') : '<tr><td colspan="6" style="color:var(--muted);text-align:center">Sin alumnos</td></tr>';
+}
+
+function filterAlumnos() {
+  const q = document.getElementById('searchAlumno').value.toLowerCase();
+  renderAlumnos(allAlumnos.filter(c => c.nombre.toLowerCase().includes(q)));
+}
+window.filterAlumnos = filterAlumnos;
+
+function openModalAlumno() {
+  document.getElementById('alumnoId').value = '';
+  document.getElementById('alumnoNombre').value = '';
+  document.getElementById('alumnoRut').value = '';
+  document.getElementById('alumnoRut').readOnly = false;
+  document.getElementById('alumnoEmail').value = '';
+  document.getElementById('alumnoTel').value = '';
+  document.getElementById('alumnoPlan').value = '8';
+  document.getElementById('alumnoInicio').value = '';
+  document.getElementById('alumnoFin').value = '';
+  document.getElementById('alumnoObjetivo').value = '';
+  document.getElementById('alumnoEnf').value = '';
+  document.getElementById('alumnoLesiones').value = '';
+  document.getElementById('alumnoMedicamentos').value = '';
+  document.getElementById('alumnoNotas').value = '';
+  document.getElementById('modalAlumnoTitle').textContent = 'Nuevo Alumno';
+  document.getElementById('btnEliminarAlumno').style.display = 'none';
+  document.getElementById('modalAlumno').classList.add('open');
+}
+window.openModalAlumno = openModalAlumno;
+
+function editAlumno(id) {
+  const c = allAlumnos.find(x => x.rut_norm == id);
+  if (!c) return;
+  document.getElementById('alumnoId').value    = c.rut_norm;
+  document.getElementById('alumnoNombre').value = c.nombre||'';
+  document.getElementById('alumnoRut').value    = c.rut||c.rut_norm||'';
+  document.getElementById('alumnoRut').readOnly = true;
+  document.getElementById('alumnoEmail').value  = c.correo||'';
+  document.getElementById('alumnoTel').value    = c.tel||'';
+  document.getElementById('alumnoPlan').value   = String(c.plan||'8');
+  document.getElementById('alumnoInicio').value = (c.inicio||'').slice(0,10);
+  document.getElementById('alumnoFin').value    = c.fecha_fin||'';
+  document.getElementById('alumnoObjetivo').value = c.objetivo||'';
+  document.getElementById('alumnoEnf').value      = c.enf||'';
+  document.getElementById('alumnoLesiones').value = c.lesiones||'';
+  document.getElementById('alumnoMedicamentos').value = c.medicamentos||'';
+  document.getElementById('alumnoNotas').value    = c.notas||'';
+  document.getElementById('alumnoEtapa').value  = c.etapa_crm||'lead';
+  document.getElementById('modalAlumnoTitle').textContent = 'Editar Alumno';
+  document.getElementById('btnEliminarAlumno').style.display = 'inline-block';
+  document.getElementById('modalAlumno').classList.add('open');
+}
+window.editAlumno = editAlumno;
+
+function _normRut(r) {
+  return String(r||'').replace(/[^0-9kK]/g,'').toUpperCase();
+}
+
+async function guardarAlumno() {
+  const id     = document.getElementById('alumnoId').value;
+  const nombre = document.getElementById('alumnoNombre').value.trim();
+  const rutRaw = document.getElementById('alumnoRut').value.trim();
+  const correo = document.getElementById('alumnoEmail').value.trim();
+  const tel    = document.getElementById('alumnoTel').value.trim();
+  const plan   = parseInt(document.getElementById('alumnoPlan').value) || 8;
+  const inicio = document.getElementById('alumnoInicio').value;
+  const fin    = document.getElementById('alumnoFin').value;
+  const etapa  = document.getElementById('alumnoEtapa').value;
+  const objetivo = document.getElementById('alumnoObjetivo').value;
+  const enf      = document.getElementById('alumnoEnf').value.trim();
+  const lesiones = document.getElementById('alumnoLesiones').value.trim();
+  const medicamentos = document.getElementById('alumnoMedicamentos').value.trim();
+  const notas    = document.getElementById('alumnoNotas').value.trim();
+
+  if (!nombre) { toast('El nombre es obligatorio','err'); return; }
+  if (!id && !rutRaw) { toast('El RUT es obligatorio','err'); return; }
+
+  const payload = { nombre, correo, tel, plan, inicio:inicio||null, fecha_fin:fin||null,
+    etapa_crm:etapa, objetivo:objetivo||null, enf:enf||null, lesiones:lesiones||null,
+    medicamentos:medicamentos||null, notas:notas||null };
+
+  let err;
+  if (id) {
+    const r = await sb.from('clientes').update(payload).eq('rut_norm', id);
+    err = r.error;
+  } else {
+    payload.rut = rutRaw;
+    payload.rut_norm = _normRut(rutRaw);
+    const r = await sb.from('clientes').insert(payload);
+    err = r.error;
+  }
+  if (err) { toast('Error: '+err.message,'err'); return; }
+  toast(id ? 'Alumno actualizado' : 'Alumno creado');
+  closeModal('modalAlumno');
+  loadAlumnos();
+}
+window.guardarAlumno = guardarAlumno;
+
+async function eliminarAlumno() {
+  const id = document.getElementById('alumnoId').value;
+  if (!id) return;
+  if (!confirm('\u00bfEliminar este alumno? Esta acci\u00f3n no se puede deshacer.')) return;
+  const { error } = await sb.from('clientes').delete().eq('rut_norm', id);
+  if (error) { toast('Error: '+error.message,'err'); return; }
+  toast('Alumno eliminado');
+  closeModal('modalAlumno');
+  loadAlumnos();
+}
+window.eliminarAlumno = eliminarAlumno;
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  RESERVAS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+function setTodayFilter() {
+  const el = document.getElementById('filtroFecha');
+  if (!el.value) el.value = new Date().toISOString().slice(0,10);
+}
+
+async function loadReservas() {
+  if (!sb) return;
+  if (!allAlumnos.length) { const { data: cs } = await sb.from('clientes').select('rut,rut_norm,nombre'); allAlumnos = cs||[]; window.allAlumnos = allAlumnos; }
+  const _nm = {}; allAlumnos.forEach(c => { _nm[c.rut_norm] = c.nombre; if(c.rut) _nm[_normRut(c.rut)] = c.nombre; });
+  let q = sb.from('reservas').select('*').order('fecha');
+  const fecha  = document.getElementById('filtroFecha').value;
+  const estado = document.getElementById('filtroEstado').value;
+  if (fecha)  { const next = new Date(new Date(fecha+'T12:00:00').getTime()+86400000).toISOString().slice(0,10);
+                q = q.gte('fecha', fecha+'T00:00:00').lt('fecha', next+'T00:00:00'); }
+  if (estado) q = q.eq('estado', estado);
+  const { data } = await q;
+  const b = document.getElementById('bodyReservas');
+  b.innerHTML = (data||[]).length ? (data||[]).map(r => `
+    <tr>
+      <td>${fmtDate((r.fecha||'').slice(0,10))}</td>
+      <td>${(r.fecha||'').slice(11,16)||'\u2014'}</td>
+      <td>${_nm[_normRut(r.rut)]||'\u2014'}</td>
+      <td>${r.tipo_clase||'\u2014'}</td>
+      <td>${estadoBadge(r.estado)}</td>
+      <td><button class="btn-sm" onclick="editReserva('${r.id}')">\u270f\ufe0f</button> <button class="btn-sm" onclick="cancelarReserva('${r.id}')" style="color:var(--danger)">\u2715</button></td>
+    </tr>
+  `).join('') : '<tr><td colspan="6" style="color:var(--muted);text-align:center">Sin reservas</td></tr>';
+}
+
+async function openModalReserva() {
+  if (!sb) return;
+  const { data } = await sb.from('clientes').select('rut_norm,nombre').order('nombre');
+  const sel = document.getElementById('reservaAlumno');
+  sel.innerHTML = (data||[]).map(c=>`<option value="${c.rut_norm}">${c.nombre}</option>`).join('');
+  document.getElementById('reservaId').value = '';
+  document.getElementById('reservaFecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('reservaHora').value = '08:00';
+  document.getElementById('modalReserva').classList.add('open');
+}
+window.openModalReserva = openModalReserva;
+
+async function editReserva(id) {
+  if (!sb) return;
+  const { data: r } = await sb.from('reservas').select('*').eq('id', id).single();
+  if (!r) return;
+  await openModalReserva();
+  document.getElementById('reservaId').value      = r.id;
+  document.getElementById('reservaFecha').value   = (r.fecha||'').slice(0,10);
+  document.getElementById('reservaHora').value    = (r.fecha||'').slice(11,16);
+  document.getElementById('reservaTipo').value    = r.tipo_clase||'1:1 Individual';
+  document.getElementById('reservaEstado').value  = r.estado||'confirmada';
+  document.getElementById('reservaAlumno').value  = _normRut(r.rut)||'';
+}
+window.editReserva = editReserva;
+
+async function guardarReserva() {
+  const id      = document.getElementById('reservaId').value;
+  const cid     = document.getElementById('reservaAlumno').value;
+  const fecha   = document.getElementById('reservaFecha').value;
+  const hora    = document.getElementById('reservaHora').value;
+  const tipo    = document.getElementById('reservaTipo').value;
+  const estado  = document.getElementById('reservaEstado').value;
+  const payload = { rut:cid, fecha: fecha+'T'+hora+':00', tipo_clase:tipo, estado };
+  let err;
+  if (id) {
+    const r = await sb.from('reservas').update(payload).eq('id',id); err=r.error;
+  } else {
+    const r = await sb.from('reservas').insert(payload); err=r.error;
+  }
+  if (err) { toast('Error: '+err.message,'err'); return; }
+  toast(id ? 'Reserva actualizada' : 'Reserva creada');
+  closeModal('modalReserva');
+  loadReservas();
+}
+window.guardarReserva = guardarReserva;
+
+async function cancelarReserva(id) {
+  if (!confirm('\u00bfCancelar esta reserva?')) return;
+  await sb.from('reservas').update({estado:'cancelada'}).eq('id',id);
+  toast('Reserva cancelada');
+  loadReservas();
+}
+window.cancelarReserva = cancelarReserva;
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  CRM
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+const CRM_STAGES = [
+  {key:'lead',         label:'Lead'},
+  {key:'clase_prueba', label:'Clase prueba'},
+  {key:'seguimiento',  label:'Seguimiento'},
+  {key:'cierre',       label:'Cierre'},
+  {key:'activo',       label:'Activo'},
+];
+
+async function loadCRM() {
+  if (!sb) return;
+  const { data } = await sb.from('clientes').select('rut_norm,nombre,etapa_crm,created_at').order('nombre');
+  const board = document.getElementById('pipelineBoard');
+  board.innerHTML = CRM_STAGES.map(stage => {
+    const cards = (data||[]).filter(c => (c.etapa_crm||'lead') === stage.key);
+    return `
+      <div class="pipeline-col">
+        <div class="pipeline-col-title">${stage.label} <span style="color:var(--accent)">(${cards.length})</span></div>
+        ${cards.map(c=>`
+          <div class="pipeline-card" onclick="editAlumnoFromCRM('${c.rut_norm}')">
+            <div class="pc-name">${c.nombre}</div>
+            <div class="pc-date">${fmtDate(c.created_at?.slice(0,10))}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+function editAlumnoFromCRM(id) {
+  showPage('alumnos');
+  setTimeout(() => editAlumno(id), 300);
+}
+window.editAlumnoFromCRM = editAlumnoFromCRM;
+
+function openModalLead() {
+  document.getElementById('leadNombre').value = '';
+  document.getElementById('modalLead').classList.add('open');
+}
+window.openModalLead = openModalLead;
+
+async function guardarLead() {
+  const nombre = document.getElementById('leadNombre').value.trim();
+  const etapa  = document.getElementById('leadEtapa').value;
+  if (!nombre) { toast('El nombre es obligatorio','err'); return; }
+  const _lid = 'LEAD' + Date.now();
+  const { error } = await sb.from('clientes').insert({ nombre, etapa_crm: etapa, rut: _lid, rut_norm: _lid });
+  if (error) { toast('Error: '+error.message,'err'); return; }
+  toast('Lead creado');
+  closeModal('modalLead');
+  loadCRM();
+}
+window.guardarLead = guardarLead;
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  M\u00c9TRICAS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+async function loadMetricas() {
+  if (!sb) return;
+  const { data: clientes } = await sb.from('clientes').select('*');
+  const list = clientes||[];
+
+  // Donut distribuci\u00f3n planes
+  const total = list.length || 1;
+  const p8    = list.filter(c=>c.plan==8).length;
+  const p12   = list.filter(c=>c.plan==12).length;
+  const pOtro = list.filter(c=>c.plan && c.plan!=8 && c.plan!=12).length;
+  document.getElementById('donutLegend').innerHTML = `
+    <div class="donut-item"><div class="donut-dot" style="background:var(--accent)"></div>8 clases (${p8})</div>
+    <div class="donut-item"><div class="donut-dot" style="background:var(--success)"></div>12 clases (${p12})</div>
+    <div class="donut-item"><div class="donut-dot" style="background:var(--warning)"></div>Otros (${pOtro})</div>
+  `;
+
+  // Heatmap simulado (reservas por hora)
+  const { data: reservas } = await sb.from('reservas').select('fecha');
+  const horas = ['06','07','08','09','10','11','17','18'];
+  const hm = document.getElementById('heatmap');
+  hm.innerHTML = horas.map(h=>{
+    const cnt = (reservas||[]).filter(r=>((r.fecha||'').slice(11,13))===h).length;
+    const op  = Math.min(1, cnt/5);
+    return `<div><div class="hm-cell" style="opacity:${0.15+op*0.85};background:var(--accent)" title="${cnt} reservas a las ${h}:00"></div><div class="hm-label">${h}h</div></div>`;
+  }).join('');
+
+  // Estado planes
+  const ep = document.getElementById('estadoPlanes');
+  const activos   = list.filter(c=>vigStatus(c)==='activo').length;
+  const porVencer = list.filter(c=>vigStatus(c)==='por_vencer').length;
+  const vencidos  = list.filter(c=>vigStatus(c)==='vencido').length;
+  ep.innerHTML = `
+    <span class="badge badge-green">\u2713 Activos: ${activos}</span>
+    <span class="badge badge-yellow">\u26a0 Por vencer: ${porVencer}</span>
+    <span class="badge badge-red">\u2715 Vencidos: ${vencidos}</span>
+    <span class="badge badge-muted">Total: ${list.length}</span>
+  `;
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  ALUMNO HOME
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+async function loadAlumnoHome(data) {
+  document.getElementById('aluAv').textContent    = initials(data.nombre);
+  document.getElementById('aluNombre').textContent = data.nombre;
+  document.getElementById('aluPlanInfo').textContent = `Plan ${data.plan||'\u2014'} \u00b7 vence ${data.fecha_fin ? fmtDate(data.fecha_fin) : '\u2014'}`;
+
+  const dias = data.fecha_fin ? Math.max(0, Math.ceil((new Date(data.fecha_fin)-new Date())/86400000)) : '\u2014';
+  document.getElementById('aluDias').textContent = dias;
+
+  if (sb) {
+    const { data: rs } = await sb.from('reservas').select('*').eq('rut', data.rut || data.rut_norm || '');
+    const mes = new Date().getMonth();
+    const mesClases = (rs||[]).filter(r=>new Date(r.fecha).getMonth()===mes).length;
+    document.getElementById('aluClasesMes').textContent = mesClases;
+    const total = (rs||[]).length;
+    const conf  = (rs||[]).filter(r=>r.estado==='confirmada').length;
+    document.getElementById('aluAsis').textContent = total ? Math.round(conf/total*100)+'%' : '\u2014';
+    renderLogros(mesClases, total);
+  }
+}
+
+const LOGROS_DEF = [
+  {id:'primer_clase', icon:'\ud83c\udfaf', label:'Primera clase', req: c=>c.total>=1},
+  {id:'5_clases',     icon:'\ud83d\udd25', label:'5 clases',      req: c=>c.total>=5},
+  {id:'10_clases',    icon:'\ud83d\udcaa', label:'10 clases',     req: c=>c.total>=10},
+  {id:'mes_completo', icon:'\ud83d\udcc5', label:'Mes completo',  req: c=>c.mes>=8},
+  {id:'constante',    icon:'\u26a1', label:'Constante',     req: c=>c.total>=20},
+  {id:'elite',        icon:'\ud83c\udfc6', label:'Elite',         req: c=>c.total>=50},
+  {id:'dedicado',     icon:'\ud83c\udf1f', label:'Dedicado',      req: c=>c.total>=30},
+  {id:'guerrero',     icon:'\ud83e\udd81', label:'Guerrero',      req: c=>c.total>=15},
+];
+
+function renderLogros(mes, total) {
+  const ctx = { mes, total };
+  const g = document.getElementById('logroGrid');
+  g.innerHTML = LOGROS_DEF.map(l=>{
+    const ok = l.req(ctx);
+    return `<div class="logro ${ok?'unlocked':''}"><div class="logro-icon">${l.icon}</div>${l.label}${ok?'<div style="font-size:10px;margin-top:4px;color:var(--success)">\u2713 Logrado</div>':''}</div>`;
+  }).join('');
+}
+
+async function loadAlumnoClases() {
+  if (!sb || !currentUser) return;
+  const { data } = await sb.from('reservas').select('*').eq('rut', currentUser.rut || currentUser.id).order('fecha',{ascending:false});
+  const el = document.getElementById('alumnoClasesLista');
+  el.innerHTML = (data||[]).length ? (data||[]).map(r=>`
+    <div class="clase-card">
+      <div class="clase-info">
+        <div class="clase-hora">${(r.fecha||'').slice(11,16)||'\u2014'}</div>
+        <div class="clase-tipo">${fmtDate((r.fecha||'').slice(0,10))} \u00b7 ${r.tipo_clase||'\u2014'}</div>
+      </div>
+      ${estadoBadge(r.estado)}
+    </div>
+  `).join('') : '<div style="color:var(--muted)">Sin clases registradas</div>';
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+//  HELPERS
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+function initials(nombre) {
+  if (!nombre) return '?';
+  return nombre.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+
+function fmtDate(d) {
+  if (!d) return '\u2014';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+function vigStatus(c) {
+  if (!c.fecha_fin) return 'sin_plan';
+  const hoy   = new Date();
+  const fin   = new Date(c.fecha_fin);
+  const diff  = Math.ceil((fin - hoy) / 86400000);
+  if (diff < 0)  return 'vencido';
+  if (diff <= 7) return 'por_vencer';
+  return 'activo';
+}
+
+function statusBadge(s) {
+  const map = {
+    activo:    '<span class="badge badge-green">Activo</span>',
+    por_vencer:'<span class="badge badge-yellow">Por vencer</span>',
+    vencido:   '<span class="badge badge-red">Vencido</span>',
+    sin_plan:  '<span class="badge badge-muted">Sin plan</span>',
+  };
+  return map[s]||'\u2014';
+}
+
+function estadoBadge(e) {
+  const map = {
+    confirmada: '<span class="badge badge-green">Confirmada</span>',
+    pendiente:  '<span class="badge badge-yellow">Pendiente</span>',
+    cancelada:  '<span class="badge badge-red">Cancelada</span>',
+  };
+  return map[e]||'<span class="badge badge-muted">'+e+'</span>';
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.closeModal = closeModal;
+
+// Cerrar modales al click en fondo
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+</script>
+
+<script>
+// =============================================================
+// NEXA MODULES - Horario, Profesores, Clases, sbFetch
+// =============================================================
+
+// --- sbFetch: REST helper via XHR ---
+function sbFetch(method, table, body, filter) {
+  filter = filter || '';
+  return new Promise(function(resolve) {
+    var url = SB_URL + '/rest/v1/' + table + filter;
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.setRequestHeader('apikey', SB_KEY);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Prefer', 'return=representation');
+    xhr.timeout = 10000;
+    xhr.onload = function() {
+      var data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch(e) {}
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({ data: data, error: null });
+      } else {
+        var msg = (Array.isArray(data) ? null : (data && data.message)) || (data && data.error) || xhr.statusText;
+        resolve({ data: null, error: { message: msg } });
+      }
+    };
+    xhr.onerror = function() { resolve({ data: null, error: { message: 'Network error' } }); };
+    xhr.ontimeout = function() { resolve({ data: null, error: { message: 'Timeout' } }); };
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
+}
+window.sbFetch = sbFetch;
+
+// --- calcularFechaFin ---
+function calcularFechaFin(fechaInicio, plan, clasesSemana, totalClases, clasesUsadas) {
+  clasesSemana = clasesSemana || 2;
+  clasesUsadas = clasesUsadas || 0;
+  var restantes = Math.max(0, (totalClases || 0) - clasesUsadas);
+  var semanas = clasesSemana > 0 ? Math.ceil(restantes / clasesSemana) : 4;
+  var d = new Date(fechaInicio + 'T00:00:00');
+  d.setDate(d.getDate() + semanas * 7);
+  return {
+    fechaFin: d.toISOString().slice(0, 10),
+    clasesRestantes: restantes,
+    semanas: semanas
+  };
+}
+window.calcularFechaFin = calcularFechaFin;
+
+// --- sessionsStore ---
+if (!window.sessionsStore) window.sessionsStore = {};
+if (!window._bySlot) window._bySlot = {};
+
+function _uid() { return Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+function _add1h(t) {
+  var p = t.split(':').map(Number);
+  return String((p[0] + 1) % 24).padStart(2, '0') + ':' + String(p[1]).padStart(2, '0');
+}
+function _monday(off) {
+  off = off || 0;
+  var d = new Date();
+  var dow = d.getDay() || 7;
+  d.setDate(d.getDate() - dow + 1 + off * 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+window.getMondayOfWeek = _monday;
+
+function _regSession(s) {
+  window.sessionsStore[s.id] = s;
+  window._bySlot[s.date + '|' + s.startTime] = s.id;
+}
+function _unregSession(id) {
+  var s = window.sessionsStore[id];
+  if (!s) return;
+  delete window._bySlot[s.date + '|' + s.startTime];
+  delete window.sessionsStore[id];
+}
+function _getSlot(date, time) {
+  return window.sessionsStore[window._bySlot[date + '|' + time]] || null;
+}
+function _reservaToSession(r) {
+  var rn = _normRut(r.rut);
+  var alumno = (window.allAlumnos || []).find(function(a) { return a.rut_norm === rn || _normRut(a.rut) === rn; });
+  var prof   = (window.allProfesores || []).find(function(p) { return p.id === r.coach_id; });
+  var start  = (r.fecha || '').slice(11, 16);
+  var end    = r.end_time ? r.end_time.slice(0, 5) : _add1h(start);
+  return {
+    id: r.id, date: (r.fecha || '').slice(0, 10), startTime: start, endTime: end,
+    coachId: r.coach_id || null,
+    coachName: prof ? prof.nombre : 'Sin profesor',
+    scheduledType: (r.tipo_clase||'').indexOf('2:1') >= 0 ? 'TWO_TO_ONE' : 'ONE_TO_ONE',
+    students: [{ studentId: rn, studentName: alumno ? alumno.nombre : (r.rut || 'Alumno'),
+      attendanceStatus: r.attendance_status || 'pendiente' }],
+    adminNote: r.admin_note || '', isBlocked: false
+  };
+}
+window._horWeekData = [];
+async function loadHorario() {
+  var mon = _monday(_horOff);
+  var sat = new Date(mon); sat.setDate(sat.getDate() + 5);
+  var res = await sbFetch('GET', 'reservas', null,
+    '?fecha=gte.' + mon.toISOString().slice(0, 10) + 'T00:00:00' +
+    '&fecha=lte.' + sat.toISOString().slice(0, 10) + 'T23:59:59&order=fecha');
+  window._horWeekData = (res.data || []).map(_reservaToSession);
+  renderHorario();
+}
+window.loadHorario = loadHorario;
+
+// --- Colores por estado ---
+var PROF_COLORS = ['#C9A96E','#5B9BD5','#70AD47','#ED7D31','#A5A5A5','#FFC000'];
+function profColor(id) {
+  var profs = window.allProfesores || [];
+  var idx = profs.findIndex(function(p) { return p.id === id; });
+  return PROF_COLORS[idx >= 0 ? idx % PROF_COLORS.length : 0];
+}
+
+// --- Cargar profesores desde Supabase ---
+async function loadProfesores() {
+  var res = await sbFetch('GET', 'coaches', null, '?activo=eq.true&order=nombre');
+  window.allProfesores = res.data || [];
+  renderProfesores();
+}
+window.loadProfesores = loadProfesores;
+
+// --- Render profesores ---
+function renderProfesores() {
+  var grid = document.getElementById('profGrid');
+  if (!grid) return;
+  var profs = window.allProfesores || [];
+  if (!profs.length) {
+    grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);grid-column:1/-1">Sin profesores registrados.</div>';
+    return;
+  }
+  grid.innerHTML = profs.map(function(p, idx) {
+    var col = PROF_COLORS[idx % PROF_COLORS.length];
+    var alumnos = (window.allAlumnos || []).filter(function(a) { return a.profesor_id === p.id; });
+    var initials2 = p.nombre.split(' ').map(function(w) { return w[0]; }).join('').slice(0,2).toUpperCase();
+    return '<div class="pf-card" onclick="mpOpen(\'' + p.id + '\')">' +
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">' +
+        '<div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid ' + col + ';color:' + col + ';font-size:16px;font-weight:300;flex-shrink:0">' + initials2 + '</div>' +
+        '<div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--white)">' + p.nombre + '</div>' +
+        '<div style="font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:2px">' + (p.especialidad || 'Coach') + '</div></div>' +
+        '<span class="badge ' + (p.activo ? 'badge-green' : 'badge-muted') + '">' + (p.activo ? 'activo' : 'inactivo') + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">' +
+        '<div style="font-size:10px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:3px 8px">1:1 <span style="color:var(--gold)">$' + (p.tarifa_1a1 || 0).toLocaleString('es-CL') + '</span></div>' +
+        '<div style="font-size:10px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:3px 8px">2:1 <span style="color:var(--gold)">$' + (p.tarifa_2a1 || 0).toLocaleString('es-CL') + '</span></div>' +
+        '<div style="font-size:10px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:3px 8px">Alumnos <span style="color:var(--gold)">' + alumnos.length + '</span></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+window.renderProfesores = renderProfesores;
+
+// --- Modal Profesor ---
+function mpOpen(id) {
+  var p = id ? (window.allProfesores || []).find(function(x) { return x.id === id; }) : null;
+  var el = function(i) { return document.getElementById(i); };
+  el('mpId').value      = p ? p.id      : '';
+  el('mpNombre').value  = p ? p.nombre   : '';
+  el('mpEspec').value   = p ? (p.especialidad || '') : '';
+  el('mpEmail').value   = p ? (p.email   || '') : '';
+  el('mpTel').value     = p ? (p.telefono|| '') : '';
+  el('mpT11').value     = p ? (p.tarifa_1a1 || '') : '';
+  el('mpT21').value     = p ? (p.tarifa_2a1 || '') : '';
+  el('mpTInc').value    = '';
+  el('mpEstado').value  = p ? (p.activo ? 'activo' : 'inactivo') : 'activo';
+  el('mpTit').textContent = p ? 'Editar Profesor' : 'Nuevo Profesor';
+  var delBtn = el('mpDelBtn');
+  if (delBtn) delBtn.style.display = p ? 'inline-block' : 'none';
+  el('modalProf').classList.add('open');
+}
+window.mpOpen = mpOpen;
+window.mpEditar = mpOpen;
+window.mpAbrir  = function() { mpOpen(null); };
+
+async function mpSave() {
+  var id = document.getElementById('mpId').value;
+  var nombre = document.getElementById('mpNombre').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio', 'err'); return; }
+  var payload = {
+    nombre: nombre,
+    especialidad: document.getElementById('mpEspec').value.trim(),
+    email: document.getElementById('mpEmail').value.trim(),
+    telefono: document.getElementById('mpTel').value.trim(),
+    tarifa_1a1: parseFloat(document.getElementById('mpT11').value) || 0,
+    tarifa_2a1: parseFloat(document.getElementById('mpT21').value) || 0,
+    activo: document.getElementById('mpEstado').value === 'activo'
+  };
+  var res;
+  if (id) {
+    res = await sbFetch('PATCH', 'coaches', payload, '?id=eq.' + id);
+  } else {
+    res = await sbFetch('POST', 'coaches', payload);
+  }
+  if (res.error) { toast('Error: ' + res.error.message, 'err'); return; }
+  toast(id ? 'Profesor actualizado' : 'Profesor creado');
+  closeModal('modalProf');
+  loadProfesores();
+}
+window.mpSave = mpSave;
+
+async function mpDelete() {
+  var id = document.getElementById('mpId').value;
+  if (!id || !confirm('Eliminar este profesor?')) return;
+  var res = await sbFetch('PATCH', 'coaches', { activo: false }, '?id=eq.' + id);
+  if (res.error) { toast('Error: ' + res.error.message, 'err'); return; }
+  toast('Profesor eliminado');
+  closeModal('modalProf');
+  loadProfesores();
+}
+window.mpDelete = mpDelete;
+
+// --- Horario: render semanal ---
+var _horOff = 0;
+var _horProfId = 'all';
+var HOR_DAYS = ['LUN','MAR','MIE','JUE','VIE','SAB','DOM'];
+var HOR_HOURS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','17:00','18:00','19:00','20:00','21:00'];
+
+function renderHorario() {
+  var mon = _monday(_horOff);
+  var days = [];
+  for (var i = 0; i < 6; i++) {
+    var d = new Date(mon);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+  var today = new Date().toISOString().slice(0, 10);
+  var now = new Date();
+  var fmt = function(d) { return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' }); };
+
+  var lbl = document.getElementById('horNavLbl');
+  if (lbl) lbl.textContent = fmt(days[0]) + ' - ' + fmt(days[5]);
+
+  // Tabs
+  var tabs = document.getElementById('horTabs');
+  if (tabs) {
+    var profs = (window.allProfesores || []).filter(function(p) { return p.activo; });
+    tabs.innerHTML = '<div class="hor-tab all-tab ' + (_horProfId === 'all' ? 'active' : '') + '" onclick="horSetProf(\'all\')">TODOS</div>' +
+      profs.map(function(p) {
+        return '<div class="hor-tab ' + (_horProfId === p.id ? 'active' : '') + '" onclick="horSetProf(\'' + p.id + '\')">' + p.nombre.split(' ')[0] + '</div>';
+      }).join('');
+  }
+
+  var grid = document.getElementById('horGrid');
+  if (!grid) return;
+  grid.style.gridTemplateColumns = '60px repeat(6,1fr)';
+  grid.innerHTML = '';
+
+  // Corner
+  var corner = document.createElement('div');
+  corner.className = 'hor-corner';
+  corner.innerHTML = '<span style="font-size:8px">HORAS</span>';
+  grid.appendChild(corner);
+
+  // Day headers
+  days.forEach(function(d, i) {
+    var isT = d.toISOString().slice(0, 10) === today;
+    var el = document.createElement('div');
+    el.className = 'hor-day-hdr' + (isT ? ' is-today' : '');
+    el.innerHTML = '<div style="font-size:9px;color:var(--muted);letter-spacing:.08em">' + HOR_DAYS[i] + ' ' + d.getDate() + '</div>';
+    grid.appendChild(el);
+  });
+
+  // Collect all hours that have sessions
+  var sessionHours = new Set();
+  (window._horWeekData || []).forEach(function(s) {
+    if (_horProfId === 'all' || s.coachId === _horProfId) {
+      sessionHours.add(s.startTime);
+    }
+  });
+  var showHours = HOR_HOURS.slice();
+  sessionHours.forEach(function(h) { if (showHours.indexOf(h) < 0) showHours.push(h); });
+  showHours.sort();
+
+  showHours.forEach(function(hora) {
+    var tl = document.createElement('div');
+    tl.className = 'hor-time';
+    tl.textContent = hora;
+    grid.appendChild(tl);
+
+    days.forEach(function(d) {
+      var dateStr = d.toISOString().slice(0, 10);
+      var session = (window._horWeekData || []).find(function(s) { return s.date === dateStr && s.startTime === hora; }) || null;
+      var show = !session || _horProfId === 'all' || session.coachId === _horProfId;
+      var isPast = new Date(dateStr + 'T' + hora + ':00') < now;
+
+      var cell = document.createElement('div');
+      cell.className = 'hor-cell' + (isPast ? ' is-past' : '') + ((!session || !show) ? ' is-free' : '');
+
+      if (session && show) {
+        var blk = document.createElement('div');
+        blk.className = 'hor-blk';
+        var col = session.color || (session.isBlocked ? '#333' : '#C9A96E');
+        blk.style.cssText = 'position:absolute;inset:2px;padding:3px 6px;background:' +
+          (session.isBlocked ? 'rgba(0,0,0,.8);border-left:3px solid #333' :
+           'rgba(30,60,40,.3);border-left:3px solid #2E7D55') + ';overflow:hidden;cursor:pointer';
+
+        var stuNames = (session.students || []).map(function(s) {
+          return '<div style="font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+            (s.studentName || s.nombre || '').split(' ').slice(0,2).join(' ') + '</div>';
+        }).join('');
+
+        blk.innerHTML = (session.isBlocked ?
+          '<div style="font-size:10px;color:var(--muted)">BLOQUEADO</div>' :
+          stuNames + '<div style="font-size:9px;color:rgba(255,255,255,.5)">' +
+            (session.scheduledType === 'TWO_TO_ONE' ? '2:1' : '1:1') +
+            (session.adminNote ? ' - ' + session.adminNote : '') + '</div>');
+
+        blk.addEventListener('click', function(e) {
+          e.stopPropagation();
+          openDetSesion(session.id);
+        });
+        cell.appendChild(blk);
+      } else if (!session) {
+        cell.addEventListener('click', function() {
+          openNuevaSesion(dateStr, hora);
+        });
+      }
+      grid.appendChild(cell);
+    });
+  });
+
+  // Summary
+  _renderHorResumen(days);
+}
+window.renderHorario = renderHorario;
+window.horSetProf = function(id) { _horProfId = id; renderHorario(); };
+window.horPrev    = function() { _horOff--; loadHorario(); };
+window.horNext    = function() { _horOff++; loadHorario(); };
+window.horToday   = function() { _horOff = 0; loadHorario(); };
+
+function _renderHorResumen(days) {
+  var wrap = document.getElementById('horResumen');
+  if (!wrap) return;
+  var profs = _horProfId === 'all'
+    ? (window.allProfesores || []).filter(function(p) { return p.activo; })
+    : (window.allProfesores || []).filter(function(p) { return p.id === _horProfId; });
+  var dayStrs = days.map(function(d) { return d.toISOString().slice(0,10); });
+
+  wrap.innerHTML = profs.map(function(p, i) {
+    var col = PROF_COLORS[i % PROF_COLORS.length];
+    var sessions = (window._horWeekData || []).filter(function(s) {
+      return s.coachId === p.id && dayStrs.indexOf(s.date) >= 0;
+    });
+    var total = sessions.length;
+    var pago = sessions.reduce(function(sum, s) { return sum + (s.coachAmount || 0); }, 0);
+    return '<div class="hr-cell"><div class="hr-lbl" style="color:' + col + '">' + p.nombre + '</div>' +
+      '<div style="display:flex;gap:16px;margin-top:4px">' +
+        '<div><div style="font-size:18px;font-weight:300;color:#2E7D55">' + total + '</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Clases</div></div>' +
+        '<div><div style="font-size:13px;font-weight:300;color:var(--gold)">$' + pago.toLocaleString('es-CL') + '</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pago</div></div>' +
+      '</div></div>';
+  }).join('');
+}
+
+// --- Modal nueva sesion ---
+function openNuevaSesion(date, startTime) {
+  var cSel = document.getElementById('nsCoach') || document.getElementById('msCoach');
+  if (!cSel) return;
+  var coachEl = cSel;
+  coachEl.innerHTML = (window.allProfesores || []).filter(function(p) { return p.activo; })
+    .map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
+  if (_horProfId !== 'all') coachEl.value = _horProfId;
+
+  var dateEl = document.getElementById('nsDate') || document.getElementById('msDate');
+  var startEl = document.getElementById('nsStart') || document.getElementById('msStart');
+  var endEl   = document.getElementById('nsEnd')   || document.getElementById('msEnd');
+  var subEl   = document.getElementById('nsSub')   || document.getElementById('msSub');
+  if (dateEl)  dateEl.value  = date;
+  if (startEl) startEl.value = startTime;
+  if (endEl)   endEl.value   = _add1h(startTime);
+  if (subEl)   subEl.textContent = startTime + ' - ' + date;
+
+  // Fill students
+  var a1 = document.getElementById('nsA1') || document.getElementById('msA1');
+  var a2 = document.getElementById('nsA2') || document.getElementById('msA2');
+  if (a1) {
+    var alus = window.allAlumnos || [];
+    var coachId = coachEl.value;
+    var sorted = alus.filter(function(a) { return a.profesor_id === coachId; })
+      .concat(alus.filter(function(a) { return a.profesor_id !== coachId; }));
+    var opts = sorted.map(function(a) {
+      return '<option value="' + (a.id || a.nombre) + '" data-name="' + a.nombre + '">' +
+        (a.profesor_id === coachId ? '* ' : '') + a.nombre + '</option>';
+    }).join('');
+    a1.innerHTML = opts || '<option value="">Sin alumnos</option>';
+    if (a2) a2.innerHTML = '<option value="">- Ninguno -</option>' + opts;
+  }
+
+  var modal = document.getElementById('modalNuevaSesion') || document.getElementById('modalSesion');
+  if (modal) modal.classList.add('open');
+}
+window.openNuevaSesion = openNuevaSesion;
+
+function nsConfirm() {
+  var date = (document.getElementById('nsDate') || document.getElementById('msDate') || {}).value || '';
+  var start = (document.getElementById('nsStart') || document.getElementById('msStart') || {}).value || '08:00';
+  var end   = (document.getElementById('nsEnd')   || document.getElementById('msEnd')   || {}).value || _add1h(start);
+  var sType = (document.getElementById('nsType') || { value: 'ONE_TO_ONE' }).value;
+  var cEl   = document.getElementById('nsCoach') || document.getElementById('msCoach') || {};
+  var coachId   = cEl.value || '';
+  var coachName = (cEl.options && cEl.options[cEl.selectedIndex]) ? cEl.options[cEl.selectedIndex].text : '';
+  var a1Sel = document.getElementById('nsA1') || document.getElementById('msA1') || {};
+  var a1Id  = a1Sel.value || '';
+  var a1Name = (a1Sel.options && a1Sel.options[a1Sel.selectedIndex]) ?
+    (a1Sel.options[a1Sel.selectedIndex].dataset.name || a1Sel.options[a1Sel.selectedIndex].text) : '';
+  if (!a1Id) { toast('Selecciona un alumno', 'err'); return; }
+
+  var students = [{ studentId: a1Id, studentName: a1Name, attendanceStatus: 'PENDING', cancelledAt: null }];
+  if (sType === 'TWO_TO_ONE') {
+    var a2Sel = document.getElementById('nsA2') || document.getElementById('msA2') || {};
+    var a2Id  = a2Sel.value || '';
+    var a2Name = (a2Sel.options && a2Sel.options[a2Sel.selectedIndex]) ?
+      (a2Sel.options[a2Sel.selectedIndex].dataset.name || a2Sel.options[a2Sel.selectedIndex].text) : '';
+    if (a2Id && a2Id !== a1Id) students.push({ studentId: a2Id, studentName: a2Name, attendanceStatus: 'PENDING', cancelledAt: null });
+  }
+
+  var now = new Date().toISOString();
+  _regSession({ id: _uid(), date: date, startTime: start, endTime: end,
+    coachId: coachId, coachName: coachName, scheduledType: sType,
+    students: students, adminNote: '', isBlocked: false, createdAt: now, updatedAt: now });
+
+  var modal = document.getElementById('modalNuevaSesion') || document.getElementById('modalSesion');
+  if (modal) modal.classList.remove('open');
+  renderHorario();
+  toast('Clase creada');
+}
+window.nsConfirm = nsConfirm;
+
+// --- Modal detalle sesion ---
+var _activeSId = null;
+function openDetSesion(id) {
+  var s = window.sessionsStore[id];
+  if (!s) return;
+  _activeSId = id;
+  var titleEl = document.getElementById('detTitle');
+  var subEl   = document.getElementById('detSub');
+  if (titleEl) titleEl.textContent = s.startTime + ' - ' + fmtDate(s.date);
+  if (subEl)   subEl.textContent   = (s.scheduledType === 'TWO_TO_ONE' ? '2:1' : '1:1') + ' - ' + (s.coachName || '');
+
+  var stuEl = document.getElementById('detStuRows');
+  if (stuEl) {
+    stuEl.innerHTML = (s.students || []).map(function(sr) {
+      var opts = ['PENDING','PRESENT','ABSENT_NO_NOTICE','CANCELLED_LATE','CANCELLED_ON_TIME'].map(function(v) {
+        var labels = { PENDING:'Pendiente', PRESENT:'Presente', ABSENT_NO_NOTICE:'Ausente sin aviso',
+          CANCELLED_LATE:'Cancelo tarde', CANCELLED_ON_TIME:'Cancelo a tiempo' };
+        return '<option value="' + v + '"' + (v === sr.attendanceStatus ? ' selected' : '') + '>' + labels[v] + '</option>';
+      }).join('');
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--white)">' + sr.studentName + '</div>' +
+        '<select style="background:var(--surface);border:1px solid var(--border);color:var(--white);padding:4px 8px;font-size:11px" onchange="detUpdateAtt(\'' + id + '\',\'' + sr.studentId + '\',this.value)">' + opts + '</select>' +
+        '</div>';
+    }).join('');
+  }
+  var noteEl = document.getElementById('detNote');
+  if (noteEl) noteEl.value = s.adminNote || '';
+  var modal = document.getElementById('modalDetSesion');
+  if (modal) modal.classList.add('open');
+}
+window.openDetSesion = openDetSesion;
+
+function detUpdateAtt(sid, stuId, newSt) {
+  var s = window.sessionsStore[sid];
+  if (!s) return;
+  var stu = s.students.find(function(x) { return x.studentId === stuId; });
+  if (stu) { stu.attendanceStatus = newSt; s.updatedAt = new Date().toISOString(); }
+  openDetSesion(sid);
+  renderHorario();
+}
+window.detUpdateAtt = detUpdateAtt;
+
+function detSave() {
+  var s = window.sessionsStore[_activeSId];
+  if (!s) return;
+  s.adminNote = (document.getElementById('detNote') || {}).value || '';
+  s.updatedAt = new Date().toISOString();
+  sbFetch('PATCH', 'sessions', { admin_note: s.adminNote }, '?id=eq.' + _activeSId).catch(function() {});
+  var modal = document.getElementById('modalDetSesion');
+  if (modal) modal.classList.remove('open');
+  renderHorario();
+  toast('Guardado');
+}
+window.detSave = detSave;
+
+function detDelete() {
+  if (!_activeSId || !confirm('Eliminar esta clase?')) return;
+  sbFetch('PATCH', 'sessions', { deleted_at: new Date().toISOString() }, '?id=eq.' + _activeSId).catch(function() {});
+  _unregSession(_activeSId);
+  _activeSId = null;
+  var modal = document.getElementById('modalDetSesion');
+  if (modal) modal.classList.remove('open');
+  renderHorario();
+  toast('Clase eliminada');
+}
+window.detDelete = detDelete;
+
+// --- Export CSV ---
+function exportToCSV(data, filename) {
+  if (!data || !data.length) { toast('Sin datos', 'err'); return; }
+  var headers = Object.keys(data[0]);
+  var rows = data.map(function(r) {
+    return headers.map(function(h) {
+      var v = r[h] == null ? '' : String(r[h]);
+      return v.indexOf(',') >= 0 || v.indexOf('"') >= 0 ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(',');
+  });
+  var csv = [headers.join(',')].concat(rows).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename + '.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exportado: ' + filename + '.csv');
+}
+function exportAlumnos() {
+  var data = (window.allAlumnos || []).map(function(a) {
+    return { nombre: a.nombre || '', email: a.email || '', telefono: a.telefono || '',
+      tipo_clase: a.tipo_clase || '', plan: a.plan || '', estado: a.etapa_crm || '' };
+  });
+  exportToCSV(data, 'NEXA_Alumnos_' + new Date().toISOString().slice(0,10));
+}
+window.exportToCSV = exportToCSV;
+window.exportAlumnos = exportAlumnos;
+
+// --- initNexaCore: crear paginas dinamicas e inyectar en sidebar ---
+function initNexaCore() {
+  if (document.getElementById('pageHorario')) return; // ya inicializado
+
+  var main = document.getElementById('main');
+  if (!main) return;
+
+  // Pagina Profesores
+  if (!document.getElementById('pageProfesores')) {
+    var pProf = document.createElement('div');
+    pProf.className = 'page'; pProf.id = 'pageProfesores';
+    pProf.innerHTML = '<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px">' +
+      '<div><div class="page-title">Profesores</div><div class="page-sub">Coaches y tarifas</div></div>' +
+      '<button class="btn-primary" onclick="mpAbrir()">Nuevo profesor</button></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--border);border:1px solid var(--border)" id="profGrid">' +
+      '<div style="padding:32px;text-align:center;color:var(--muted);grid-column:1/-1">Cargando...</div></div>';
+    main.appendChild(pProf);
+  }
+
+  // Pagina Horario
+  var pH = document.createElement('div');
+  pH.className = 'page'; pH.id = 'pageHorario';
+  pH.innerHTML =
+    '<div style="margin-bottom:14px"><div class="page-title">Horario</div><div class="page-sub">Planilla semanal</div></div>' +
+    '<div style="overflow-x:auto;margin-bottom:0"><div class="hor-tabs" id="horTabs" style="display:flex;border-bottom:2px solid var(--border)"></div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:0">' +
+      '<button class="hor-nav-btn" onclick="horPrev()">Anterior</button>' +
+      '<div style="flex:1;text-align:center;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase" id="horNavLbl">-</div>' +
+      '<button class="hor-nav-btn" onclick="horNext()">Siguiente</button>' +
+      '<button class="hor-nav-btn" style="border-color:var(--gold);color:var(--gold)" onclick="horToday()">Hoy</button>' +
+    '</div>' +
+    '<div style="overflow-x:auto;border:1px solid var(--border);border-top:none"><div style="display:grid;min-width:600px" id="horGrid"></div></div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-top:none" id="horResumen"></div>';
+  main.appendChild(pH);
+
+  // Sidebar items
+  var nav = document.getElementById('navAdmin');
+  if (nav) {
+    if (!document.getElementById('sbProf')) {
+      var it = document.createElement('div');
+      it.id = 'sbProf'; it.className = 'sb-item';
+      it.setAttribute('onclick', "showPage('profesores')");
+      it.innerHTML = '<span class="sb-dot"></span>Profesores';
+      var aluIt = Array.from(nav.querySelectorAll('.sb-item')).find(function(el) {
+        return el.getAttribute('onclick') && el.getAttribute('onclick').indexOf("'alumnos'") >= 0;
+      });
+      if (aluIt) aluIt.insertAdjacentElement('afterend', it);
+      else nav.appendChild(it);
+    }
+    if (!document.getElementById('sbHorario')) {
+      var it2 = document.createElement('div');
+      it2.id = 'sbHorario'; it2.className = 'sb-item';
+      it2.setAttribute('onclick', "showPage('horario')");
+      it2.innerHTML = '<span class="sb-dot"></span>Horario';
+      nav.appendChild(it2);
+    }
+  }
+
+  // Modals HTML
+  if (!document.getElementById('modalProf')) {
+    var mProf = document.createElement('div');
+    mProf.className = 'modal-bg'; mProf.id = 'modalProf';
+    mProf.innerHTML = '<div class="modal" style="max-width:440px">' +
+      '<div class="modal-title" id="mpTit">Nuevo Profesor</div>' +
+      '<input type="hidden" id="mpId"/>' +
+      '<label class="label">Nombre</label><input class="input" id="mpNombre"/>' +
+      '<label class="label">Especialidad</label><input class="input" id="mpEspec"/>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div><label class="label">Email</label><input class="input" id="mpEmail" type="email"/></div>' +
+        '<div><label class="label">Telefono</label><input class="input" id="mpTel"/></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div><label class="label">Tarifa 1:1</label><input class="input" id="mpT11" type="number"/></div>' +
+        '<div><label class="label">Tarifa 2:1</label><input class="input" id="mpT21" type="number"/></div>' +
+      '</div>' +
+      '<label class="label">Tarifa incompleta 2:1</label><input class="input" id="mpTInc" type="number"/>' +
+      '<label class="label">Estado</label><select class="input" id="mpEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select>' +
+      '<div class="modal-actions"><button class="btn-outline" onclick="closeModal(\'modalProf\')">Cancelar</button>' +
+        '<button class="btn-danger-sm" id="mpDelBtn" style="display:none" onclick="mpDelete()">Eliminar</button>' +
+        '<button class="btn-primary" onclick="mpSave()">Guardar</button></div>' +
+      '</div>';
+    document.body.appendChild(mProf);
+    mProf.addEventListener('click', function(e) { if(e.target===mProf) mProf.classList.remove('open'); });
+  }
+
+  if (!document.getElementById('modalDetSesion')) {
+    var mDet = document.createElement('div');
+    mDet.className = 'modal-bg'; mDet.id = 'modalDetSesion';
+    mDet.innerHTML = '<div class="modal" style="max-width:500px">' +
+      '<div class="modal-title" id="detTitle">Clase</div>' +
+      '<div class="modal-sub" id="detSub"></div>' +
+      '<div style="height:1px;background:var(--border);margin:14px 0"></div>' +
+      '<div id="detStuRows"></div>' +
+      '<div style="height:1px;background:var(--border);margin:14px 0"></div>' +
+      '<label class="label">Nota</label><input class="input" id="detNote"/>' +
+      '<div class="modal-actions">' +
+        '<button class="btn-danger-sm" onclick="detDelete()">Eliminar</button>' +
+        '<button class="btn-outline" onclick="closeModal(\'modalDetSesion\')">Cerrar</button>' +
+        '<button class="btn-primary" onclick="detSave()">Guardar</button>' +
+      '</div></div>';
+    document.body.appendChild(mDet);
+    mDet.addEventListener('click', function(e) { if(e.target===mDet) mDet.classList.remove('open'); });
+  }
+
+  if (!document.getElementById('modalNuevaSesion')) {
+    var mNS = document.createElement('div');
+    mNS.className = 'modal-bg'; mNS.id = 'modalNuevaSesion';
+    mNS.innerHTML = '<div class="modal" style="max-width:480px">' +
+      '<div class="modal-title">Nueva clase</div>' +
+      '<div class="modal-sub" id="nsSub"></div>' +
+      '<input type="hidden" id="nsDate"/>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">' +
+        '<div><label class="label">Profesor</label><select class="input" id="nsCoach"></select></div>' +
+        '<div><label class="label">Modalidad</label><select class="input" id="nsType"><option value="ONE_TO_ONE">1:1 Individual</option><option value="TWO_TO_ONE">2:1 Duo</option></select></div>' +
+      '</div>' +
+      '<label class="label">Alumno 1</label><select class="input" id="nsA1"></select>' +
+      '<label class="label">Alumno 2 (2:1)</label><select class="input" id="nsA2"></select>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div><label class="label">Inicio</label><input class="input" type="time" id="nsStart"/></div>' +
+        '<div><label class="label">Fin</label><input class="input" type="time" id="nsEnd"/></div>' +
+      '</div>' +
+      '<label class="label">Nota</label><input class="input" id="nsNote" placeholder="Opcional"/>' +
+      '<div class="modal-actions"><button class="btn-outline" onclick="closeModal(\'modalNuevaSesion\')">Cancelar</button>' +
+        '<button class="btn-primary" onclick="nsConfirm()">Crear</button></div>' +
+      '</div>';
+    document.body.appendChild(mNS);
+    mNS.addEventListener('click', function(e) { if(e.target===mNS) mNS.classList.remove('open'); });
+  }
+
+  // CSS adicional para horario
+  var style = document.createElement('style');
+  style.textContent = [
+    '.hor-nav-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;cursor:pointer;font-size:11px;font-family:Inter,sans-serif}',
+    '.hor-nav-btn:hover{border-color:var(--gold);color:var(--gold)}',
+    '.hor-tab{padding:8px 14px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;flex-shrink:0}',
+    '.hor-tab.active,.hor-tab.all-tab.active{color:var(--white);border-bottom-color:var(--gold)}',
+    '.hor-corner{background:#111;border-right:1px solid var(--border);border-bottom:1px solid var(--border);height:38px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--muted)}',
+    '.hor-day-hdr{background:#111;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:5px;text-align:center;height:38px;display:flex;align-items:center;justify-content:center}',
+    '.hor-day-hdr.is-today div{color:var(--gold)}',
+    '.hor-time{background:#0e0e0e;border-right:1px solid var(--border);border-bottom:1px solid rgba(38,38,38,.5);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:9px;color:#555}',
+    '.hor-cell{border-right:1px solid var(--border);border-bottom:1px solid rgba(38,38,38,.4);position:relative;background:var(--black);min-height:58px}',
+    '.hor-cell.is-free{cursor:pointer}.hor-cell.is-free:hover{background:rgba(201,169,110,.04)}',
+    '.hor-cell.is-past{opacity:.45}',
+    '.hr-cell{background:#0e0e0e;padding:14px 12px}',
+    '.hr-lbl{font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}',
+    '.pf-card{background:var(--dark);padding:20px;cursor:pointer;transition:.15s}',
+    '.pf-card:hover{background:rgba(201,169,110,.05)}',
+  ].join('\n');
+  document.head.appendChild(style);
+}
+window.initNexaCore = initNexaCore;
+
+// --- Alert center ---
+function loadAlertCenter() {
+  var wrap = document.getElementById('alertCenter');
+  if (!wrap) return;
+  var alerts = [];
+  var today = new Date().toISOString().slice(0,10);
+  var in7   = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
+
+  // Planes por vencer
+  (window.allAlumnos || []).forEach(function(a) {
+    if (a.fecha_fin && a.fecha_fin >= today && a.fecha_fin <= in7) {
+      alerts.push({ level:'warn', msg:'<b>' + a.nombre + '</b> - plan vence el ' + fmtDate(a.fecha_fin), action:"editAlumno('" + a.id + "')", label:'Ver' });
+    }
+  });
+  // Alumnos con pocas clases
+  (window.allAlumnos || []).forEach(function(a) {
+    var total = parseInt(a.total_clases || 0);
+    var usadas = 0;
+    Object.values(window.sessionsStore || {}).forEach(function(s) {
+      (s.students || []).forEach(function(st) {
+        if (String(st.studentId) === String(a.id || a.nombre) && st.attendanceStatus === 'PRESENT') usadas++;
+      });
+    });
+    var rest = Math.max(0, total - usadas);
+    if (total > 0 && rest <= 3) {
+      alerts.push({ level:'warn', msg:'<b>' + a.nombre + '</b> - ' + rest + ' clase(s) restante(s)', action:"editAlumno('" + a.id + "')", label:'Ver' });
+    }
+  });
+
+  if (!alerts.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Sin alertas pendientes</div>';
+    return;
+  }
+  wrap.innerHTML = alerts.map(function(a) {
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px;background:rgba(201,169,110,.06);border-left:3px solid var(--gold)">' +
+      '<div style="flex:1;font-size:12px;color:var(--white)">' + a.msg + '</div>' +
+      '<button class="btn-sm" onclick="' + a.action + '">' + a.label + '</button></div>';
+  }).join('');
+}
+window.loadAlertCenter = loadAlertCenter;
+
+// --- Boot ---
+function _bootApp() {
+  initNexaCore();
+  loadProfesores();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _bootApp);
+} else {
+  _bootApp();
+}
+</script>
+
+
+<script>
+// ========================================================
+// RESERVA RECURRENTE
+// ========================================================
+var _resMode = 'unica';
+
+function resSwitchTab(mode) {
+  _resMode = mode;
+  var tabU = document.getElementById('tabUnica');
+  var tabR = document.getElementById('tabRecurrente');
+  var secU = document.getElementById('secUnica');
+  var secR = document.getElementById('secRecurrente');
+  var btn  = document.getElementById('resBtnGuardar');
+  if(tabU) { tabU.classList.toggle('on', mode==='unica'); }
+  if(tabR) { tabR.classList.toggle('on', mode==='recurrente'); }
+  if(secU) secU.style.display = mode==='unica' ? '' : 'none';
+  if(secR) secR.style.display = mode==='recurrente' ? '' : 'none';
+  if(btn)  btn.textContent = mode==='recurrente' ? 'Crear clases' : 'Guardar';
+  if(mode==='recurrente') resUpdatePreview();
+}
+window.resSwitchTab = resSwitchTab;
+
+function resToggleDia(chip) {
+  chip.classList.toggle('on');
+  resUpdatePreview();
+}
+window.resToggleDia = resToggleDia;
+
+function resOnAlumnoChange() {
+  var aluId = document.getElementById('reservaAlumno').value;
+  var alumno = (window.allAlumnos||[]).find(function(a){ return String(a.id||a.nombre)===String(aluId); });
+  var profSel = document.getElementById('reservaProfesor');
+  if (!profSel) return;
+  var profs = (window.allProfesores||[]).filter(function(p){ return p.activo; });
+  profSel.innerHTML = '<option value="">- Sin asignar -</option>' +
+    profs.map(function(p){
+      return '<option value="'+p.id+'"'+(alumno&&alumno.profesor_id===p.id?' selected':'')+'>'+p.nombre+'</option>';
+    }).join('');
+}
+window.resOnAlumnoChange = resOnAlumnoChange;
+
+function resUpdatePreview() {
+  if (_resMode !== 'recurrente') return;
+  var dias = [];
+  document.querySelectorAll('.dia-chip.on').forEach(function(c){ dias.push(parseInt(c.dataset.d)); });
+  var inicio  = (document.getElementById('resInicio') || {}).value || '';
+  var hora    = (document.getElementById('reservaHora') || {}).value || '08:00';
+  var semanas = parseInt((document.getElementById('resPeriodo') || {}).value || 4);
+  var prev = document.getElementById('resPreview');
+  if (!prev) return;
+  if (!dias.length || !inicio) { prev.style.display='none'; return; }
+  var dates = resGenerateDates(inicio, dias, semanas);
+  if (!dates.length) { prev.style.display='none'; return; }
+  prev.style.display = '';
+  var names = ['','Lun','Mar','Mie','Jue','Vie','Sab'];
+  prev.innerHTML = '<b>'+dates.length+' clases</b> a las <b>'+hora+'</b> - '+dias.map(function(d){return names[d];}).join(', ')+'<br>Primera: <b>'+fmtDate(dates[0])+'</b> &nbsp; Ultima: <b>'+fmtDate(dates[dates.length-1])+'</b>';
+}
+window.resUpdatePreview = resUpdatePreview;
+
+function resGenerateDates(inicio, dias, semanas) {
+  var startDate = new Date(inicio + 'T00:00:00');
+  var dow0 = startDate.getDay() === 0 ? 7 : startDate.getDay();
+  var lunes = new Date(startDate);
+  lunes.setDate(lunes.getDate() - dow0 + 1);
+  var dates = [];
+  for (var w = 0; w < semanas; w++) {
+    var sortedDias = dias.slice().sort(function(a,b){return a-b;});
+    for (var di = 0; di < sortedDias.length; di++) {
+      var d = new Date(lunes);
+      d.setDate(d.getDate() + w*7 + (sortedDias[di]-1));
+      var ds = d.toISOString().slice(0,10);
+      if (ds >= inicio) dates.push(ds);
+    }
+  }
+  return dates.filter(function(v,i,a){ return a.indexOf(v)===i; }).sort();
+}
+window.resGenerateDates = resGenerateDates;
+
+// Override openModalReserva para llenar alumnos y profs
+var _origOpenModalReserva = window.openModalReserva;
+window.openModalReserva = async function() {
+  // Llenar select alumnos (siempre fresco desde Supabase)
+  var selA = document.getElementById('reservaAlumno');
+  if (selA) {
+    var alus = window.allAlumnos || [];
+    try {
+      var _r = await sb.from('clientes').select('rut,rut_norm,nombre').order('nombre');
+      if (_r.error) { toast('Error cargando alumnos: ' + _r.error.message, 'err'); }
+      if (_r.data && _r.data.length) { alus = _r.data; window.allAlumnos = alus; }
+    } catch(e) { toast('Error cargando alumnos: ' + (e.message||e), 'err'); }
+    if (!alus.length) {
+      selA.innerHTML = '<option value="">- Sin alumnos -</option>';
+    } else {
+      selA.innerHTML = alus.map(function(a){
+        return '<option value="'+(a.rut_norm||a.nombre)+'">'+a.nombre+'</option>';
+      }).join('');
+    }
+  }
+  // Llenar profs
+  resOnAlumnoChange();
+  // Reset tabs
+  resSwitchTab('unica');
+  // Reset fecha
+  var fEl = document.getElementById('reservaFecha');
+  var hEl = document.getElementById('reservaHora');
+  var rEl = document.getElementById('reservaId');
+  if (fEl) fEl.value = new Date().toISOString().slice(0,10);
+  if (hEl) hEl.value = '08:00';
+  if (rEl) rEl.value = '';
+  document.querySelectorAll('.dia-chip').forEach(function(c){ c.classList.remove('on'); });
+  var pr = document.getElementById('resPreview');
+  if (pr) pr.style.display = 'none';
+  var tit = document.getElementById('resTitle');
+  if (tit) tit.textContent = 'Nueva Reserva';
+  document.getElementById('modalReserva').classList.add('open');
+};
+
+// Override guardarReserva para manejar recurrente
+var _origGuardarReserva = window.guardarReserva;
+window.guardarReserva = async function() {
+  if (_resMode === 'unica') {
+    // Llamar al guardarReserva original si existe
+    if (typeof _origGuardarReserva === 'function') {
+      return _origGuardarReserva();
+    }
+    // Implementacion de respaldo
+    var aluId  = document.getElementById('reservaAlumno').value;
+    var fecha  = (document.getElementById('reservaFecha') || {}).value || '';
+    var hora   = (document.getElementById('reservaHora') || {}).value || '';
+    var tipo   = (document.getElementById('reservaTipo') || {}).value || '1:1 Individual';
+    var estado = (document.getElementById('reservaEstado') || {}).value || 'confirmada';
+    var id     = (document.getElementById('reservaId') || {}).value || '';
+    if (!aluId) { toast('Selecciona un alumno','err'); return; }
+    try {
+      var payload = { rut: aluId, fecha: fecha + 'T' + hora + ':00', tipo_clase: tipo, estado: estado };
+      if (id) {
+        await sbFetch('PATCH','reservas',payload,'?id=eq.'+id);
+      } else {
+        await sbFetch('POST','reservas',payload);
+      }
+    } catch(e) {}
+    // Registrar en horario
+    var alumno = (window.allAlumnos||[]).find(function(a){ return String(a.id||a.nombre)===String(aluId); });
+    var profId = (document.getElementById('reservaProfesor') || {}).value || (alumno && alumno.profesor_id) || '';
+    if (fecha && hora) {
+      var sType = tipo.indexOf('2:1')>=0?'TWO_TO_ONE':tipo==='Grupal'?'GRUPAL':'ONE_TO_ONE';
+      var profObj = (window.allProfesores||[]).find(function(p){ return p.id===profId; });
+      var now = new Date().toISOString();
+      _regSession({ id: _uid(), date: fecha, startTime: hora, endTime: _add1h(hora),
+        coachId: profId, coachName: profObj ? profObj.nombre : '',
+        scheduledType: sType,
+        students: alumno ? [{ studentId: String(alumno.id||alumno.nombre), studentName: alumno.nombre, attendanceStatus:'PENDING', cancelledAt:null }] : [],
+        adminNote: '', isBlocked: false, createdAt: now, updatedAt: now });
+    }
+    toast(id ? 'Reserva actualizada' : 'Reserva creada');
+    closeModal('modalReserva');
+    if (typeof loadReservas === 'function') loadReservas();
+    if (typeof renderHorario === 'function') setTimeout(renderHorario, 100);
+    if (typeof loadDashboard === 'function') setTimeout(loadDashboard, 200);
+
+  } else {
+    // RECURRENTE
+    var aluId  = document.getElementById('reservaAlumno').value;
+    var hora   = (document.getElementById('reservaHora') || {}).value || '';
+    var tipo   = (document.getElementById('reservaTipo') || {}).value || '1:1 Individual';
+    var estado = (document.getElementById('reservaEstado') || {}).value || 'confirmada';
+    var inicio = (document.getElementById('resInicio') || {}).value || '';
+    var semanas= parseInt((document.getElementById('resPeriodo') || {}).value || 4);
+    var dias   = [];
+    document.querySelectorAll('.dia-chip.on').forEach(function(c){ dias.push(parseInt(c.dataset.d)); });
+
+    if (!aluId)  { toast('Selecciona un alumno','err'); return; }
+    if (!hora)   { toast('Indica la hora','err'); return; }
+    if (!dias.length) { toast('Selecciona al menos un dia','err'); return; }
+    if (!inicio) { toast('Indica la fecha de inicio','err'); return; }
+
+    var dates = resGenerateDates(inicio, dias, semanas);
+    if (!dates.length) { toast('Sin fechas validas','err'); return; }
+
+    var alumno = (window.allAlumnos||[]).find(function(a){ return String(a.id||a.nombre)===String(aluId); });
+    var profId = (document.getElementById('reservaProfesor') || {}).value || (alumno && alumno.profesor_id) || '';
+    var profObj = (window.allProfesores||[]).find(function(p){ return p.id===profId; });
+    var sType  = tipo.indexOf('2:1')>=0?'TWO_TO_ONE':tipo==='Grupal'?'GRUPAL':'ONE_TO_ONE';
+
+    var creadas = 0;
+    for (var i = 0; i < dates.length; i++) {
+      var fecha = dates[i];
+      try { await sbFetch('POST','reservas',{ rut:aluId, fecha: fecha + 'T' + hora + ':00', tipo_clase:tipo, estado:estado }); } catch(e) {}
+      // Registrar en horario
+      if (!_getSlot(fecha, hora)) {
+        var now = new Date().toISOString();
+        _regSession({ id: _uid(), date: fecha, startTime: hora, endTime: _add1h(hora),
+          coachId: profId, coachName: profObj ? profObj.nombre : '',
+          scheduledType: sType,
+          students: alumno ? [{ studentId: String(alumno.id||alumno.nombre), studentName: alumno.nombre, attendanceStatus:'PENDING', cancelledAt:null }] : [],
+          adminNote:'', isBlocked:false, createdAt:now, updatedAt:now });
+      }
+      creadas++;
+    }
+
+    toast(creadas + ' clases creadas (' + semanas + ' semanas)');
+    closeModal('modalReserva');
+    if (typeof loadReservas === 'function') loadReservas();
+    if (typeof renderHorario === 'function') setTimeout(renderHorario, 100);
+    if (typeof loadDashboard === 'function') setTimeout(loadDashboard, 200);
+  }
+};
+</script>
+
+<script>
+function mobOpen(){
+  var s=document.getElementById('sidebar');
+  var o=document.getElementById('mobOverlay');
+  if(s) s.classList.toggle('mob-open');
+  if(o) o.style.display=o.style.display==='block'?'none':'block';
+}
+function mobClose(){
+  var s=document.getElementById('sidebar');
+  var o=document.getElementById('mobOverlay');
+  if(s) s.classList.remove('mob-open');
+  if(o) o.style.display='none';
+}
+window.mobOpen=mobOpen;
+window.mobClose=mobClose;
+(function(){
+  function chk(){
+    var b=document.getElementById('mobMenuBtn');
+    if(b) b.style.display=window.innerWidth<=768?'flex':'none';
+  }
+  window.addEventListener('resize',chk);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',chk);
+  else chk();
+})();
+</script>
+
+</body>
+</html>
