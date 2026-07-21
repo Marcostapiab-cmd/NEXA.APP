@@ -91,6 +91,49 @@ export async function deleteReservaDB(reservaId: string): Promise<void> {
   if (error) throw error;
 }
 
+// Todos los planes (para el dashboard)
+export async function getAllPlanesDB(): Promise<Plan[]> {
+  const { data, error } = await supabase
+    .from('planes')
+    .select('*')
+    .order('start_date', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id:            String(r.id),
+    alumnoId:      String(r.alumno_id),
+    nombre:        String(r.nombre),
+    tipo:          String(r.tipo) as Plan['tipo'],
+    totalClases:   Number(r.total_clases),
+    usedClases:    Number(r.used_clases),
+    startDate:     String(r.start_date),
+    endDate:       String(r.end_date),
+    extendedUntil: r.extended_until ? String(r.extended_until) : undefined,
+    adminNota:     r.admin_nota ? String(r.admin_nota) : undefined,
+    createdAt:     String(r.created_at),
+  }));
+}
+
+// Reservas de una fecha específica (para el dashboard)
+export async function getReservasFechaDB(fecha: string): Promise<Reserva[]> {
+  const { data, error } = await supabase
+    .from('reservas')
+    .select('*')
+    .eq('fecha', fecha)
+    .order('hora', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id:          String(r.id),
+    alumnoId:    String(r.alumno_id),
+    planId:      String(r.plan_id),
+    fecha:       String(r.fecha),
+    hora:        r.hora ? String(r.hora) : undefined,
+    descripcion: r.descripcion ? String(r.descripcion) : undefined,
+    estado:      String(r.estado) as Reserva['estado'],
+    reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
+    creadaAt:    String(r.creada_at),
+  }));
+}
+
 // Recalcula usedClases de un plan contando reservas que queman clase
 export async function recalcUsedClasesDB(planId: string, alumnoId: string): Promise<number> {
   const { data, error } = await supabase
