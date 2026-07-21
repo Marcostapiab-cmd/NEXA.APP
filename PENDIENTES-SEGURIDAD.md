@@ -1,54 +1,51 @@
-# Pendientes de seguridad — OBLIGATORIOS antes de publicar la app
-
-Este archivo registra decisiones tomadas para facilitar el desarrollo local
-que DEBEN revisarse antes de lanzar la app a producción o compartirla con usuarios reales.
-
----
-
-## 1. Políticas RLS abiertas (USING true)
-
-**Tablas afectadas:**
-- `atletas`
-- `ejercicios_propios`
-- `ejercicios_custom`
-- `rutinas`
-- `sesiones`
-
-**Qué hace ahora:**
-Cualquier persona con la URL de Supabase puede leer y escribir en estas tablas,
-aunque no esté autenticada. Fue necesario para poder probar sin login.
-
-**Qué debe hacer en producción:**
-Restringir cada política para que solo el coach dueño de los datos pueda
-acceder a los suyos. Ejemplo:
-
-```sql
--- En lugar de: USING (true)
--- Usar: USING (auth.uid() = coach_id)
-```
-
----
-
-## 2. Login desactivado en Supabase
-
-**Problema:** El proveedor de email está desactivado en la configuración de Supabase.
-**Solución:** Activar "Email" en Supabase → Authentication → Providers → Email.
-
----
-
-## 3. Botón "Entrar sin login" en producción
-
-**Archivo:** `src/app/login/page.tsx`
-**Qué hace:** Permite saltarse el login directamente al dashboard.
-**Solución:** Eliminar ese botón antes de publicar.
-
----
-
-## 4. Contraseña débil del usuario de prueba
-
-El usuario `admin@nexa.cl` fue creado con contraseña `123456`.
-Cambiar a una contraseña segura antes de publicar.
-
----
+# Seguridad NEXA — Estado actual
 
 *Última actualización: 2026-07-21*
+
+---
+
+## ✅ Resuelto
+
+### Login real activo
+- Email provider activado en Supabase Authentication
+- Usuario `admin@nexa.cl` con contraseña segura
+- Botón "Entrar sin login" eliminado del código
+
+### RLS cerrado en todas las tablas
+Todas las tablas tienen políticas restrictivas. Solo usuarios autenticados
+con el rol correcto pueden acceder:
+
+| Tabla | Admin | Profesor | Recepcionista | Alumno |
+|---|---|---|---|---|
+| `atletas` | ✅ todo | ✅ todo | ✅ todo | — |
+| `ejercicios_propios` | ✅ todo | ✅ todo | — | — |
+| `ejercicios_custom` | ✅ todo | ✅ todo | — | — |
+| `rutinas` | ✅ todo | ✅ todo | — | — |
+| `sesiones` | ✅ todo | ✅ todo | — | — |
+| `planes` | ✅ todo | 👁 lectura | ✅ todo | — |
+| `reservas` | ✅ todo | 👁 lectura | ✅ todo | — |
+| `reagendas` | ✅ todo | 👁 lectura | ✅ todo | — |
+
+### Tabla `perfiles` con roles
+- Creada con función `get_my_role()` para las políticas RLS
+- Roles disponibles: `admin`, `profesor`, `recepcionista`, `alumno`
+
+---
+
+## ⚠️ Pendiente antes de agregar más usuarios
+
+### Crear perfiles para cada usuario nuevo
+Cuando agregues un profesor o recepcionista en Supabase Auth,
+debes insertar su fila en `perfiles` con el rol correcto:
+
+```sql
+INSERT INTO public.perfiles (id, rol, nombre)
+SELECT id, 'profesor', 'Nombre del Profesor'
+FROM auth.users
+WHERE email = 'profesor@ejemplo.cl';
+```
+
+### Vista de alumno (futuro)
+El rol `alumno` existe en la tabla pero sin políticas todavía.
+Cuando se implemente el acceso para alumnos, agregar políticas
+que limiten cada tabla a `alumno_id = auth.uid()`.
