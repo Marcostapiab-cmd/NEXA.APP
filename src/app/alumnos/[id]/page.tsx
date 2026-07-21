@@ -6,7 +6,16 @@ import { getAlumnoById } from '@/lib/alumnos';
 import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
-import { calc1RM, parseReps, parsePeso } from '@/lib/mevmrv';
+import { calc1RM, parseReps } from '@/lib/mevmrv';
+import type { Plan, Reserva } from '@/lib/planes';
+import { RESERVA_LABEL, todayStr } from '@/lib/planes';
+import PlanFormModal from '@/components/planes/PlanFormModal';
+import PlanStatusCard from '@/components/planes/PlanStatusCard';
+import {
+  getPlanesAlumnoDB, upsertPlanDB, deletePlanDB,
+  getReservasAlumnoDB, upsertReservaDB, deleteReservaDB,
+  recalcUsedClasesDB,
+} from '@/lib/planes-supabase';
 
 interface Medicion {
   id: string; fecha: string; peso: string;
@@ -63,6 +72,15 @@ export default function AlumnoPerfilPage() {
   const [medForm, setMedForm]   = useState<Omit<Medicion,'id'>>({ fecha: new Date().toISOString().slice(0,10), peso: '', grasa: '', musculo: '', notas: '' });
   const [expandedSesion, setExpandedSesion] = useState<string | null>(null);
 
+  // Planes y reservas
+  const [planes,   setPlanes]   = useState<Plan[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [planModal, setPlanModal] = useState<{ mode: 'create' | 'edit'; plan?: Plan } | null>(null);
+  const [newReserva, setNewReserva] = useState<{
+    fecha: string; hora: string; descripcion: string;
+    repetir: boolean; diasSemana: number[]; fechaFin: string;
+  } | null>(null);
+
   const sesiones = alumno ? getSesionesAlumno(id) : [];
 
   useEffect(() => {
@@ -91,6 +109,9 @@ export default function AlumnoPerfilPage() {
     try {
       const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r));
     } catch {}
+    // Planes y reservas desde Supabase
+    getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
+    getReservasAlumnoDB(id).then(setReservas).catch(() => {});
   }, [id]);
 
   function saveAlumno(updated: AlumnoExtended) {
@@ -116,6 +137,92 @@ export default function AlumnoPerfilPage() {
   function deleteMedicion(mid: string) {
     if (!alumno) return;
     saveAlumno({ ...alumno, mediciones: (alumno.mediciones || []).filter(m => m.id !== mid) });
+  }
+
+  async function handleSavePlan(data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) {
+    if (!planModal) return;
+    const plan: Plan = planModal.mode === 'edit' && planModal.plan
+      ? { ...planModal.plan, ...data }
+      : { id: crypto.randomUUID(), alumnoId: id, createdAt: new Date().toISOString(), ...data };
+    await upsertPlanDB(plan).catch(() => {});
+    setPlanes(prev => {
+      const idx = prev.findIndex(p => p.id === plan.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = plan; return next; }
+      return [plan, ...prev];
+    });
+    setPlanModal(null);
+  }
+
+  async function handleDeletePlan(planId: string) {
+    if (!confirm('¿Eliminar este plan?')) return;
+    await deletePlanDB(planId).catch(() => {});
+    setPlanes(prev => prev.filter(p => p.id !== planId));
+    setReservas(prev => prev.filter(r => r.planId !== planId));
+  }
+
+  async function handleChangeReservaEstado(reservaId: string, nuevoEstado: Reserva['estado']) {
+    const reserva = reservas.find(r => r.id === reservaId);
+    if (!reserva) return;
+    const updated: Reserva = { ...reserva, estado: nuevoEstado };
+    await upsertReservaDB(updated).catch(() => {});
+    setReservas(prev => prev.map(r => r.id === reservaId ? updated : r));
+    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
+    if (newCount >= 0) {
+      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
+      const plan = planes.find(p => p.id === reserva.planId);
+      if (plan) upsertPlanDB({ ...plan, usedClases: newCount }).catch(() => {});
+    }
+  }
+
+  async function handleCreateReserva() {
+    if (!newReserva?.fecha) return;
+    const hoy = todayStr();
+    const planActivo = planes.find(p => {
+      const end = p.extendedUntil && p.extendedUntil > p.endDate ? p.extendedUntil : p.endDate;
+      return hoy <= end;
+    }) ?? planes[0];
+    if (!planActivo) { alert('Este alumno no tiene un plan activo.'); return; }
+
+    let fechas: string[] = [];
+    if (newReserva.repetir && newReserva.diasSemana.length > 0) {
+      const hasta = newReserva.fechaFin || planActivo.endDate;
+      const cur = new Date(newReserva.fecha + 'T12:00:00');
+      const fin = new Date(hasta + 'T12:00:00');
+      let guard = 0;
+      while (cur <= fin && guard < 500) {
+        if (newReserva.diasSemana.includes(cur.getDay())) {
+          fechas.push(cur.toISOString().slice(0, 10));
+        }
+        cur.setDate(cur.getDate() + 1);
+        guard++;
+      }
+      if (fechas.length === 0) { alert('No hay fechas en ese rango para los días seleccionados.'); return; }
+    } else {
+      fechas = [newReserva.fecha];
+    }
+
+    const nuevas: Reserva[] = fechas.map(fecha => ({
+      id: crypto.randomUUID(), alumnoId: id, planId: planActivo.id,
+      fecha, hora: newReserva.hora || undefined,
+      descripcion: newReserva.descripcion || undefined,
+      estado: 'pendiente' as const, creadaAt: new Date().toISOString(),
+    }));
+    await Promise.all(nuevas.map(r => upsertReservaDB(r).catch(() => {})));
+    setReservas(prev => [...nuevas, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
+    setNewReserva(null);
+  }
+
+  async function handleDeleteReserva(reservaId: string) {
+    const reserva = reservas.find(r => r.id === reservaId);
+    if (!reserva || !confirm('¿Eliminar esta reserva?')) return;
+    await deleteReservaDB(reservaId).catch(() => {});
+    setReservas(prev => prev.filter(r => r.id !== reservaId));
+    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
+    if (newCount >= 0) {
+      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
+      const plan = planes.find(p => p.id === reserva.planId);
+      if (plan) upsertPlanDB({ ...plan, usedClases: newCount }).catch(() => {});
+    }
   }
 
   if (!alumno) {
@@ -189,6 +296,145 @@ export default function AlumnoPerfilPage() {
                             {b.name}
                           </span>
                         ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Reservas / Asistencia */}
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className={SL}>Reservas y asistencia ({reservas.length})</p>
+              <button onClick={() => setNewReserva({ fecha: todayStr(), hora: '', descripcion: '', repetir: false, diasSemana: [], fechaFin: '' })}
+                className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
+                <Plus className="h-3 w-3" /> Nueva
+              </button>
+            </div>
+
+            {newReserva !== null && (
+              <div className="mb-4 space-y-3 rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={LC}>Fecha</label>
+                    <input type="date" value={newReserva.fecha}
+                      onChange={e => setNewReserva(p => p ? { ...p, fecha: e.target.value } : p)}
+                      className={IC} />
+                  </div>
+                  <div>
+                    <label className={LC}>Hora (opcional)</label>
+                    <input type="time" value={newReserva.hora}
+                      onChange={e => setNewReserva(p => p ? { ...p, hora: e.target.value } : p)}
+                      className={IC} />
+                  </div>
+                </div>
+                <div>
+                  <label className={LC}>Descripción</label>
+                  <input value={newReserva.descripcion}
+                    onChange={e => setNewReserva(p => p ? { ...p, descripcion: e.target.value } : p)}
+                    placeholder="Ej: Clase de fuerza" className={IC} />
+                </div>
+
+                {/* Repetir semanalmente */}
+                <div>
+                  <button type="button"
+                    onClick={() => setNewReserva(p => p ? { ...p, repetir: !p.repetir, diasSemana: [] } : p)}
+                    className={`w-full rounded-[8px] border px-3 py-2 text-left text-xs font-semibold transition ${
+                      newReserva.repetir
+                        ? 'border-[#121212] bg-[#121212]/8 text-[#121212]'
+                        : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
+                    }`}>
+                    {newReserva.repetir ? '✓ Repetir semanalmente' : 'Repetir semanalmente'}
+                  </button>
+                </div>
+
+                {newReserva.repetir && (() => {
+                  const DIAS = [
+                    { label: 'L', day: 1 }, { label: 'M', day: 2 }, { label: 'X', day: 3 },
+                    { label: 'J', day: 4 }, { label: 'V', day: 5 }, { label: 'S', day: 6 }, { label: 'D', day: 0 },
+                  ];
+                  return (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={LC}>Días de la semana</label>
+                        <div className="flex gap-1.5">
+                          {DIAS.map(({ label, day }) => {
+                            const sel = newReserva.diasSemana.includes(day);
+                            return (
+                              <button key={day} type="button"
+                                onClick={() => setNewReserva(p => p ? {
+                                  ...p,
+                                  diasSemana: sel
+                                    ? p.diasSemana.filter(d => d !== day)
+                                    : [...p.diasSemana, day],
+                                } : p)}
+                                className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${
+                                  sel
+                                    ? 'border-[#121212] bg-[#121212] text-white'
+                                    : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
+                                }`}>
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div>
+                        <label className={LC}>Hasta (deja en blanco = fin del plan)</label>
+                        <input type="date" value={newReserva.fechaFin}
+                          onChange={e => setNewReserva(p => p ? { ...p, fechaFin: e.target.value } : p)}
+                          className={IC} />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex gap-2">
+                  <button onClick={handleCreateReserva}
+                    className="nexa-btn-primary flex-1 justify-center text-xs py-2">
+                    {newReserva.repetir && newReserva.diasSemana.length > 0 ? 'Crear todas las reservas' : 'Guardar'}
+                  </button>
+                  <button onClick={() => setNewReserva(null)}
+                    className="nexa-btn-secondary px-4 py-2 text-xs">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {reservas.length === 0 ? (
+              <p className="text-sm text-[#5E5E5E]">Sin reservas registradas.</p>
+            ) : (
+              <div className="space-y-2">
+                {reservas.slice(0, 20).map(r => {
+                  const lbl = RESERVA_LABEL[r.estado];
+                  return (
+                    <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] px-3 py-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-[#121212]">{r.fecha}</span>
+                            {r.hora && <span className="text-xs text-[#5E5E5E]">{r.hora}</span>}
+                            {r.descripcion && <span className="truncate text-xs text-[#5E5E5E]">{r.descripcion}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="hidden text-xs font-semibold sm:inline" style={{ color: lbl.color }}>{lbl.label}</span>
+                          <select
+                            value={r.estado}
+                            onChange={e => handleChangeReservaEstado(r.id, e.target.value as Reserva['estado'])}
+                            className="rounded-md border border-[#CACACA] bg-[#F0F0F0] px-2 py-1 text-xs text-[#121212] outline-none">
+                            {(Object.entries(RESERVA_LABEL) as [Reserva['estado'], { label: string; color: string; quema: boolean }][]).map(([k, v]) => (
+                              <option key={k} value={k}>{v.label}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => handleDeleteReserva(r.id)}
+                            className="rounded p-1 text-[#9B9B9B] transition hover:text-red-500">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -286,6 +532,39 @@ export default function AlumnoPerfilPage() {
 
         {/* Right column: metrics */}
         <div className="space-y-4">
+
+          {/* Plan */}
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className={SL}>Plan de clases</p>
+              <button onClick={() => setPlanModal({ mode: 'create' })}
+                className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
+                <Plus className="h-3 w-3" /> Nuevo
+              </button>
+            </div>
+            {planes.length === 0 ? (
+              <p className="text-sm text-[#5E5E5E]">Sin planes registrados.</p>
+            ) : (
+              <div className="space-y-3">
+                {planes.map(plan => (
+                  <div key={plan.id}>
+                    <PlanStatusCard
+                      plan={plan}
+                      reservas={reservas.filter(r => r.planId === plan.id)}
+                      reagendas={[]}
+                      isAdmin
+                      onEdit={() => setPlanModal({ mode: 'edit', plan })}
+                    />
+                    <button onClick={() => handleDeletePlan(plan.id)}
+                      className="mt-1 text-[11px] text-[#9B9B9B] transition hover:text-red-500">
+                      Eliminar plan
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Métricas corporales</p>
@@ -388,6 +667,17 @@ export default function AlumnoPerfilPage() {
           </div>
         </div>
       </div>
+
+      {planModal && (
+        <PlanFormModal
+          alumnoId={id}
+          alumnoNombre={`${alumno.nombre} ${alumno.apellido}`}
+          mode={planModal.mode}
+          initial={planModal.plan}
+          onSave={handleSavePlan}
+          onClose={() => setPlanModal(null)}
+        />
+      )}
     </main>
   );
 }

@@ -2,7 +2,7 @@
 
 export type PlanTipo    = 'mensual' | 'trimestral' | 'personalizado';
 export type PlanEstado  = 'activo' | 'por_vencer' | 'vencido' | 'sin_clases';
-export type ReservaEstado  = 'pendiente' | 'confirmada' | 'completada' | 'cancelada' | 'reagendada';
+export type ReservaEstado  = 'pendiente' | 'confirmada' | 'presente' | 'no_show' | 'cancelada_tiempo' | 'cancelada_tarde' | 'reagendada' | 'cancelada_nexa' | 'bloqueada';
 export type ReagendaEstado = 'pendiente' | 'completada' | 'vencida';
 
 export interface Plan {
@@ -164,12 +164,16 @@ export const ESTADO_CONFIG: Record<PlanEstado, {
   sin_clases: { label: 'Sin clases',  color: '#888888', bg: 'rgba(136,136,136,0.1)', border: 'rgba(136,136,136,0.25)', dot: '#888888' },
 };
 
-export const RESERVA_LABEL: Record<ReservaEstado, { label: string; color: string }> = {
-  pendiente:  { label: 'Pendiente',   color: '#888888' },
-  confirmada: { label: 'Confirmada',  color: '#3b82f6' },
-  completada: { label: 'Completada',  color: '#22c55e' },
-  cancelada:  { label: 'Cancelada',   color: '#444444' },
-  reagendada: { label: 'Reagendada',  color: '#f97316' },
+export const RESERVA_LABEL: Record<ReservaEstado, { label: string; color: string; quema: boolean }> = {
+  pendiente:        { label: 'Pendiente',          color: '#888888', quema: false },
+  confirmada:       { label: 'Confirmada',          color: '#3b82f6', quema: false },
+  presente:         { label: 'Presente ✓',          color: '#22c55e', quema: true  },
+  no_show:          { label: 'No avisó',            color: '#ef4444', quema: true  },
+  cancelada_tiempo: { label: 'Canceló a tiempo',    color: '#888888', quema: false },
+  cancelada_tarde:  { label: 'Canceló tarde',       color: '#f97316', quema: true  },
+  reagendada:       { label: 'Reagendada',          color: '#8b5cf6', quema: false },
+  cancelada_nexa:   { label: 'Cancelada por NEXA',  color: '#64748b', quema: false },
+  bloqueada:        { label: 'Bloqueada',           color: '#64748b', quema: false },
 };
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
