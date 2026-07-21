@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Pencil, Trash2, X, Save, BarChart2, Eye, Users } from 'lucide-react';
+import { getAlumnos, createAlumno, updateAlumno, deleteAlumno } from '@/lib/alumnos';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -220,36 +221,70 @@ export default function AlumnosPage() {
   const [tab, setTab] = useState<Tab>('activos');
   const [modal, setModal] = useState<'new' | Alumno | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+
+  // Sincroniza a localStorage (para que otras secciones sigan funcionando)
+  // preservando datos extra como mediciones que solo viven en local
+  function syncLocal(updated: Alumno[]) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('nexa_alumnos') || '[]');
+      const merged = updated.map(a => {
+        const old = existing.find((e: Alumno & { mediciones?: unknown[] }) => e.id === a.id);
+        return old?.mediciones ? { ...a, mediciones: old.mediciones } : a;
+      });
+      localStorage.setItem('nexa_alumnos', JSON.stringify(merged));
+    } catch {
+      localStorage.setItem('nexa_alumnos', JSON.stringify(updated));
+    }
+  }
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('nexa_alumnos');
-      if (raw) {
-        const parsed: Alumno[] = JSON.parse(raw);
-        // Retrocompatibilidad: añadir estado por defecto a registros viejos
-        setAlumnos(parsed.map(a => ({ ...a, estado: a.estado ?? 'activo' })));
-      }
-    } catch {}
+    setLoading(true);
+    getAlumnos()
+      .then(data => {
+        const normalized = data.map(a => ({ ...a, estado: a.estado ?? 'activo' }));
+        setAlumnos(normalized);
+        syncLocal(normalized);
+      })
+      .catch(() => {
+        // Si Supabase falla, usa localStorage como respaldo
+        try {
+          const raw = localStorage.getItem('nexa_alumnos');
+          if (raw) setAlumnos(JSON.parse(raw).map((a: Alumno) => ({ ...a, estado: a.estado ?? 'activo' })));
+        } catch {}
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  function persist(updated: Alumno[]) {
-    setAlumnos(updated);
-    localStorage.setItem('nexa_alumnos', JSON.stringify(updated));
-  }
-
-  function handleSave(data: Omit<Alumno, 'id'>) {
-    if (modal === 'new') {
-      persist([...alumnos, { ...data, id: crypto.randomUUID() }]);
-    } else if (modal && typeof modal === 'object') {
-      persist(alumnos.map(a => a.id === modal.id ? { ...data, id: modal.id } : a));
+  async function handleSave(data: Omit<Alumno, 'id'>) {
+    try {
+      let updated: Alumno[];
+      if (modal === 'new') {
+        const nuevo = await createAlumno(data);
+        updated = [nuevo, ...alumnos];
+      } else if (modal && typeof modal === 'object') {
+        const editado = await updateAlumno(modal.id, data);
+        updated = alumnos.map(a => a.id === modal.id ? editado : a);
+      } else return;
+      setAlumnos(updated);
+      syncLocal(updated);
+      setModal(null);
+    } catch {
+      alert('Error al guardar. Verifica tu conexión a internet.');
     }
-    setModal(null);
   }
 
-  function del(id: string) {
+  async function del(id: string) {
     if (!confirm('¿Eliminar este alumno? Esta acción no se puede deshacer.')) return;
-    persist(alumnos.filter(a => a.id !== id));
-    setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+    try {
+      await deleteAlumno(id);
+      const updated = alumnos.filter(a => a.id !== id);
+      setAlumnos(updated);
+      syncLocal(updated);
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+    } catch {
+      alert('Error al eliminar. Verifica tu conexión a internet.');
+    }
   }
 
   // Filtros
@@ -323,7 +358,10 @@ export default function AlumnosPage() {
       </div>
 
       {/* ── Tabla ─────────────────────────────────────────────────────────── */}
-      {filtrados.length === 0 ? (
+      {loading && (
+        <div className="py-16 text-center text-sm text-[#9B9B9B]">Cargando alumnos...</div>
+      )}
+      {!loading && (filtrados.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#E0E0E0] py-20 text-center">
           <Users className="mx-auto mb-3 h-10 w-10 text-[#CACACA]" />
           <p className="text-sm text-[#777777]">
@@ -412,7 +450,7 @@ export default function AlumnosPage() {
             )}
           </div>
         </div>
-      )}
+      ))}
 
       {/* Modal */}
       {modal && (

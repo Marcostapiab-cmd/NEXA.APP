@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { getAlumnoById } from '@/lib/alumnos';
 import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
@@ -65,13 +66,28 @@ export default function AlumnoPerfilPage() {
   const sesiones = alumno ? getSesionesAlumno(id) : [];
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('nexa_alumnos');
-      if (stored) {
-        const all: AlumnoExtended[] = JSON.parse(stored);
-        setAlumno(all.find(a => a.id === id) || null);
+    // Busca en Supabase primero, con fallback a localStorage
+    getAlumnoById(id).then(base => {
+      if (base) {
+        // Preserva mediciones locales si existen
+        try {
+          const stored = localStorage.getItem('nexa_alumnos');
+          const local = stored ? (JSON.parse(stored) as AlumnoExtended[]).find(a => a.id === id) : null;
+          setAlumno(local?.mediciones ? { ...base, mediciones: local.mediciones } : base);
+        } catch {
+          setAlumno(base);
+        }
+      } else {
+        // Fallback a localStorage si Supabase no responde
+        try {
+          const stored = localStorage.getItem('nexa_alumnos');
+          if (stored) {
+            const all: AlumnoExtended[] = JSON.parse(stored);
+            setAlumno(all.find(a => a.id === id) || null);
+          }
+        } catch {}
       }
-    } catch {}
+    });
     try {
       const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r));
     } catch {}
