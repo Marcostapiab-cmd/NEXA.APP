@@ -71,12 +71,12 @@ export async function getReservasAlumnoDB(alumnoId: string): Promise<Reserva[]> 
     id:          String(r.id),
     alumnoId:    String(r.alumno_id),
     planId:      String(r.plan_id),
-    fecha:       String(r.fecha),
-    hora:        r.hora ? String(r.hora) : undefined,
+    fecha:       String(r.fecha).slice(0, 10),
+    hora:        r.hora ? String(r.hora).slice(0, 5) : undefined,
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     estado:      String(r.estado) as Reserva['estado'],
     reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
-    creadaAt:    String(r.creada_at),
+    creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
   }));
 }
 
@@ -90,7 +90,7 @@ export async function upsertReservaDB(reserva: Reserva): Promise<void> {
     descripcion: reserva.descripcion || null,
     estado:      reserva.estado,
     reagenda_id: reserva.reagendaId  || null,
-    creada_at:   reserva.creadaAt,
+    // la tabla usa created_at (nombre estándar), no creada_at
   });
   if (error) throw error;
 }
@@ -138,7 +138,7 @@ export async function getAllReservasDB(): Promise<Reserva[]> {
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     estado:      String(r.estado) as Reserva['estado'],
     reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
-    creadaAt:    String(r.creada_at),
+    creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
   }));
 }
 
@@ -159,7 +159,7 @@ export async function getReservasFechaDB(fecha: string): Promise<Reserva[]> {
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     estado:      String(r.estado) as Reserva['estado'],
     reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
-    creadaAt:    String(r.creada_at),
+    creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
   }));
 }
 
@@ -170,7 +170,7 @@ export async function getReagendasAlumnoDB(alumnoId: string): Promise<Reagenda[]
     .from('reagendas')
     .select('*')
     .eq('alumno_id', alumnoId)
-    .order('creada_at', { ascending: false });
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:                String(r.id),
@@ -187,15 +187,15 @@ export async function getReagendasAlumnoDB(alumnoId: string): Promise<Reagenda[]
 
 export async function upsertReagendaDB(reagenda: Reagenda): Promise<void> {
   const { error } = await supabase.from('reagendas').upsert({
-    id:                   reagenda.id,
-    alumno_id:            reagenda.alumnoId,
-    plan_id:              reagenda.planId,
-    reserva_original_id:  reagenda.reservaOriginalId,
-    nueva_reserva_id:     reagenda.nuevaReservaId  || null,
-    fecha_limite:         reagenda.fechaLimite,
-    estado:               reagenda.estado,
-    motivo:               reagenda.motivo           || null,
-    creada_at:            reagenda.creadaAt,
+    id:                  reagenda.id,
+    alumno_id:           reagenda.alumnoId,
+    plan_id:             reagenda.planId,
+    reserva_original_id: reagenda.reservaOriginalId,
+    nueva_reserva_id:    reagenda.nuevaReservaId || null,
+    fecha_limite:        reagenda.fechaLimite,
+    estado:              reagenda.estado,
+    motivo:              reagenda.motivo          || null,
+    // no enviamos created_at — el DB usa DEFAULT now()
   });
   if (error) throw error;
 }
