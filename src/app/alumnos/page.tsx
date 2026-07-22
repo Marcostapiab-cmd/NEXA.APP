@@ -17,6 +17,28 @@ export interface Alumno {
   altura: string;
   foto: string;
   estado: 'activo' | 'pendiente' | 'archivado';
+  // Datos de contacto
+  rut?: string;
+  telefono?: string;
+  // Contacto de emergencia
+  contactoEmergenciaNombre?: string;
+  contactoEmergenciaTel?: string;
+  contactoEmergenciaRelacion?: string;
+  // Entrenamiento
+  objetivo?: string;
+  etapa?: string;
+  notasProfesor?: string;
+  // Contrato
+  contratoFirmado?: boolean;
+  contratoFechaFirma?: string;
+}
+
+export interface AtletaSalud {
+  atletaId: string;
+  enfermedades?: string;
+  lesiones?: string;
+  medicamentos?: string;
+  alergias?: string;
 }
 
 const EMPTY = (): Omit<Alumno, 'id'> => ({

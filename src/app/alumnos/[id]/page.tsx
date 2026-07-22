@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getAlumnoById } from '@/lib/alumnos';
-import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
-import type { Alumno } from '@/app/alumnos/page';
+import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
+import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon } from 'lucide-react';
+import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
 import { calc1RM, parseReps } from '@/lib/mevmrv';
 import type { Plan, Reserva, Reagenda } from '@/lib/planes';
@@ -65,6 +65,46 @@ function PesoChart({ puntos }: { puntos: { fecha: string; peso: number }[] }) {
   );
 }
 
+// ─── Componentes de ficha ─────────────────────────────────────────────────────
+
+function FichaRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <dt className="shrink-0 text-[#9B9B9B]">{label}</dt>
+      <dd className="text-right text-[#121212]">{value || <span className="text-[#C8C8C8]">—</span>}</dd>
+    </div>
+  );
+}
+
+function FichaSection({ title, badge, editing, saving, onEdit, onSave, onCancel, children }: {
+  title: string; badge?: string; editing: boolean; saving: boolean;
+  onEdit: () => void; onSave: () => void; onCancel: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]">{title}</p>
+          {badge && <span className="rounded-full bg-[#121212]/8 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#5E5E5E]">{badge}</span>}
+        </div>
+        {editing ? (
+          <div className="flex gap-1.5">
+            <button onClick={onSave} disabled={saving} className="rounded-lg bg-[#121212] px-3 py-1 text-[10px] font-bold text-white disabled:opacity-40">
+              {saving ? '…' : 'Guardar'}
+            </button>
+            <button onClick={onCancel} className="rounded-lg border border-[#CACACA] px-3 py-1 text-[10px] text-[#5E5E5E]">Cancelar</button>
+          </div>
+        ) : (
+          <button onClick={onEdit} className="rounded-lg border border-[#CACACA] p-1.5 text-[#5E5E5E] transition hover:text-[#121212]">
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function AlumnoPerfilPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -73,6 +113,13 @@ export default function AlumnoPerfilPage() {
   const [showMedicion, setShowMedicion] = useState(false);
   const [medForm, setMedForm]   = useState<Omit<Medicion,'id'>>({ fecha: new Date().toISOString().slice(0,10), peso: '', grasa: '', musculo: '', notas: '' });
   const [expandedSesion, setExpandedSesion] = useState<string | null>(null);
+
+  // Salud (solo admin/profesor — null = sin acceso)
+  const [salud,    setSalud]    = useState<AtletaSalud | null | 'loading'>('loading');
+  const [editSec,  setEditSec]  = useState<string | null>(null); // qué sección está en modo edición
+  const [editBuf,  setEditBuf]  = useState<Partial<Alumno>>({});
+  const [saludBuf, setSaludBuf] = useState<Partial<AtletaSalud>>({});
+  const [saving,   setSaving]   = useState(false);
 
   // Planes y reservas
   const [planes,   setPlanes]   = useState<Plan[]>([]);
@@ -110,6 +157,8 @@ export default function AlumnoPerfilPage() {
     try {
       const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r));
     } catch {}
+    // Salud (RLS filtra automáticamente si no tiene acceso)
+    getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
     // Planes, reservas y reagendas desde Supabase
     getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
     getReservasAlumnoDB(id).then(setReservas).catch(() => {});
@@ -135,6 +184,33 @@ export default function AlumnoPerfilPage() {
       }
     } catch {}
   }
+
+  function startEdit(section: string) {
+    setEditSec(section);
+    setEditBuf({ ...alumno });
+    setSaludBuf(salud && salud !== 'loading' ? { ...salud } : {});
+  }
+
+  async function saveEdit(section: string) {
+    if (!alumno) return;
+    setSaving(true);
+    try {
+      if (section === 'salud') {
+        await upsertAtletaSaludDB({ atletaId: id, ...saludBuf });
+        setSalud(prev => prev && prev !== 'loading' ? { ...prev, ...saludBuf } : { atletaId: id, ...saludBuf });
+      } else {
+        const updated = await updateAlumno(id, editBuf);
+        setAlumno(prev => prev ? { ...prev, ...updated } : updated);
+      }
+      setEditSec(null);
+    } catch (e) {
+      console.error('Error guardando:', e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancelEdit() { setEditSec(null); setEditBuf({}); setSaludBuf({}); }
 
   function addMedicion() {
     if (!alumno || !medForm.peso) return;
@@ -541,8 +617,159 @@ export default function AlumnoPerfilPage() {
           )}
         </div>
 
-        {/* Right column: metrics */}
+        {/* Right column */}
         <div className="space-y-4">
+
+          {/* ── FICHA: Datos personales ── */}
+          <FichaSection title="Datos personales" editing={editSec === 'datos'} onEdit={() => startEdit('datos')} onSave={() => saveEdit('datos')} onCancel={cancelEdit} saving={saving}>
+            {editSec === 'datos' ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={LC}>Nombre</label><input className={IC} value={editBuf.nombre ?? ''} onChange={e => setEditBuf(p => ({ ...p, nombre: e.target.value }))} /></div>
+                  <div><label className={LC}>Apellido</label><input className={IC} value={editBuf.apellido ?? ''} onChange={e => setEditBuf(p => ({ ...p, apellido: e.target.value }))} /></div>
+                </div>
+                <div><label className={LC}>RUT</label><input className={IC} placeholder="12.345.678-9" value={editBuf.rut ?? ''} onChange={e => setEditBuf(p => ({ ...p, rut: e.target.value }))} /></div>
+                <div><label className={LC}>Email</label><input type="email" className={IC} value={editBuf.email ?? ''} onChange={e => setEditBuf(p => ({ ...p, email: e.target.value }))} /></div>
+                <div><label className={LC}>Teléfono</label><input className={IC} placeholder="+56 9 XXXX XXXX" value={editBuf.telefono ?? ''} onChange={e => setEditBuf(p => ({ ...p, telefono: e.target.value }))} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={LC}>Fecha nac.</label><input type="date" className={IC} value={editBuf.fechaNacimiento ?? ''} onChange={e => setEditBuf(p => ({ ...p, fechaNacimiento: e.target.value }))} /></div>
+                  <div><label className={LC}>Estado</label>
+                    <select className={IC} value={editBuf.estado ?? 'activo'} onChange={e => setEditBuf(p => ({ ...p, estado: e.target.value as Alumno['estado'] }))}>
+                      <option value="activo">Activo</option>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="archivado">Archivado</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <dl className="space-y-1.5 text-sm">
+                <FichaRow label="RUT"      value={alumno.rut} />
+                <FichaRow label="Email"    value={alumno.email} />
+                <FichaRow label="Teléfono" value={alumno.telefono} />
+                <FichaRow label="Nac."     value={alumno.fechaNacimiento ? alumno.fechaNacimiento.split('-').reverse().join('/') : undefined} />
+                <FichaRow label="Estado"   value={alumno.estado} />
+              </dl>
+            )}
+          </FichaSection>
+
+          {/* ── FICHA: Contacto de emergencia ── */}
+          <FichaSection title="Contacto de emergencia" editing={editSec === 'emergencia'} onEdit={() => startEdit('emergencia')} onSave={() => saveEdit('emergencia')} onCancel={cancelEdit} saving={saving}>
+            {editSec === 'emergencia' ? (
+              <div className="space-y-2">
+                <div><label className={LC}>Nombre</label><input className={IC} value={editBuf.contactoEmergenciaNombre ?? ''} onChange={e => setEditBuf(p => ({ ...p, contactoEmergenciaNombre: e.target.value }))} /></div>
+                <div><label className={LC}>Teléfono</label><input className={IC} value={editBuf.contactoEmergenciaTel ?? ''} onChange={e => setEditBuf(p => ({ ...p, contactoEmergenciaTel: e.target.value }))} /></div>
+                <div><label className={LC}>Relación</label>
+                  <select className={IC} value={editBuf.contactoEmergenciaRelacion ?? ''} onChange={e => setEditBuf(p => ({ ...p, contactoEmergenciaRelacion: e.target.value }))}>
+                    <option value="">— seleccionar —</option>
+                    {['Pareja','Cónyuge','Madre','Padre','Hijo/a','Hermano/a','Amigo/a','Otro'].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <dl className="space-y-1.5 text-sm">
+                <FichaRow label="Nombre"   value={alumno.contactoEmergenciaNombre} />
+                <FichaRow label="Teléfono" value={alumno.contactoEmergenciaTel} />
+                <FichaRow label="Relación" value={alumno.contactoEmergenciaRelacion} />
+              </dl>
+            )}
+          </FichaSection>
+
+          {/* ── FICHA: Salud (solo visible si tenemos acceso RLS) ── */}
+          {salud !== null && salud !== 'loading' && (
+            <FichaSection title="Salud" badge="Privado" editing={editSec === 'salud'} onEdit={() => startEdit('salud')} onSave={() => saveEdit('salud')} onCancel={cancelEdit} saving={saving}>
+              {editSec === 'salud' ? (
+                <div className="space-y-2">
+                  {(['enfermedades','lesiones','medicamentos','alergias'] as const).map(campo => (
+                    <div key={campo}>
+                      <label className={LC}>{campo.charAt(0).toUpperCase() + campo.slice(1)}</label>
+                      <textarea rows={2} className={IC + ' resize-none'} placeholder="Ninguna"
+                        value={saludBuf[campo] ?? ''}
+                        onChange={e => setSaludBuf(p => ({ ...p, [campo]: e.target.value }))} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <dl className="space-y-1.5 text-sm">
+                  <FichaRow label="Enfermedades" value={salud.enfermedades} />
+                  <FichaRow label="Lesiones"     value={salud.lesiones} />
+                  <FichaRow label="Medicamentos" value={salud.medicamentos} />
+                  <FichaRow label="Alergias"     value={salud.alergias} />
+                </dl>
+              )}
+            </FichaSection>
+          )}
+
+          {/* ── FICHA: Entrenamiento ── */}
+          <FichaSection title="Entrenamiento" editing={editSec === 'entrenamiento'} onEdit={() => startEdit('entrenamiento')} onSave={() => saveEdit('entrenamiento')} onCancel={cancelEdit} saving={saving}>
+            {editSec === 'entrenamiento' ? (
+              <div className="space-y-2">
+                <div><label className={LC}>Objetivo</label>
+                  <select className={IC} value={editBuf.objetivo ?? ''} onChange={e => setEditBuf(p => ({ ...p, objetivo: e.target.value }))}>
+                    <option value="">— seleccionar —</option>
+                    {['Pérdida de peso','Ganancia muscular','Rendimiento deportivo','Rehabilitación','Bienestar general','Otro'].map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div><label className={LC}>Etapa CRM</label>
+                  <select className={IC} value={editBuf.etapa ?? ''} onChange={e => setEditBuf(p => ({ ...p, etapa: e.target.value }))}>
+                    <option value="lead">Lead</option>
+                    <option value="prospecto">Prospecto</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </div>
+                <div><label className={LC}>Notas del profesor</label>
+                  <textarea rows={3} className={IC + ' resize-none'} value={editBuf.notasProfesor ?? ''} onChange={e => setEditBuf(p => ({ ...p, notasProfesor: e.target.value }))} />
+                </div>
+              </div>
+            ) : (
+              <dl className="space-y-1.5 text-sm">
+                <FichaRow label="Objetivo" value={alumno.objetivo} />
+                <FichaRow label="Etapa"    value={alumno.etapa} />
+                <FichaRow label="Notas"    value={alumno.notasProfesor} />
+              </dl>
+            )}
+          </FichaSection>
+
+          {/* ── FICHA: Contrato NEXA ── */}
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className={SL}>Contrato NEXA</p>
+              {editSec === 'contrato' ? (
+                <div className="flex gap-1.5">
+                  <button onClick={() => saveEdit('contrato')} disabled={saving} className="rounded-lg bg-[#121212] px-3 py-1 text-[10px] font-bold text-white disabled:opacity-40">
+                    {saving ? '…' : 'Guardar'}
+                  </button>
+                  <button onClick={cancelEdit} className="rounded-lg border border-[#CACACA] px-3 py-1 text-[10px] text-[#5E5E5E]">Cancelar</button>
+                </div>
+              ) : (
+                <button onClick={() => startEdit('contrato')} className="rounded-lg border border-[#CACACA] p-1.5 text-[#5E5E5E] hover:text-[#121212]"><Pencil className="h-3 w-3" /></button>
+              )}
+            </div>
+            {editSec === 'contrato' ? (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editBuf.contratoFirmado ?? false}
+                    onChange={e => setEditBuf(p => ({ ...p, contratoFirmado: e.target.checked, contratoFechaFirma: e.target.checked ? (p.contratoFechaFirma || todayStr()) : '' }))} />
+                  Contrato firmado
+                </label>
+                {editBuf.contratoFirmado && (
+                  <div><label className={LC}>Fecha de firma</label>
+                    <input type="date" className={IC} value={editBuf.contratoFechaFirma ?? ''} onChange={e => setEditBuf(p => ({ ...p, contratoFechaFirma: e.target.value }))} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${alumno.contratoFirmado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {alumno.contratoFirmado ? '● Firmado' : '● Pendiente'}
+                </span>
+                {alumno.contratoFirmado && alumno.contratoFechaFirma && (
+                  <span className="text-xs text-[#5E5E5E]">{alumno.contratoFechaFirma.split('-').reverse().join('/')}</span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Plan */}
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
