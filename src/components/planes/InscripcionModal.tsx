@@ -4,23 +4,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Save } from 'lucide-react';
 import {
   type Plan, type PlanTipo,
-  PLAN_DURACION_DIAS,
-  calcEndDate, calcTotalClases, generarFechasRecurrentes,
+  PLAN_DURACION_DIAS, PLAN_SEMANAS,
+  calcEndDate, generarFechasRecurrentes,
   todayStr, addDays,
 } from '@/lib/planes';
 import { upsertPlanDB, insertReservasBulkDB, deletePlanDB } from '@/lib/planes-supabase';
 import { getCoachesActivosDB, type Coach } from '@/lib/coaches-supabase';
 
-// ─── Constantes UI ────────────────────────────────────────────────────────────
-
 const IC = 'w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]';
 const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]';
 
 const TIPOS: { value: PlanTipo; label: string; sub: string }[] = [
-  { value: 'mensual',       label: 'Mensual',      sub: '1 mes'    },
-  { value: 'trimestral',    label: 'Trimestral',   sub: '3 meses'  },
-  { value: 'semestral',     label: 'Semestral',    sub: '6 meses'  },
-  { value: 'personalizado', label: 'Custom',       sub: 'Manual'   },
+  { value: 'mensual',       label: 'Mensual',      sub: '4 sem'   },
+  { value: 'trimestral',    label: 'Trimestral',   sub: '12 sem'  },
+  { value: 'semestral',     label: 'Semestral',    sub: '24 sem'  },
+  { value: 'personalizado', label: 'Custom',       sub: 'Manual'  },
 ];
 
 const DIAS_SEMANA = [
@@ -30,14 +28,10 @@ const DIAS_SEMANA = [
 
 const NOMBRE_DIA: Record<number, string> = { 1:'Lun', 2:'Mar', 3:'Mié', 4:'Jue', 5:'Vie', 6:'Sáb' };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function fmtFecha(ds: string) {
   const [y, m, d] = ds.split('-');
   return `${d}/${m}/${y}`;
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   alumnoId:     string;
@@ -46,34 +40,32 @@ interface Props {
   onClose: () => void;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onClose }: Props) {
-  const [tipo,       setTipo]      = useState<PlanTipo>('mensual');
-  const [startDate,  setStart]     = useState(todayStr());
-  const [endDateMan, setEndMan]    = useState('');
-  const [frecuencia, setFrecuencia] = useState(3);
-  const [dias,       setDias]      = useState<number[]>([1, 3, 5]);
-  const [hora,       setHora]      = useState('09:00');
-  const [coachId,    setCoachId]   = useState('');
-  const [coaches,    setCoaches]   = useState<Coach[]>([]);
-  const [saving,     setSaving]    = useState(false);
-  const [error,      setError]     = useState('');
+  const [tipo,      setTipo]    = useState<PlanTipo>('mensual');
+  const [startDate, setStart]   = useState(todayStr());
+  const [endDateMan,setEndMan]  = useState('');
+  const [dias,      setDias]    = useState<number[]>([1, 3, 5]);
+  const [hora,      setHora]    = useState('09:00');
+  const [coachId,   setCoachId] = useState('');
+  const [coaches,   setCoaches] = useState<Coach[]>([]);
+  const [saving,    setSaving]  = useState(false);
+  const [error,     setError]   = useState('');
 
   useEffect(() => {
     getCoachesActivosDB().then(cs => { setCoaches(cs); if (cs[0]) setCoachId(cs[0].id); }).catch(() => {});
   }, []);
 
-  const isCustom   = tipo === 'personalizado';
-  const duracion   = PLAN_DURACION_DIAS[tipo]; // 30 | 90 | 180 | 0
-  const endDate    = isCustom ? (endDateMan || addDays(startDate, 30)) : calcEndDate(startDate, tipo);
-  const totalClases = isCustom ? 0 : calcTotalClases(tipo, frecuencia);
+  const isCustom = tipo === 'personalizado';
+  const duracion  = PLAN_DURACION_DIAS[tipo];
+  const semanas   = PLAN_SEMANAS[tipo];
+  const endDate   = isCustom ? (endDateMan || addDays(startDate, 30)) : calcEndDate(startDate, tipo);
 
+  // Genera todas las fechas en el rango y limita a dias.length × semanas (conteo exacto)
   const fechas = useMemo(() => {
-    if (!dias.length) return [];
-    if (isCustom)     return [];
-    return generarFechasRecurrentes(startDate, dias, duracion);
-  }, [startDate, dias, duracion, isCustom]);
+    if (!dias.length || isCustom) return [];
+    const all = generarFechasRecurrentes(startDate, dias, duracion);
+    return all.slice(0, dias.length * semanas);
+  }, [startDate, dias, duracion, semanas, isCustom]);
 
   function toggleDia(n: number) {
     setDias(prev => prev.includes(n) ? prev.filter(d => d !== n) : [...prev, n].sort());
@@ -81,9 +73,8 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
 
   async function handleSave() {
     setError('');
-    if (!dias.length && !isCustom) { setError('Selecciona al menos un día de la semana.'); return; }
-    if (!hora && !isCustom)         { setError('Indica la hora de la clase.'); return; }
-    if (!fechas.length && !isCustom){ setError('No se generaron fechas. Revisa los días y tipo de plan.'); return; }
+    if (!isCustom && !dias.length)   { setError('Selecciona al menos un día de la semana.'); return; }
+    if (!isCustom && !fechas.length) { setError('No se generaron fechas. Revisa la fecha de inicio.'); return; }
 
     setSaving(true);
     try {
@@ -93,7 +84,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
         alumnoId,
         nombre,
         tipo,
-        totalClases: isCustom ? 0 : fechas.length, // exacto: una clase por reserva creada
+        totalClases: isCustom ? 0 : fechas.length,
         usedClases:  0,
         startDate,
         endDate,
@@ -115,7 +106,6 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
         try {
           await insertReservasBulkDB(rows);
         } catch (insertErr) {
-          // Rollback: eliminar el plan recién creado para evitar duplicados
           await deletePlanDB(plan.id).catch(() => {});
           throw insertErr;
         }
@@ -155,7 +145,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
         <div className="max-h-[75vh] overflow-y-auto">
           <div className="space-y-5 p-5">
 
-            {/* Tipo de plan */}
+            {/* Tipo */}
             <div>
               <label className={LC}>Tipo de plan</label>
               <div className="grid grid-cols-4 gap-1.5">
@@ -184,50 +174,37 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
               {isCustom && (
                 <div>
                   <label className={LC}>Fecha de fin</label>
-                  <input type="date" value={endDateMan}
-                    min={startDate}
+                  <input type="date" value={endDateMan} min={startDate}
                     onChange={e => setEndMan(e.target.value)}
                     className={IC} />
                 </div>
               )}
             </div>
 
+            {/* Días (determina frecuencia) */}
             {!isCustom && (
-              <>
-                {/* Frecuencia */}
-                <div>
-                  <label className={LC}>Frecuencia semanal</label>
-                  <div className="flex gap-1.5">
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button key={n} type="button" onClick={() => setFrecuencia(n)}
-                        className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition ${
-                          frecuencia === n
-                            ? 'border-[#121212] bg-[#121212] text-white'
-                            : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B]'
-                        }`}>
-                        {n}×
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className={LC} style={{ marginBottom: 0 }}>Días de la semana</label>
+                  {dias.length > 0 && (
+                    <span className="text-[10px] font-bold text-[#777777]">
+                      {dias.length}× semana · {dias.length * semanas} clases total
+                    </span>
+                  )}
                 </div>
-
-                {/* Días */}
-                <div>
-                  <label className={LC}>Días de la semana</label>
-                  <div className="flex gap-1.5">
-                    {DIAS_SEMANA.map(({ label, n }) => (
-                      <button key={n} type="button" onClick={() => toggleDia(n)}
-                        className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition ${
-                          dias.includes(n)
-                            ? 'border-[#121212] bg-[#121212] text-white'
-                            : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B]'
-                        }`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-1.5">
+                  {DIAS_SEMANA.map(({ label, n }) => (
+                    <button key={n} type="button" onClick={() => toggleDia(n)}
+                      className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition ${
+                        dias.includes(n)
+                          ? 'border-[#121212] bg-[#121212] text-white'
+                          : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B]'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              </>
+              </div>
             )}
 
             {/* Hora y Coach */}
@@ -297,11 +274,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
           <button type="button" onClick={handleSave} disabled={saving}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
             <Save className="h-4 w-4" />
-            {saving
-              ? 'Guardando...'
-              : isCustom
-                ? 'Crear plan'
-                : `Inscribir · ${fechas.length} clases`}
+            {saving ? 'Guardando...' : isCustom ? 'Crear plan' : `Inscribir · ${fechas.length} clases`}
           </button>
         </div>
       </div>

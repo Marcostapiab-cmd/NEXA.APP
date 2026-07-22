@@ -52,6 +52,14 @@ export const PLAN_DURACION_DIAS: Record<PlanTipo, number> = {
   personalizado:   0,
 };
 
+// Semanas exactas por tipo — determina el total de clases: dias.length × PLAN_SEMANAS[tipo]
+export const PLAN_SEMANAS: Record<PlanTipo, number> = {
+  mensual:        4,
+  trimestral:    12,
+  semestral:     24,
+  personalizado:  0,
+};
+
 export const PLAN_TIPO_LABEL: Record<PlanTipo, string> = {
   mensual:       'Mensual',
   trimestral:    'Trimestral',
