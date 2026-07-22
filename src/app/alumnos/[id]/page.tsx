@@ -177,11 +177,12 @@ export default function AlumnoPerfilPage() {
     const reserva = reservas.find(r => r.id === reservaId);
     if (!reserva) return;
     const updated: Reserva = { ...reserva, estado: nuevoEstado };
-    await upsertReservaDB(updated).catch(() => {});
+    const { error: errUpd } = await upsertReservaDB(updated).then(() => ({ error: null })).catch(e => ({ error: e }));
+    if (errUpd) { alert('Error guardando reserva: ' + String(errUpd?.message ?? errUpd)); return; }
     setReservas(prev => prev.map(r => r.id === reservaId ? updated : r));
-    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
-    if (newCount >= 0) {
-      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
+    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(e => { alert('Error recalc: ' + String(e?.message ?? e)); return -1; });
+    if ((newCount ?? -1) >= 0) {
+      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount as number } : p));
     }
     // Auto-crear reagenda si se marca como "reagendada" y no existe ya una
     if (nuevoEstado === 'reagendada') {
@@ -236,7 +237,8 @@ export default function AlumnoPerfilPage() {
       descripcion,
       estado: 'pendiente' as const, creadaAt: new Date().toISOString(),
     }));
-    await Promise.all(nuevas.map(r => upsertReservaDB(r).catch(() => {})));
+    const errs = (await Promise.all(nuevas.map(r => upsertReservaDB(r).then(() => null).catch(e => String(e?.message ?? e))))).filter(Boolean);
+    if (errs.length) { alert('Error creando reserva:\n' + errs[0]); return; }
     setReservas(prev => [...nuevas, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
     setNewReserva(null);
   }
