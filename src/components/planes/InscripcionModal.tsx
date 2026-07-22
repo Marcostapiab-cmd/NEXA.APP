@@ -8,7 +8,7 @@ import {
   calcEndDate, calcTotalClases, generarFechasRecurrentes,
   todayStr, addDays,
 } from '@/lib/planes';
-import { upsertPlanDB, insertReservasBulkDB } from '@/lib/planes-supabase';
+import { upsertPlanDB, insertReservasBulkDB, deletePlanDB } from '@/lib/planes-supabase';
 import { getCoachesActivosDB, type Coach } from '@/lib/coaches-supabase';
 
 // ─── Constantes UI ────────────────────────────────────────────────────────────
@@ -112,13 +112,24 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
           estado:     'pendiente',
           tipo_clase: '1:1 Individual',
         }));
-        await insertReservasBulkDB(rows);
+        try {
+          await insertReservasBulkDB(rows);
+        } catch (insertErr) {
+          // Rollback: eliminar el plan recién creado para evitar duplicados
+          await deletePlanDB(plan.id).catch(() => {});
+          throw insertErr;
+        }
       }
 
       onSaved(plan, fechas.length);
       onClose();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error al guardar. Intenta de nuevo.');
+      const msg = e instanceof Error
+        ? e.message
+        : (typeof e === 'object' && e !== null && 'message' in e)
+          ? String((e as { message: unknown }).message)
+          : JSON.stringify(e);
+      setError(msg);
     } finally {
       setSaving(false);
     }

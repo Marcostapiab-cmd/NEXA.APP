@@ -8,7 +8,7 @@ import type { Alumno } from '@/app/alumnos/page';
 import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
 import { calc1RM, parseReps } from '@/lib/mevmrv';
 import type { Plan, Reserva, Reagenda } from '@/lib/planes';
-import { RESERVA_LABEL, todayStr, getEffectiveEndDate, formatDate, canReagendar } from '@/lib/planes';
+import { RESERVA_LABEL, todayStr, getEffectiveEndDate, formatDate, canReagendar, getPlanEstado } from '@/lib/planes';
 import PlanFormModal    from '@/components/planes/PlanFormModal';
 import InscripcionModal from '@/components/planes/InscripcionModal';
 import PlanStatusCard   from '@/components/planes/PlanStatusCard';
@@ -545,6 +545,22 @@ export default function AlumnoPerfilPage() {
                 <Plus className="h-3 w-3" /> Inscribir
               </button>
             </div>
+            {/* Recordatorios de vencimiento */}
+            {planes.some(p => getPlanEstado(p) === 'vencido') && (
+              <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">
+                Plan vencido — renovar o crear uno nuevo.
+              </div>
+            )}
+            {planes.some(p => getPlanEstado(p) === 'por_vencer') && (
+              <div className="mb-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-xs text-orange-700">
+                Plan próximo a vencer — recordar al alumno.
+              </div>
+            )}
+            {planes.some(p => getPlanEstado(p) === 'sin_clases') && (
+              <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2.5 text-xs text-yellow-700">
+                Sin clases disponibles — el alumno agotó su plan.
+              </div>
+            )}
             {planes.length === 0 ? (
               <p className="text-sm text-[#5E5E5E]">Sin planes registrados.</p>
             ) : (
