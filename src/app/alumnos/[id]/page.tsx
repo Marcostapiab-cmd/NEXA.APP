@@ -182,8 +182,6 @@ export default function AlumnoPerfilPage() {
     const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
     if (newCount >= 0) {
       setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
-      const plan = planes.find(p => p.id === reserva.planId);
-      if (plan) upsertPlanDB({ ...plan, usedClases: newCount }).catch(() => {});
     }
     // Auto-crear reagenda si se marca como "reagendada" y no existe ya una
     if (nuevoEstado === 'reagendada') {
@@ -271,8 +269,6 @@ export default function AlumnoPerfilPage() {
     const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
     if (newCount >= 0) {
       setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
-      const plan = planes.find(p => p.id === reserva.planId);
-      if (plan) upsertPlanDB({ ...plan, usedClases: newCount }).catch(() => {});
     }
   }
 

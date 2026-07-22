@@ -7,19 +7,28 @@ export const ESTADOS_QUE_QUEMAN: string[] = ['presente', 'no_show', 'cancelada_t
 // ─── Planes ───────────────────────────────────────────────────────────────────
 
 export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
-  const { data, error } = await supabase
-    .from('planes')
-    .select('*')
-    .eq('alumno_id', alumnoId)
-    .order('start_date', { ascending: false });
+  const [{ data: planesData, error }, { data: reservasData }] = await Promise.all([
+    supabase.from('planes').select('*').eq('alumno_id', alumnoId).order('start_date', { ascending: false }),
+    supabase.from('reservas').select('plan_id, estado').eq('alumno_id', alumnoId),
+  ]);
   if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+
+  // Contar reservas que queman por plan (source of truth, no usamos used_clases guardado)
+  const countByPlan = new Map<string, number>();
+  for (const r of (reservasData ?? [])) {
+    if (ESTADOS_QUE_QUEMAN.includes(String(r.estado))) {
+      const pid = String(r.plan_id);
+      countByPlan.set(pid, (countByPlan.get(pid) ?? 0) + 1);
+    }
+  }
+
+  return (planesData ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
     alumnoId:      String(r.alumno_id),
     nombre:        String(r.nombre),
     tipo:          String(r.tipo) as Plan['tipo'],
     totalClases:   Number(r.total_clases),
-    usedClases:    Number(r.used_clases),
+    usedClases:    countByPlan.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,
