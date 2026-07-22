@@ -93,7 +93,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, onSaved, onCl
         alumnoId,
         nombre,
         tipo,
-        totalClases: isCustom ? 0 : totalClases,
+        totalClases: isCustom ? 0 : fechas.length, // exacto: una clase por reserva creada
         usedClases:  0,
         startDate,
         endDate,
