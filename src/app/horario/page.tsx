@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, Fragment } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import { ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, type Coach } from '@/lib/coaches-supabase';
 
@@ -14,6 +14,13 @@ const HOR_HOURS = [
 const DAY_LABELS     = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 const CAPACIDAD_GRUPAL = 12;
 const COACH_COLORS   = ['#C9A96E','#5B9BD5','#70AD47','#ED7D31','#A5A5A5','#FFC000'];
+
+const ESTADOS_ASISTENCIA = [
+  { value: 'PRESENT',          label: 'Presente',       color: '#2E7D55' },
+  { value: 'ABSENT_NO_NOTICE', label: 'No se presentó', color: '#B44040' },
+  { value: 'pendiente',        label: 'Pendiente',      color: '#C9A96E' },
+  { value: 'cancelada',        label: 'Cancelada',      color: '#555555' },
+];
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +46,6 @@ interface RawReserva {
   id:                 number | string;
   rut?:               string;
   alumno_id?:         string;
-  plan_id?:           string;
   fecha:              string;
   hora?:              string;
   coach_id?:          string;
@@ -47,7 +53,6 @@ interface RawReserva {
   descripcion?:       string;
   attendance_status?: string;
   estado?:            string;
-  admin_note?:        string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,18 +96,15 @@ function alumnoLabel(r: RawReserva): string {
 
 function statusColor(s: string): string {
   const l = (s || '').toLowerCase();
-  if (l === 'present'  || l === 'presente')         return '#2E7D55';
-  if (l === 'absent_no_notice' || l === 'no_show')  return '#B44040';
-  if (l.startsWith('cancelad'))                      return '#555555';
+  if (l === 'present'  || l === 'presente')        return '#2E7D55';
+  if (l === 'absent_no_notice' || l === 'no_show') return '#B44040';
+  if (l.startsWith('cancelad'))                     return '#555555';
   return '#C9A96E';
 }
 
-function statusLabel(s: string): string {
-  const l = (s || '').toLowerCase();
-  if (l === 'present'  || l === 'presente')         return 'Presente';
-  if (l === 'absent_no_notice' || l === 'no_show')  return 'No se presentó';
-  if (l.startsWith('cancelad'))                      return 'Cancelada';
-  return 'Pendiente';
+function addOneHour(hora: string): string {
+  const [h, m] = hora.split(':').map(Number);
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
 function buildSlotMap(reservas: RawReserva[], coachFiltro: string): Map<string, Slot> {
@@ -130,61 +132,44 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string): Map<string, 
   return map;
 }
 
-// ─── Estados de asistencia disponibles ───────────────────────────────────────
+// ─── Modal editar asistencia ──────────────────────────────────────────────────
 
-const ESTADOS_ASISTENCIA = [
-  { value: 'PRESENT',          label: 'Presente',        color: '#2E7D55' },
-  { value: 'ABSENT_NO_NOTICE', label: 'No se presentó',  color: '#B44040' },
-  { value: 'pendiente',        label: 'Pendiente',       color: '#C9A96E' },
-  { value: 'cancelada',        label: 'Cancelada',       color: '#555555' },
-];
-
-// ─── Modal de edición ─────────────────────────────────────────────────────────
-
-function EditModal({
-  slot, onClose, onSaved,
-}: {
-  slot:    Slot;
-  onClose: () => void;
-  onSaved: () => void;
+function EditModal({ slot, coachNombre, onClose, onSaved }: {
+  slot:        Slot;
+  coachNombre: string;
+  onClose:     () => void;
+  onSaved:     () => void;
 }) {
   const [alumnos, setAlumnos] = useState<Alumno[]>(slot.alumnos);
   const [saving,  setSaving]  = useState(false);
 
+  function setStatus(id: number | string, status: string) {
+    setAlumnos(prev => prev.map(a => a.reservaId === id ? { ...a, status } : a));
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
-      for (const a of alumnos) {
-        await supabase
-          .from('reservas')
-          .update({ attendance_status: a.status, estado: a.status === 'cancelada' ? 'cancelada' : 'confirmada' })
-          .eq('id', a.reservaId);
-      }
+      await Promise.all(alumnos.map(a =>
+        supabase.from('reservas').update({
+          attendance_status: a.status,
+          estado: a.status === 'cancelada' ? 'cancelada' : 'confirmada',
+        }).eq('id', a.reservaId)
+      ));
       onSaved();
       onClose();
-    } catch (err) {
-      console.error('error guardando asistencia', err);
     } finally {
       setSaving(false);
     }
   }
 
-  function setStatus(reservaId: number | string, status: string) {
-    setAlumnos(prev => prev.map(a => a.reservaId === reservaId ? { ...a, status } : a));
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.7)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl overflow-hidden"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden"
         style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
+        onClick={e => e.stopPropagation()}>
+
         <div className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
           <div>
@@ -192,16 +177,16 @@ function EditModal({
               {slot.hora} · {slot.tipo}
             </p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>
-              {new Date(slot.fecha + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {new Date(slot.fecha + 'T12:00:00').toLocaleDateString('es-CL', {
+                weekday: 'long', day: 'numeric', month: 'long',
+              })}
+              {coachNombre ? ` · ${coachNombre}` : ''}
             </p>
           </div>
-          <button onClick={onClose} style={{ color: 'var(--nexa-muted)' }}>
-            <X size={16} />
-          </button>
+          <button onClick={onClose} style={{ color: 'var(--nexa-muted)' }}><X size={16} /></button>
         </div>
 
-        {/* Alumnos */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-5">
           {alumnos.map(a => (
             <div key={String(a.reservaId)}>
               <p className="text-[12px] font-semibold mb-2" style={{ color: 'var(--nexa-text)' }}>
@@ -211,16 +196,13 @@ function EditModal({
                 {ESTADOS_ASISTENCIA.map(e => {
                   const active = a.status === e.value;
                   return (
-                    <button
-                      key={e.value}
-                      onClick={() => setStatus(a.reservaId, e.value)}
+                    <button key={e.value} onClick={() => setStatus(a.reservaId, e.value)}
                       className="rounded-lg px-3 py-2 text-[11px] font-semibold transition"
                       style={{
                         background: active ? e.color + '22' : 'var(--nexa-card-alt)',
                         border:     `1px solid ${active ? e.color : 'var(--nexa-border)'}`,
                         color:      active ? e.color : 'var(--nexa-muted)',
-                      }}
-                    >
+                      }}>
                       {e.label}
                     </button>
                   );
@@ -230,19 +212,150 @@ function EditModal({
           ))}
         </div>
 
-        {/* Footer */}
         <div className="px-4 pb-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
+          <button onClick={handleSave} disabled={saving}
             className="w-full rounded-xl py-2.5 text-[13px] font-bold transition"
-            style={{
-              background: 'var(--nexa-accent)',
-              color:      '#000',
-              opacity:    saving ? 0.6 : 1,
-            }}
-          >
+            style={{ background: 'var(--nexa-accent)', color: '#000', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Guardando...' : 'Guardar asistencia'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal nueva sesión ───────────────────────────────────────────────────────
+
+function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSaved }: {
+  fecha:          string;
+  hora:           string;
+  coaches:        Coach[];
+  defaultCoachId: string | null;
+  onClose:        () => void;
+  onSaved:        () => void;
+}) {
+  const [tipo,    setTipo]    = useState<TipoClase>('1:1');
+  const [coachId, setCoachId] = useState(defaultCoachId ?? coaches[0]?.id ?? '');
+  const [rut,     setRut]     = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  async function handleSave() {
+    if (!rut.trim()) { setError('Ingresa el RUT del alumno'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const { error: err } = await supabase.from('reservas').insert({
+        fecha:             `${fecha}T${hora}:00+00:00`,
+        end_time:          addOneHour(hora),
+        coach_id:          coachId || null,
+        tipo_clase:        tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
+        rut:               rut.trim(),
+        attendance_status: 'pendiente',
+        estado:            'confirmada',
+        duracion_min:      60,
+      });
+      if (err) throw err;
+      onSaved();
+      onClose();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fechaLabel = new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+        style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--nexa-border)' }}>
+          <div>
+            <p className="text-[13px] font-bold" style={{ color: 'var(--nexa-text)' }}>
+              Nueva clase · {hora}
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>{fechaLabel}</p>
+          </div>
+          <button onClick={onClose} style={{ color: 'var(--nexa-muted)' }}><X size={16} /></button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Tipo */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
+              style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['1:1', '2:1', 'Grupal'] as TipoClase[]).map(t => (
+                <button key={t} onClick={() => setTipo(t)}
+                  className="rounded-lg py-2 text-[12px] font-semibold transition"
+                  style={{
+                    background: tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
+                    color:      tipo === t ? '#000' : 'var(--nexa-muted)',
+                    border:     `1px solid ${tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-border)'}`,
+                  }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Coach */}
+          {coaches.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
+                style={{ color: 'var(--nexa-muted)' }}>Coach</p>
+              <select value={coachId} onChange={e => setCoachId(e.target.value)}
+                className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                style={{
+                  background: 'var(--nexa-card-alt)',
+                  border:     '1px solid var(--nexa-border)',
+                  color:      'var(--nexa-text)',
+                }}>
+                {coaches.map(c => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* RUT */}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
+              style={{ color: 'var(--nexa-muted)' }}>RUT del alumno</p>
+            <input
+              value={rut}
+              onChange={e => setRut(e.target.value)}
+              placeholder="12345678-9"
+              autoFocus
+              className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+              style={{
+                background: 'var(--nexa-card-alt)',
+                border:     `1px solid ${error ? '#B44040' : 'var(--nexa-border)'}`,
+                color:      'var(--nexa-text)',
+              }}
+            />
+            {error && <p className="text-[11px] mt-1" style={{ color: '#B44040' }}>{error}</p>}
+          </div>
+        </div>
+
+        <div className="px-4 pb-4 flex gap-2">
+          <button onClick={onClose}
+            className="flex-1 rounded-xl py-2.5 text-[12px] font-semibold"
+            style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-muted)', border: '1px solid var(--nexa-border)' }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 rounded-xl py-2.5 text-[13px] font-bold transition"
+            style={{ background: 'var(--nexa-accent)', color: '#000', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Guardando...' : 'Agendar'}
           </button>
         </div>
       </div>
@@ -252,36 +365,43 @@ function EditModal({
 
 // ─── Celda ────────────────────────────────────────────────────────────────────
 
-function HorarioCelda({
-  slot, isPast, isToday, onClick,
-}: {
-  slot:    Slot | null;
-  isPast:  boolean;
-  isToday: boolean;
-  onClick: () => void;
+function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickSlot, onClickEmpty }: {
+  slot:        Slot | null;
+  isPast:      boolean;
+  isToday:     boolean;
+  coachColor:  string;
+  coachNombre: string;
+  onClickSlot: (s: Slot) => void;
+  onClickEmpty: () => void;
 }) {
-  const baseStyle: React.CSSProperties = {
-    position:     'relative',
-    minHeight:    60,
-    borderRight:  '1px solid var(--nexa-border)',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
-    background:   isToday ? 'rgba(201,169,110,0.03)' : 'var(--nexa-black)',
-    opacity:      isPast ? 0.45 : 1,
-    cursor:       slot ? 'pointer' : 'default',
-    transition:   'background 0.15s',
-  };
+  const [hover, setHover] = useState(false);
+
+  const bg = isToday ? 'rgba(201,169,110,0.03)' : 'var(--nexa-black)';
 
   if (!slot) {
     return (
       <div
-        style={baseStyle}
-        onMouseEnter={e => {
-          if (!isPast) (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.04)';
+        style={{
+          position:     'relative',
+          minHeight:    60,
+          borderRight:  '1px solid var(--nexa-border)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background:   hover && !isPast ? 'rgba(201,169,110,0.05)' : bg,
+          opacity:      isPast ? 0.4 : 1,
+          cursor:       isPast ? 'default' : 'pointer',
+          transition:   'background 0.12s',
+          display:      'flex',
+          alignItems:   'center',
+          justifyContent: 'center',
         }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.background = isToday ? 'rgba(201,169,110,0.03)' : 'var(--nexa-black)';
-        }}
-      />
+        onMouseEnter={() => !isPast && setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onClick={() => !isPast && onClickEmpty()}
+      >
+        {hover && !isPast && (
+          <Plus size={14} style={{ color: 'rgba(201,169,110,0.4)' }} />
+        )}
+      </div>
     );
   }
 
@@ -289,18 +409,29 @@ function HorarioCelda({
   const cuposFull   = cuposUsados >= slot.cuposTotal;
 
   return (
-    <div style={baseStyle} onClick={onClick}>
+    <div
+      style={{
+        position:     'relative',
+        minHeight:    60,
+        borderRight:  '1px solid var(--nexa-border)',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        background:   bg,
+        opacity:      isPast ? 0.5 : 1,
+        cursor:       'pointer',
+      }}
+      onClick={() => onClickSlot(slot)}
+    >
       <div style={{
         position:     'absolute',
         inset:        3,
-        padding:      '4px 6px',
-        background:   'rgba(30,60,40,0.25)',
-        borderLeft:   '3px solid #2E7D55',
+        padding:      '4px 7px',
+        background:   coachColor ? coachColor + '18' : 'rgba(30,60,40,0.25)',
+        borderLeft:   `3px solid ${coachColor || '#2E7D55'}`,
         overflow:     'hidden',
-        cursor:       'pointer',
         borderRadius: 2,
       }}>
-        {slot.alumnos.slice(0, 3).map((a, i) => (
+        {/* Alumnos */}
+        {slot.alumnos.slice(0, 2).map((a, i) => (
           <div key={i} style={{
             fontSize:     10,
             fontWeight:   600,
@@ -308,21 +439,33 @@ function HorarioCelda({
             whiteSpace:   'nowrap',
             overflow:     'hidden',
             textOverflow: 'ellipsis',
-            lineHeight:   1.3,
+            lineHeight:   1.35,
           }}>
             {a.nombre}
           </div>
         ))}
-        {slot.alumnos.length > 3 && (
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
-            +{slot.alumnos.length - 3} más
+        {slot.alumnos.length > 2 && (
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.3 }}>
+            +{slot.alumnos.length - 2} más
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)' }}>{slot.tipo}</span>
+
+        {/* Footer: tipo + coach + cupos */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', flexShrink: 0 }}>
+            {slot.tipo}
+          </span>
+          {coachNombre && (
+            <span style={{
+              fontSize: 9, color: coachColor ? coachColor + 'aa' : 'rgba(255,255,255,0.3)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+            }}>
+              · {coachNombre.split(' ')[0]}
+            </span>
+          )}
           <span style={{
-            fontSize: 9, marginLeft: 'auto',
-            color: cuposFull ? '#B44040' : 'rgba(255,255,255,0.35)',
+            fontSize: 9, marginLeft: 'auto', flexShrink: 0,
+            color: cuposFull ? '#B44040' : 'rgba(255,255,255,0.3)',
           }}>
             {cuposUsados}/{slot.cuposTotal}
           </span>
@@ -332,15 +475,85 @@ function HorarioCelda({
   );
 }
 
-// ─── Página ───────────────────────────────────────────────────────────────────
+// ─── Barra resumen ────────────────────────────────────────────────────────────
+
+function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawReserva[] }) {
+  if (!coaches.length) return null;
+
+  return (
+    <div style={{
+      display:    'flex',
+      gap:        1,
+      background: 'var(--nexa-border)',
+      border:     '1px solid var(--nexa-border)',
+      borderTop:  '2px solid var(--nexa-border)',
+    }}>
+      {coaches.map((c, i) => {
+        const color   = COACH_COLORS[i % COACH_COLORS.length];
+        const clases  = reservas.filter(r => r.coach_id === c.id).length;
+        const tarifa1 = c.tarifa_1a1;
+        const tarifa2 = c.tarifa_2a1;
+        const pago    = reservas
+          .filter(r => r.coach_id === c.id)
+          .reduce((sum, r) => {
+            const t = (r.tipo_clase || '').includes('2:1') ? tarifa2 : tarifa1;
+            return sum + t;
+          }, 0);
+
+        return (
+          <div key={c.id} style={{
+            flex:       1,
+            padding:    '10px 14px',
+            background: 'var(--nexa-card)',
+            display:    'flex',
+            alignItems: 'center',
+            gap:        12,
+          }}>
+            <div style={{
+              width: 3, height: 28, background: color, borderRadius: 2, flexShrink: 0,
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                fontSize: 11, fontWeight: 700, color,
+                textTransform: 'capitalize', overflow: 'hidden',
+                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {c.nombre}
+              </p>
+              <div style={{ display: 'flex', gap: 12, marginTop: 3 }}>
+                <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: 16, fontWeight: 300, color: '#2E7D55', marginRight: 3 }}>{clases}</span>
+                  clases
+                </span>
+                {pago > 0 && (
+                  <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <span style={{ fontSize: 13, fontWeight: 300, color: 'var(--nexa-accent)', marginRight: 2 }}>
+                      ${pago.toLocaleString('es-CL')}
+                    </span>
+                    pago
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function HorarioPage() {
-  const [weekOffset,   setWeekOffset]   = useState(0);
-  const [coachFiltro,  setCoachFiltro]  = useState<string>('all');
-  const [coaches,      setCoaches]      = useState<Coach[]>([]);
-  const [reservas,     setReservas]     = useState<RawReserva[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [editSlot,     setEditSlot]     = useState<Slot | null>(null);
+  const [weekOffset,  setWeekOffset]  = useState(0);
+  const [coachFiltro, setCoachFiltro] = useState<string>('all');
+  const [coaches,     setCoaches]     = useState<Coach[]>([]);
+  const [reservas,    setReservas]    = useState<RawReserva[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
+  const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
+
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const monday = getMonday(weekOffset);
   const days   = Array.from({ length: 6 }, (_, i) => {
@@ -351,6 +564,11 @@ export default function HorarioPage() {
   const today     = new Date().toISOString().slice(0, 10);
   const now       = new Date();
   const weekLabel = `${fmtLabel(days[0])} — ${fmtLabel(days[5])}`;
+
+  // Mapa de coaches por id
+  const coachById = new Map(
+    coaches.map((c, i) => [c.id, { ...c, color: COACH_COLORS[i % COACH_COLORS.length] }])
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -376,6 +594,20 @@ export default function HorarioPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Scroll automático a la hora actual en la semana corriente
+  useEffect(() => {
+    if (loading || weekOffset !== 0 || !gridRef.current) return;
+    const nowHour   = `${String(now.getHours()).padStart(2, '0')}:00`;
+    const targetH   = HOR_HOURS.find(h => h >= nowHour) ?? HOR_HOURS[0];
+    const headerH   = 40;
+    const rowH      = 60;
+    const rowIndex  = showHours.indexOf(targetH);
+    if (rowIndex >= 0) {
+      gridRef.current.scrollTop = Math.max(0, rowIndex * rowH - headerH);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const slotMap    = buildSlotMap(reservas, coachFiltro);
   const extraHours = new Set<string>();
   slotMap.forEach((_, key) => {
@@ -383,6 +615,11 @@ export default function HorarioPage() {
     if (!HOR_HOURS.includes(h)) extraHours.add(h);
   });
   const showHours = [...HOR_HOURS, ...extraHours].sort();
+
+  // Conteo de clases por día (para el header)
+  function clasesEnDia(ds: string): number {
+    return [...slotMap.keys()].filter(k => k.startsWith(ds)).length;
+  }
 
   return (
     <main className="min-h-screen" style={{ background: 'var(--nexa-black)' }}>
@@ -395,13 +632,13 @@ export default function HorarioPage() {
               HORARIO
             </h1>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--nexa-muted)' }}>
-              Vista semanal · clic en clase para editar asistencia
+              Clic en clase para editar · clic en celda vacía para agendar
             </p>
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setWeekOffset(0)}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
+              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
               style={{
                 background: weekOffset === 0 ? 'var(--nexa-accent)' : 'var(--nexa-card)',
                 color:      weekOffset === 0 ? '#000' : 'var(--nexa-muted)',
@@ -416,8 +653,7 @@ export default function HorarioPage() {
                 className="rounded p-1.5" style={{ color: 'var(--nexa-muted)' }}>
                 <ChevronLeft size={15} />
               </button>
-              <span className="min-w-[130px] text-center text-[12px] font-medium"
-                style={{ color: 'var(--nexa-text)' }}>
+              <span className="min-w-[130px] text-center text-[12px] font-medium" style={{ color: 'var(--nexa-text)' }}>
                 {weekLabel}
               </span>
               <button onClick={() => setWeekOffset(o => o + 1)}
@@ -430,15 +666,13 @@ export default function HorarioPage() {
 
         {/* Pestañas coach */}
         <div className="flex gap-0 overflow-x-auto" style={{ borderBottom: '2px solid var(--nexa-border)' }}>
-          <button
-            onClick={() => setCoachFiltro('all')}
-            className="shrink-0 px-4 py-2.5 text-[12px] font-semibold"
+          <button onClick={() => setCoachFiltro('all')}
+            className="shrink-0 px-4 py-2.5 text-[12px] font-semibold transition"
             style={{
               color:        coachFiltro === 'all' ? 'var(--nexa-text)' : 'var(--nexa-muted)',
               borderBottom: coachFiltro === 'all' ? '2px solid var(--nexa-accent)' : '2px solid transparent',
               marginBottom: -2,
-            }}
-          >
+            }}>
             TODOS
           </button>
           {coaches.map((c, idx) => {
@@ -446,7 +680,7 @@ export default function HorarioPage() {
             const color  = COACH_COLORS[idx % COACH_COLORS.length];
             return (
               <button key={c.id} onClick={() => setCoachFiltro(c.id)}
-                className="shrink-0 px-4 py-2.5 text-[12px] font-semibold"
+                className="shrink-0 px-4 py-2.5 text-[12px] font-semibold transition"
                 style={{
                   color:        active ? color : 'var(--nexa-muted)',
                   borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
@@ -459,88 +693,147 @@ export default function HorarioPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24" style={{ color: 'var(--nexa-muted)' }}>
-            <span className="text-[13px]">Cargando horario...</span>
+          /* Skeleton */
+          <div style={{ border: '1px solid var(--nexa-border)', borderTop: 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(6, 1fr)', minWidth: 700 }}>
+              <div style={{ height: 40, background: '#0e0e0e', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+              {DAY_LABELS.map(d => (
+                <div key={d} style={{ height: 40, background: '#111', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+              ))}
+              {HOR_HOURS.slice(0, 6).map(h => (
+                <Fragment key={h}>
+                  <div style={{ height: 60, background: '#0e0e0e', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
+                  {[0,1,2,3,4,5].map(i => (
+                    <div key={i} style={{
+                      height: 60, borderRight: '1px solid var(--nexa-border)',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: Math.random() > 0.8 ? 'rgba(201,169,110,0.04)' : 'var(--nexa-black)',
+                    }} />
+                  ))}
+                </Fragment>
+              ))}
+            </div>
           </div>
         ) : (
           <>
-            {/* Grid desktop */}
-            <div className="hidden overflow-x-auto lg:block"
-              style={{ border: '1px solid var(--nexa-border)', borderTop: 'none' }}>
-              <div style={{
-                display:             'grid',
-                gridTemplateColumns: '56px repeat(6, 1fr)',
-                minWidth:            700,
-              }}>
-                {/* Corner */}
+            {/* Grid desktop — sticky headers + scroll */}
+            <div className="hidden lg:block">
+              <div
+                ref={gridRef}
+                style={{
+                  overflowX:  'auto',
+                  overflowY:  'auto',
+                  maxHeight:  'calc(100vh - 220px)',
+                  border:     '1px solid var(--nexa-border)',
+                  borderTop:  'none',
+                }}
+              >
                 <div style={{
-                  height: 40, background: '#0e0e0e',
-                  borderRight: '1px solid var(--nexa-border)',
-                  borderBottom: '1px solid var(--nexa-border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 8, color: 'var(--nexa-muted)', letterSpacing: '0.1em',
+                  display:             'grid',
+                  gridTemplateColumns: '56px repeat(6, 1fr)',
+                  minWidth:            700,
                 }}>
-                  HORAS
+                  {/* Corner sticky */}
+                  <div style={{
+                    position:     'sticky', top: 0, left: 0, zIndex: 4,
+                    height:       40, background: '#0e0e0e',
+                    borderRight:  '1px solid var(--nexa-border)',
+                    borderBottom: '1px solid var(--nexa-border)',
+                    display:      'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 8, color: 'var(--nexa-muted)', letterSpacing: '0.1em',
+                  }}>
+                    HORAS
+                  </div>
+
+                  {/* Day headers sticky */}
+                  {days.map((d, i) => {
+                    const ds       = dateStr(d);
+                    const isT      = ds === today;
+                    const nClases  = clasesEnDia(ds);
+                    return (
+                      <div key={i} style={{
+                        position:     'sticky', top: 0, zIndex: 3,
+                        height:       40, background: isT ? '#161208' : '#111',
+                        borderRight:  '1px solid var(--nexa-border)',
+                        borderBottom: '1px solid var(--nexa-border)',
+                        display:      'flex', flexDirection: 'column',
+                        alignItems:   'center', justifyContent: 'center', gap: 1,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{
+                            fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
+                            color: isT ? 'var(--nexa-accent)' : 'var(--nexa-muted)',
+                          }}>
+                            {DAY_LABELS[i]}
+                          </span>
+                          <span style={{
+                            fontSize: 11, fontWeight: isT ? 700 : 400,
+                            color: isT ? 'var(--nexa-accent)' : 'var(--nexa-text-sub)',
+                          }}>
+                            {d.getDate()}
+                          </span>
+                          {nClases > 0 && (
+                            <span style={{
+                              fontSize: 8, fontWeight: 700,
+                              background: 'rgba(46,125,85,0.25)',
+                              color: '#2E7D55',
+                              borderRadius: 3,
+                              padding: '1px 4px',
+                            }}>
+                              {nClases}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Filas */}
+                  {showHours.map(hora => (
+                    <Fragment key={hora}>
+                      {/* Hora sticky izquierda */}
+                      <div style={{
+                        position:     'sticky', left: 0, zIndex: 2,
+                        background:   '#0e0e0e',
+                        borderRight:  '1px solid var(--nexa-border)',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        display:      'flex', alignItems: 'center', justifyContent: 'flex-end',
+                        padding:      '0 8px', fontSize: 9, color: '#555', minHeight: 60,
+                      }}>
+                        {hora}
+                      </div>
+
+                      {/* Celdas */}
+                      {days.map((d, di) => {
+                        const ds     = dateStr(d);
+                        const key    = `${ds}|${hora}`;
+                        const slot   = slotMap.get(key) ?? null;
+                        const isPast = new Date(`${ds}T${hora}:00`) < now;
+                        const coach  = slot?.coachId ? coachById.get(slot.coachId) : undefined;
+                        return (
+                          <HorarioCelda
+                            key={`${hora}-${di}`}
+                            slot={slot}
+                            isPast={isPast}
+                            isToday={ds === today}
+                            coachColor={coach?.color ?? ''}
+                            coachNombre={coach?.nombre ?? ''}
+                            onClickSlot={s => setEditSlot(s)}
+                            onClickEmpty={() => setNuevaSlot({
+                              fecha:   ds,
+                              hora,
+                              coachId: coachFiltro !== 'all' ? coachFiltro : (coaches[0]?.id ?? null),
+                            })}
+                          />
+                        );
+                      })}
+                    </Fragment>
+                  ))}
                 </div>
-
-                {/* Day headers */}
-                {days.map((d, i) => {
-                  const isT = dateStr(d) === today;
-                  return (
-                    <div key={i} style={{
-                      height: 40, background: '#111',
-                      borderRight: '1px solid var(--nexa-border)',
-                      borderBottom: '1px solid var(--nexa-border)',
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center', gap: 1,
-                    }}>
-                      <span style={{
-                        fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
-                        color: isT ? 'var(--nexa-accent)' : 'var(--nexa-muted)',
-                      }}>
-                        {DAY_LABELS[i]}
-                      </span>
-                      <span style={{
-                        fontSize: 11, fontWeight: isT ? 700 : 400,
-                        color: isT ? 'var(--nexa-accent)' : 'var(--nexa-text-sub)',
-                      }}>
-                        {d.getDate()}
-                      </span>
-                    </div>
-                  );
-                })}
-
-                {/* Filas de horas — Fragment con key para evitar warning */}
-                {showHours.map(hora => (
-                  <Fragment key={hora}>
-                    <div style={{
-                      background: '#0e0e0e',
-                      borderRight: '1px solid var(--nexa-border)',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-                      padding: '0 8px', fontSize: 9, color: '#555', minHeight: 60,
-                    }}>
-                      {hora}
-                    </div>
-                    {days.map((d, di) => {
-                      const ds    = dateStr(d);
-                      const key   = `${ds}|${hora}`;
-                      const slot  = slotMap.get(key) ?? null;
-                      const isPast  = new Date(`${ds}T${hora}:00`) < now;
-                      const isToday = ds === today;
-                      return (
-                        <HorarioCelda
-                          key={`${hora}-${di}`}
-                          slot={slot}
-                          isPast={isPast}
-                          isToday={isToday}
-                          onClick={() => slot && setEditSlot(slot)}
-                        />
-                      );
-                    })}
-                  </Fragment>
-                ))}
               </div>
+
+              {/* Barra resumen */}
+              <ResumenBar coaches={coaches} reservas={reservas} />
             </div>
 
             {/* Lista móvil */}
@@ -567,48 +860,51 @@ export default function HorarioPage() {
                       }}>
                         {DAY_LABELS[di]} {d.getDate()}
                       </span>
-                      {daySlots.length > 0 && (
-                        <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>
-                          {daySlots.length} clase{daySlots.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
+                      <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>
+                        {daySlots.length > 0 ? `${daySlots.length} clase${daySlots.length !== 1 ? 's' : ''}` : 'Sin clases'}
+                      </span>
                     </div>
                     {daySlots.length === 0 ? (
                       <div style={{ padding: 12, fontSize: 11, color: 'var(--nexa-muted)', textAlign: 'center' }}>
-                        Sin clases
+                        —
                       </div>
                     ) : (
-                      daySlots.map(({ hora, slot }) => (
-                        <div key={hora}
-                          onClick={() => slot && setEditSlot(slot)}
-                          style={{
-                            display: 'flex', alignItems: 'flex-start', gap: 12,
-                            padding: '10px 12px',
-                            borderBottom: '1px solid rgba(255,255,255,0.04)',
-                            cursor: 'pointer',
-                          }}>
-                          <span style={{ fontSize: 11, color: '#555', minWidth: 40, paddingTop: 1 }}>{hora}</span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', gap: 6, marginBottom: 2 }}>
-                              <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>{slot!.tipo}</span>
-                              <span style={{
-                                fontSize: 10,
-                                color: slot!.alumnos.length >= slot!.cuposTotal ? '#B44040' : 'var(--nexa-muted)',
-                              }}>
-                                {slot!.alumnos.length}/{slot!.cuposTotal}
-                              </span>
-                            </div>
-                            {slot!.alumnos.map((a, ai) => (
-                              <div key={ai} style={{
-                                fontSize: 11, fontWeight: 600,
-                                color: statusColor(a.status),
-                              }}>
-                                {a.nombre}
+                      daySlots.map(({ hora, slot }) => {
+                        const coach = slot!.coachId ? coachById.get(slot!.coachId) : undefined;
+                        return (
+                          <div key={hora} onClick={() => setEditSlot(slot!)}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 12,
+                              padding: '10px 12px',
+                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              cursor: 'pointer',
+                              borderLeft: `3px solid ${coach?.color ?? '#2E7D55'}`,
+                            }}>
+                            <span style={{ fontSize: 11, color: '#555', minWidth: 40, paddingTop: 1 }}>{hora}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', gap: 6, marginBottom: 2, alignItems: 'center' }}>
+                                <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>{slot!.tipo}</span>
+                                {coach && (
+                                  <span style={{ fontSize: 10, color: coach.color + 'aa' }}>
+                                    · {coach.nombre.split(' ')[0]}
+                                  </span>
+                                )}
+                                <span style={{
+                                  fontSize: 10, marginLeft: 'auto',
+                                  color: slot!.alumnos.length >= slot!.cuposTotal ? '#B44040' : 'var(--nexa-muted)',
+                                }}>
+                                  {slot!.alumnos.length}/{slot!.cuposTotal}
+                                </span>
                               </div>
-                            ))}
+                              {slot!.alumnos.map((a, ai) => (
+                                <div key={ai} style={{ fontSize: 11, fontWeight: 600, color: statusColor(a.status) }}>
+                                  {a.nombre}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 );
@@ -618,11 +914,24 @@ export default function HorarioPage() {
         )}
       </div>
 
-      {/* Modal de edición */}
+      {/* Modal editar asistencia */}
       {editSlot && (
         <EditModal
           slot={editSlot}
+          coachNombre={editSlot.coachId ? (coachById.get(editSlot.coachId)?.nombre ?? '') : ''}
           onClose={() => setEditSlot(null)}
+          onSaved={load}
+        />
+      )}
+
+      {/* Modal nueva sesión */}
+      {nuevaSlot && (
+        <NuevaSesionModal
+          fecha={nuevaSlot.fecha}
+          hora={nuevaSlot.hora}
+          coaches={coaches}
+          defaultCoachId={nuevaSlot.coachId}
+          onClose={() => setNuevaSlot(null)}
           onSaved={load}
         />
       )}
