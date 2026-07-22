@@ -86,11 +86,9 @@ export async function upsertReservaDB(reserva: Reserva): Promise<void> {
     alumno_id:   reserva.alumnoId,
     plan_id:     reserva.planId,
     fecha:       reserva.fecha,
-    hora:        reserva.hora        || null,
-    descripcion: reserva.descripcion || null,
+    hora:        reserva.hora       || null,
     estado:      reserva.estado,
-    reagenda_id: reserva.reagendaId  || null,
-    // la tabla usa created_at (nombre estándar), no creada_at
+    reagenda_id: reserva.reagendaId || null,
   });
   if (error) throw error;
 }

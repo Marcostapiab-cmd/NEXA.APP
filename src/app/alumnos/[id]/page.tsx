@@ -180,9 +180,9 @@ export default function AlumnoPerfilPage() {
     if (!reserva) return;
     const updated: Reserva = { ...reserva, estado: nuevoEstado };
     const { error: errUpd } = await upsertReservaDB(updated).then(() => ({ error: null })).catch(e => ({ error: e }));
-    if (errUpd) { alert('Error guardando reserva: ' + String(errUpd?.message ?? errUpd)); return; }
+    if (errUpd) { console.error('Error guardando reserva:', errUpd); return; }
     setReservas(prev => prev.map(r => r.id === reservaId ? updated : r));
-    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(e => { alert('Error recalc: ' + String(e?.message ?? e)); return -1; });
+    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
     if ((newCount ?? -1) >= 0) {
       setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount as number } : p));
     }
@@ -209,7 +209,7 @@ export default function AlumnoPerfilPage() {
     const reagenda = reagendas.find(r => r.id === reagendaId);
     if (!reagenda) return;
     const check = canReagendar(reagenda, nuevaFecha);
-    if (!check.ok) { alert(check.reason); return; }
+    if (!check.ok) { console.warn('Reagenda inválida:', check.reason); return; }
     // Crear nueva reserva vinculada a la reagenda
     const nuevaReserva: Reserva = {
       id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
