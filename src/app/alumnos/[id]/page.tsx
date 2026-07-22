@@ -78,7 +78,7 @@ export default function AlumnoPerfilPage() {
   const [planes,   setPlanes]   = useState<Plan[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [reagendas,  setReagendas]  = useState<Reagenda[]>([]);
-  const [asignando,  setAsignando]  = useState<{ reagendaId: string; fecha: string } | null>(null);
+  const [asignando,  setAsignando]  = useState<{ reagendaId: string; fecha: string; hora: string } | null>(null);
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
 
@@ -205,7 +205,7 @@ export default function AlumnoPerfilPage() {
     }
   }
 
-  async function handleAsignarReagenda(reagendaId: string, nuevaFecha: string) {
+  async function handleAsignarReagenda(reagendaId: string, nuevaFecha: string, hora?: string) {
     const reagenda = reagendas.find(r => r.id === reagendaId);
     if (!reagenda) return;
     const check = canReagendar(reagenda, nuevaFecha);
@@ -213,7 +213,7 @@ export default function AlumnoPerfilPage() {
     // Crear nueva reserva vinculada a la reagenda
     const nuevaReserva: Reserva = {
       id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
-      fecha: nuevaFecha, estado: 'pendiente',
+      fecha: nuevaFecha, hora, estado: 'pendiente',
       reagendaId: reagenda.id, creadaAt: new Date().toISOString(),
     };
     await upsertReservaDB(nuevaReserva).catch(() => {});
@@ -398,7 +398,7 @@ export default function AlumnoPerfilPage() {
                         </div>
                         {isPendiente && !estaAsignando && (
                           <button
-                            onClick={() => setAsignando({ reagendaId: r.id, fecha: todayStr() })}
+                            onClick={() => setAsignando({ reagendaId: r.id, fecha: todayStr(), hora: '' })}
                             className="shrink-0 rounded-lg border border-[#f97316]/50 bg-white px-3 py-1.5 text-xs font-semibold text-[#f97316] transition hover:bg-[#f97316] hover:text-white">
                             Asignar fecha
                           </button>
@@ -411,23 +411,31 @@ export default function AlumnoPerfilPage() {
                         )}
                       </div>
 
-                      {/* Formulario inline para asignar fecha */}
+                      {/* Formulario inline para asignar fecha y hora */}
                       {estaAsignando && (
                         <div className="mt-3 space-y-2 border-t border-[#f97316]/20 pt-3">
                           <p className="text-[11px] text-[#5E5E5E]">
                             Fecha límite: <strong>{formatDate(r.fechaLimite)}</strong>
                           </p>
-                          <input
-                            type="date"
-                            value={asignando.fecha}
-                            min={todayStr()}
-                            max={r.fechaLimite}
-                            onChange={e => setAsignando(p => p ? { ...p, fecha: e.target.value } : p)}
-                            className="w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
-                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="date"
+                              value={asignando.fecha}
+                              min={todayStr()}
+                              max={r.fechaLimite}
+                              onChange={e => setAsignando(p => p ? { ...p, fecha: e.target.value } : p)}
+                              className="rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
+                            />
+                            <input
+                              type="time"
+                              value={asignando.hora}
+                              onChange={e => setAsignando(p => p ? { ...p, hora: e.target.value } : p)}
+                              className="rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
+                            />
+                          </div>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleAsignarReagenda(r.id, asignando.fecha)}
+                              onClick={() => handleAsignarReagenda(r.id, asignando.fecha, asignando.hora || undefined)}
                               className="flex-1 rounded-lg bg-[#121212] py-2 text-xs font-bold text-white transition hover:bg-[#3E3E3E]">
                               Confirmar
                             </button>
