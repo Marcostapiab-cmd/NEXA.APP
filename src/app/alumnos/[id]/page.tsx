@@ -428,7 +428,7 @@ export default function AlumnoPerfilPage() {
                             />
                             <input
                               type="time"
-                              value={asignando.hora}
+                              value={asignando.hora ?? ''}
                               onChange={e => setAsignando(p => p ? { ...p, hora: e.target.value } : p)}
                               className="rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
                             />
