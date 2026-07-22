@@ -200,6 +200,20 @@ export async function upsertReagendaDB(reagenda: Reagenda): Promise<void> {
   if (error) throw error;
 }
 
+// Inserta múltiples reservas sin especificar id (el DB lo genera automáticamente)
+export async function insertReservasBulkDB(rows: Array<{
+  alumno_id: string;
+  plan_id:   string;
+  fecha:     string;
+  hora?:     string;
+  coach_id?: string;
+  estado:    string;
+  tipo_clase?: string;
+}>): Promise<void> {
+  const { error } = await supabase.from('reservas').insert(rows);
+  if (error) throw error;
+}
+
 // Recalcula usedClases de un plan contando reservas que queman clase
 export async function recalcUsedClasesDB(planId: string, alumnoId: string): Promise<number> {
   const { data, error } = await supabase

@@ -9,8 +9,9 @@ import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
 import { calc1RM, parseReps } from '@/lib/mevmrv';
 import type { Plan, Reserva, Reagenda } from '@/lib/planes';
 import { RESERVA_LABEL, todayStr, getEffectiveEndDate, formatDate, canReagendar } from '@/lib/planes';
-import PlanFormModal from '@/components/planes/PlanFormModal';
-import PlanStatusCard from '@/components/planes/PlanStatusCard';
+import PlanFormModal    from '@/components/planes/PlanFormModal';
+import InscripcionModal from '@/components/planes/InscripcionModal';
+import PlanStatusCard   from '@/components/planes/PlanStatusCard';
 import {
   getPlanesAlumnoDB, upsertPlanDB, deletePlanDB,
   getReservasAlumnoDB, upsertReservaDB, deleteReservaDB,
@@ -78,11 +79,8 @@ export default function AlumnoPerfilPage() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [reagendas,  setReagendas]  = useState<Reagenda[]>([]);
   const [asignando,  setAsignando]  = useState<{ reagendaId: string; fecha: string } | null>(null);
-  const [planModal, setPlanModal] = useState<{ mode: 'create' | 'edit'; plan?: Plan } | null>(null);
-  const [newReserva, setNewReserva] = useState<{
-    fecha: string; hora: string; tipo: string[];
-    repetir: boolean; diasSemana: number[]; fechaFin: string;
-  } | null>(null);
+  const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
+  const [showInscripcion, setShowInscripcion] = useState(false);
 
   const sesiones = alumno ? getSesionesAlumno(id) : [];
 
@@ -152,11 +150,15 @@ export default function AlumnoPerfilPage() {
     saveAlumno({ ...alumno, mediciones: (alumno.mediciones || []).filter(m => m.id !== mid) });
   }
 
+  function handleInscripcionSaved(plan: Plan, reservasCount: number) {
+    setPlanes(prev => [plan, ...prev]);
+    // Las reservas se recargan desde DB para tener los IDs reales generados por la DB
+    getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+  }
+
   async function handleSavePlan(data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) {
     if (!planModal) return;
-    const plan: Plan = planModal.mode === 'edit' && planModal.plan
-      ? { ...planModal.plan, ...data }
-      : { id: crypto.randomUUID(), alumnoId: id, createdAt: new Date().toISOString(), ...data };
+    const plan: Plan = { ...planModal.plan, ...data };
     await upsertPlanDB(plan).catch(() => {});
     setPlanes(prev => {
       const idx = prev.findIndex(p => p.id === plan.id);
@@ -201,46 +203,6 @@ export default function AlumnoPerfilPage() {
         }
       }
     }
-  }
-
-  async function handleCreateReserva() {
-    if (!newReserva?.fecha) return;
-    const hoy = todayStr();
-    const planActivo = planes.find(p => {
-      const end = p.extendedUntil && p.extendedUntil > p.endDate ? p.extendedUntil : p.endDate;
-      return hoy <= end;
-    }) ?? planes[0];
-    if (!planActivo) { alert('Este alumno no tiene un plan activo.'); return; }
-
-    let fechas: string[] = [];
-    if (newReserva.repetir && newReserva.diasSemana.length > 0) {
-      const hasta = newReserva.fechaFin || planActivo.endDate;
-      const cur = new Date(newReserva.fecha + 'T12:00:00');
-      const fin = new Date(hasta + 'T12:00:00');
-      let guard = 0;
-      while (cur <= fin && guard < 500) {
-        if (newReserva.diasSemana.includes(cur.getDay())) {
-          fechas.push(cur.toISOString().slice(0, 10));
-        }
-        cur.setDate(cur.getDate() + 1);
-        guard++;
-      }
-      if (fechas.length === 0) { alert('No hay fechas en ese rango para los días seleccionados.'); return; }
-    } else {
-      fechas = [newReserva.fecha];
-    }
-
-    const descripcion = newReserva.tipo.length > 0 ? newReserva.tipo.join(' · ') : undefined;
-    const nuevas: Reserva[] = fechas.map(fecha => ({
-      id: crypto.randomUUID(), alumnoId: id, planId: planActivo.id,
-      fecha, hora: newReserva.hora || undefined,
-      descripcion,
-      estado: 'pendiente' as const, creadaAt: new Date().toISOString(),
-    }));
-    const errs = (await Promise.all(nuevas.map(r => upsertReservaDB(r).then(() => null).catch(e => String(e?.message ?? e))))).filter(Boolean);
-    if (errs.length) { alert('Error creando reserva:\n' + errs[0]); return; }
-    setReservas(prev => [...nuevas, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
-    setNewReserva(null);
   }
 
   async function handleAsignarReagenda(reagendaId: string, nuevaFecha: string) {
@@ -357,117 +319,11 @@ export default function AlumnoPerfilPage() {
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Reservas y asistencia ({reservas.length})</p>
-              <button onClick={() => setNewReserva({ fecha: todayStr(), hora: '', tipo: [], repetir: false, diasSemana: [], fechaFin: '' })}
+              <button onClick={() => setShowInscripcion(true)}
                 className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
-                <Plus className="h-3 w-3" /> Nueva
+                <Plus className="h-3 w-3" /> Inscribir
               </button>
             </div>
-
-            {newReserva !== null && (
-              <div className="mb-4 space-y-3 rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={LC}>Fecha</label>
-                    <input type="date" value={newReserva.fecha}
-                      onChange={e => setNewReserva(p => p ? { ...p, fecha: e.target.value } : p)}
-                      className={IC} />
-                  </div>
-                  <div>
-                    <label className={LC}>Hora (opcional)</label>
-                    <input type="time" value={newReserva.hora}
-                      onChange={e => setNewReserva(p => p ? { ...p, hora: e.target.value } : p)}
-                      className={IC} />
-                  </div>
-                </div>
-                <div>
-                  <label className={LC}>Tipo de clase</label>
-                  <div className="flex gap-2">
-                    {['1:1', '2:1', 'Grupal'].map(t => {
-                      const sel = newReserva.tipo.includes(t);
-                      return (
-                        <button key={t} type="button"
-                          onClick={() => setNewReserva(p => p ? {
-                            ...p,
-                            tipo: sel ? p.tipo.filter(x => x !== t) : [...p.tipo, t],
-                          } : p)}
-                          className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${
-                            sel
-                              ? 'border-[#121212] bg-[#121212] text-white'
-                              : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
-                          }`}>
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Repetir semanalmente */}
-                <div>
-                  <button type="button"
-                    onClick={() => setNewReserva(p => p ? { ...p, repetir: !p.repetir, diasSemana: [] } : p)}
-                    className={`w-full rounded-[8px] border px-3 py-2 text-left text-xs font-semibold transition ${
-                      newReserva.repetir
-                        ? 'border-[#121212] bg-[#121212]/8 text-[#121212]'
-                        : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
-                    }`}>
-                    {newReserva.repetir ? '✓ Repetir semanalmente' : 'Repetir semanalmente'}
-                  </button>
-                </div>
-
-                {newReserva.repetir && (() => {
-                  const DIAS = [
-                    { label: 'L', day: 1 }, { label: 'M', day: 2 }, { label: 'Mi', day: 3 },
-                    { label: 'J', day: 4 }, { label: 'V', day: 5 }, { label: 'S', day: 6 }, { label: 'D', day: 0 },
-                  ];
-                  return (
-                    <div className="space-y-3">
-                      <div>
-                        <label className={LC}>Días de la semana</label>
-                        <div className="flex gap-1.5">
-                          {DIAS.map(({ label, day }) => {
-                            const sel = newReserva.diasSemana.includes(day);
-                            return (
-                              <button key={day} type="button"
-                                onClick={() => setNewReserva(p => p ? {
-                                  ...p,
-                                  diasSemana: sel
-                                    ? p.diasSemana.filter(d => d !== day)
-                                    : [...p.diasSemana, day],
-                                } : p)}
-                                className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${
-                                  sel
-                                    ? 'border-[#121212] bg-[#121212] text-white'
-                                    : 'border-[#CACACA] text-[#5E5E5E] hover:border-[#888]'
-                                }`}>
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={LC}>Hasta (deja en blanco = fin del plan)</label>
-                        <input type="date" value={newReserva.fechaFin}
-                          onChange={e => setNewReserva(p => p ? { ...p, fechaFin: e.target.value } : p)}
-                          className={IC} />
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="flex gap-2">
-                  <button onClick={handleCreateReserva}
-                    className="nexa-btn-primary flex-1 justify-center text-xs py-2">
-                    {newReserva.repetir && newReserva.diasSemana.length > 0 ? 'Crear todas las reservas' : 'Guardar'}
-                  </button>
-                  <button onClick={() => setNewReserva(null)}
-                    className="nexa-btn-secondary px-4 py-2 text-xs">
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
 
             {reservas.length === 0 ? (
               <p className="text-sm text-[#5E5E5E]">Sin reservas registradas.</p>
@@ -684,9 +540,9 @@ export default function AlumnoPerfilPage() {
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Plan de clases</p>
-              <button onClick={() => setPlanModal({ mode: 'create' })}
+              <button onClick={() => setShowInscripcion(true)}
                 className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
-                <Plus className="h-3 w-3" /> Nuevo
+                <Plus className="h-3 w-3" /> Inscribir
               </button>
             </div>
             {planes.length === 0 ? (
@@ -700,7 +556,7 @@ export default function AlumnoPerfilPage() {
                       reservas={reservas.filter(r => r.planId === plan.id)}
                       reagendas={[]}
                       isAdmin
-                      onEdit={() => setPlanModal({ mode: 'edit', plan })}
+                      onEdit={() => setPlanModal({ mode: 'edit' as const, plan })}
                     />
                     <button onClick={() => handleDeletePlan(plan.id)}
                       className="mt-1 text-[11px] text-[#9B9B9B] transition hover:text-red-500">
@@ -815,11 +671,20 @@ export default function AlumnoPerfilPage() {
         </div>
       </div>
 
+      {showInscripcion && (
+        <InscripcionModal
+          alumnoId={id}
+          alumnoNombre={`${alumno.nombre} ${alumno.apellido}`}
+          onSaved={handleInscripcionSaved}
+          onClose={() => setShowInscripcion(false)}
+        />
+      )}
+
       {planModal && (
         <PlanFormModal
           alumnoId={id}
           alumnoNombre={`${alumno.nombre} ${alumno.apellido}`}
-          mode={planModal.mode}
+          mode="edit"
           initial={planModal.plan}
           onSave={handleSavePlan}
           onClose={() => setPlanModal(null)}

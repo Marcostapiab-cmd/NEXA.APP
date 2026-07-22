@@ -1,6 +1,6 @@
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-export type PlanTipo    = 'mensual' | 'trimestral' | 'personalizado';
+export type PlanTipo    = 'mensual' | 'trimestral' | 'semestral' | 'personalizado';
 export type PlanEstado  = 'activo' | 'por_vencer' | 'vencido' | 'sin_clases';
 export type ReservaEstado  = 'pendiente' | 'confirmada' | 'presente' | 'no_show' | 'cancelada_tiempo' | 'cancelada_tarde' | 'reagendada' | 'cancelada_nexa' | 'bloqueada';
 export type ReagendaEstado = 'pendiente' | 'completada' | 'vencida';
@@ -46,14 +46,16 @@ export interface Reagenda {
 // ─── Constantes de duración ─────────────────────────────────────────────────
 
 export const PLAN_DURACION_DIAS: Record<PlanTipo, number> = {
-  mensual:       30,
-  trimestral:    90,
-  personalizado:  0,
+  mensual:        30,
+  trimestral:     90,
+  semestral:     180,
+  personalizado:   0,
 };
 
 export const PLAN_TIPO_LABEL: Record<PlanTipo, string> = {
   mensual:       'Mensual',
   trimestral:    'Trimestral',
+  semestral:     'Semestral',
   personalizado: 'Personalizado',
 };
 
@@ -73,6 +75,40 @@ export function calcEndDate(startDate: string, tipo: PlanTipo): string {
   const d = new Date(startDate + 'T12:00:00');
   d.setDate(d.getDate() + PLAN_DURACION_DIAS[tipo]);
   return d.toISOString().slice(0, 10);
+}
+
+// Genera todas las fechas recurrentes entre inicio y inicio+duracionDias
+// diasSemana: 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+export function generarFechasRecurrentes(inicio: string, diasSemana: number[], duracionDias: number): string[] {
+  if (!diasSemana.length || !duracionDias) return [];
+  const startDate = new Date(inicio + 'T12:00:00');
+  const endDate   = new Date(startDate);
+  endDate.setDate(endDate.getDate() + duracionDias);
+
+  const dow  = startDate.getDay() === 0 ? 7 : startDate.getDay();
+  const lunes = new Date(startDate);
+  lunes.setDate(lunes.getDate() - dow + 1);
+
+  const totalWeeks = Math.ceil(duracionDias / 7) + 1;
+  const sorted     = [...diasSemana].sort((a, b) => a - b);
+  const dates: string[] = [];
+
+  for (let w = 0; w < totalWeeks; w++) {
+    for (const d of sorted) {
+      const cur = new Date(lunes);
+      cur.setDate(cur.getDate() + w * 7 + (d - 1));
+      const ds = cur.toISOString().slice(0, 10);
+      if (ds >= inicio && cur <= endDate) dates.push(ds);
+    }
+  }
+  return [...new Set(dates)].sort();
+}
+
+// Total de clases que corresponden a un plan según duración y frecuencia
+export function calcTotalClases(tipo: PlanTipo, frecuenciaSemanal: number): number {
+  const dias = PLAN_DURACION_DIAS[tipo];
+  if (!dias) return 0;
+  return Math.round((dias / 7) * frecuenciaSemanal);
 }
 
 export function addDays(ds: string, n: number): string {

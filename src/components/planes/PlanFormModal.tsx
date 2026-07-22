@@ -37,9 +37,10 @@ interface Props {
 }
 
 const TIPO_OPTIONS: { value: PlanTipo; label: string; desc: string; dias: number }[] = [
-  { value: 'mensual',       label: 'Mensual',      desc: '30 días',  dias: 30 },
-  { value: 'trimestral',    label: 'Trimestral',   desc: '90 días',  dias: 90 },
-  { value: 'personalizado', label: 'Personalizado',desc: 'Manual',   dias: 0  },
+  { value: 'mensual',       label: 'Mensual',      desc: '30 días',  dias: 30  },
+  { value: 'trimestral',    label: 'Trimestral',   desc: '90 días',  dias: 90  },
+  { value: 'semestral',     label: 'Semestral',    desc: '180 días', dias: 180 },
+  { value: 'personalizado', label: 'Personalizado',desc: 'Manual',   dias: 0   },
 ];
 
 const CLASES_PRESET = [4, 8, 10, 12, 16, 20];
@@ -65,6 +66,7 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
     const preset: Record<PlanTipo, string> = {
       mensual:       'Plan Mensual',
       trimestral:    'Plan Trimestral',
+      semestral:     'Plan Semestral',
       personalizado: 'Plan Personalizado',
     };
     setF(prev => ({
@@ -113,7 +115,7 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
               {/* Tipo */}
               <div>
                 <label className={LC}>Tipo de plan</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {TIPO_OPTIONS.map(opt => (
                     <button key={opt.value} type="button" onClick={() => handleTipo(opt.value)}
                       className={`rounded-xl border py-3 text-center transition ${
