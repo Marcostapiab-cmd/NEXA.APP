@@ -52,6 +52,8 @@ interface RawReserva {
   descripcion?:       string;
   attendance_status?: string;
   estado?:            string;
+  atletas?:           { nombre: string; apellido: string } | null;
+  nombre_atleta?:     string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -88,8 +90,8 @@ function getCupos(tipo: TipoClase, capacidadGrupal: number): number {
 }
 
 function alumnoLabel(r: RawReserva): string {
-  if (r.rut)       return r.rut;
-  if (r.alumno_id) return `ID ${r.alumno_id.slice(0, 8)}`;
+  if (r.nombre_atleta) return r.nombre_atleta;
+  if (r.rut)           return r.rut;
   return 'Alumno';
 }
 
@@ -610,21 +612,36 @@ export default function HorarioPage() {
     try {
       const weekStart = dateStr(days[0]);
       const weekEnd   = dateStr(days[5]);
-      const [cs, cfg, bls, { data }] = await Promise.all([
+      const [cs, cfg, bls, { data: resData }, { data: atletasData }] = await Promise.all([
         getCoachesActivosDB(),
         getHorarioConfig(),
         getBloqueos(weekStart, weekEnd),
         supabase
           .from('reservas')
-          .select('*')
+          .select('*, atletas(nombre, apellido)')
           .gte('fecha', weekStart + 'T00:00:00')
           .lte('fecha', weekEnd   + 'T23:59:59')
           .order('fecha'),
+        supabase
+          .from('atletas')
+          .select('rut, nombre, apellido')
+          .not('rut', 'is', null),
       ]);
+      const rutMap = new Map<string, string>(
+        ((atletasData ?? []) as { rut: string; nombre: string; apellido: string }[])
+          .map(a => [a.rut, `${a.nombre} ${a.apellido || ''}`.trim()])
+      );
+      const reservasConNombre = ((resData ?? []) as RawReserva[]).map(r => {
+        const atleta = r.atletas;
+        const nombre_atleta = atleta
+          ? `${atleta.nombre} ${atleta.apellido || ''}`.trim()
+          : (r.rut ? rutMap.get(r.rut) : undefined);
+        return { ...r, nombre_atleta };
+      });
       setCoaches(cs);
       setHorConfig(cfg);
       setBloqueos(bls);
-      setReservas((data ?? []) as RawReserva[]);
+      setReservas(reservasConNombre);
     } catch (err) {
       console.error('horario load error', err);
     } finally {
@@ -808,19 +825,19 @@ export default function HorarioPage() {
                         height:       40,
                         background:   isT ? 'var(--nexa-card-alt)' : esCerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
                         borderRight:  '1px solid var(--nexa-border)',
-                        borderBottom: isT ? '2px solid var(--nexa-text)' : '1px solid var(--nexa-border)',
-                        display:      'flex', flexDirection: 'column',
-                        alignItems:   'center', justifyContent: 'center', gap: 1,
+                        borderBottom: isT ? '2px solid var(--nexa-text-sub)' : '1px solid var(--nexa-border)',
+                        display:      'flex', alignItems: 'center', justifyContent: 'center',
+                        overflow:     'visible',
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{
                             fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
-                            color: isT ? 'var(--nexa-text)' : esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
+                            color: isT ? 'var(--nexa-text-sub)' : esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
                           }}>
                             {DAY_LABELS[i]}
                           </span>
                           <span style={{
-                            fontSize: 11, fontWeight: isT ? 700 : 400,
+                            fontSize: 13, fontWeight: isT ? 800 : 400,
                             color: isT ? 'var(--nexa-text)' : esCerrado ? 'var(--nexa-muted)' : 'var(--nexa-text-sub)',
                           }}>
                             {d.getDate()}
@@ -836,7 +853,7 @@ export default function HorarioPage() {
                               {nClases}
                             </span>
                           )}
-                          {esCerrado && nClases === 0 && (
+                          {esCerrado && !isT && nClases === 0 && (
                             <span style={{ fontSize: 7, fontWeight: 700, color: 'var(--nexa-faint)', letterSpacing: '0.1em' }}>
                               CERRADO
                             </span>
