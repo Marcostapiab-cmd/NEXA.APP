@@ -707,9 +707,9 @@ export default function HorarioPage() {
               onClick={() => setWeekOffset(0)}
               className="rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
               style={{
-                background: weekOffset === 0 ? 'var(--nexa-accent)' : 'var(--nexa-card)',
-                color:      weekOffset === 0 ? '#000' : 'var(--nexa-muted)',
-                border:     '1px solid var(--nexa-border)',
+                background: weekOffset === 0 ? 'var(--nexa-text)' : 'var(--nexa-card)',
+                color:      weekOffset === 0 ? 'var(--nexa-bg)' : 'var(--nexa-muted)',
+                border:     weekOffset === 0 ? '1px solid var(--nexa-text)' : '1px solid var(--nexa-border)',
               }}
             >
               Hoy
