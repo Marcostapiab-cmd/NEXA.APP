@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
 import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon } from 'lucide-react';
@@ -139,6 +139,12 @@ export default function AlumnoPerfilPage() {
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
 
+  // Recarga solo reservas/planes (lo que cambia al hacer check-in)
+  const loadReservas = useCallback(() => {
+    getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
+    getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+  }, [id]);
+
   useEffect(() => {
     // Busca en Supabase primero, con fallback a localStorage
     getAlumnoById(id).then(base => {
@@ -167,8 +173,7 @@ export default function AlumnoPerfilPage() {
     // Salud (RLS filtra automáticamente si no tiene acceso)
     getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
     // Planes, reservas y reagendas desde Supabase
-    getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
-    getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+    loadReservas();
     getBloqueos().then(setBloqueos).catch(() => {});
     getReagendasAlumnoDB(id).then(rs => {
       const hoy = todayStr();
@@ -180,7 +185,14 @@ export default function AlumnoPerfilPage() {
       actualizadas.filter(r => r.estado === 'vencida' && rs.find(x => x.id === r.id)?.estado === 'pendiente')
         .forEach(r => upsertReagendaDB(r).catch(() => {}));
     }).catch(() => {});
-  }, [id]);
+  }, [id, loadReservas]);
+
+  // Recargar reservas y planes cuando el usuario vuelve a esta pestaña
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') loadReservas(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [loadReservas]);
 
   function saveAlumno(updated: AlumnoExtended) {
     setAlumno(updated);

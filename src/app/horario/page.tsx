@@ -778,6 +778,7 @@ export default function HorarioPage() {
   const [loading,     setLoading]     = useState(true);
   const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
   const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
+  const [toast,       setToast]       = useState<string | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -840,6 +841,13 @@ export default function HorarioPage() {
   }, [weekOffset]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Recargar cuando el usuario vuelve a esta pestaña (p.ej. después de check-in)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
 
   // Scroll automático a la hora actual en la semana corriente
   useEffect(() => {
@@ -1105,11 +1113,19 @@ export default function HorarioPage() {
                             bloqueado={!slot && !!bloqueo}
                             motivoBloqueo={bloqueo?.motivo}
                             onClickSlot={s => setEditSlot(s)}
-                            onClickEmpty={() => setNuevaSlot({
-                              fecha:   ds,
-                              hora,
-                              coachId: coachFiltro !== 'all' ? coachFiltro : (coaches[0]?.id ?? null),
-                            })}
+                            onClickEmpty={() => {
+                              if (bloqueo) {
+                                const msg = bloqueo.motivo ? `Día bloqueado: ${bloqueo.motivo}` : 'Este día está bloqueado';
+                                setToast(msg);
+                                setTimeout(() => setToast(null), 3000);
+                                return;
+                              }
+                              setNuevaSlot({
+                                fecha:   ds,
+                                hora,
+                                coachId: coachFiltro !== 'all' ? coachFiltro : (coaches[0]?.id ?? null),
+                              });
+                            }}
                           />
                         );
                       })}
@@ -1220,6 +1236,22 @@ export default function HorarioPage() {
           onClose={() => setNuevaSlot(null)}
           onSaved={load}
         />
+      )}
+
+      {/* Toast aviso día bloqueado */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            padding: '10px 20px', borderRadius: 8, zIndex: 200, whiteSpace: 'nowrap',
+            background: 'var(--nexa-danger)', color: '#fff',
+            fontSize: 13, fontWeight: 600,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+          }}
+          onClick={() => setToast(null)}
+        >
+          {toast}
+        </div>
       )}
     </main>
   );
