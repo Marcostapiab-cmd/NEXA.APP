@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
 import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon } from 'lucide-react';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
-import { getSesionesAlumno, getHistorialPeso } from '@/lib/sesiones';
+import type { Sesion } from '@/lib/sesiones';
+import { getSesionesAlumnoDB } from '@/lib/sesiones-supabase';
+import { getRutinasDB, type RutinaDB } from '@/lib/rutinas-supabase';
 import { calc1RM, parseReps } from '@/lib/mevmrv';
 import type { Plan, Reserva, Reagenda } from '@/lib/planes';
 import { RESERVA_LABEL, todayStr, getEffectiveEndDate, formatDate, canReagendar, getPlanEstado } from '@/lib/planes';
@@ -29,21 +31,25 @@ interface AlumnoExtended extends Alumno {
   mediciones?: Medicion[];
 }
 
-interface Routine {
-  id: string; name: string; blocks: { id: string; name: string; exercises: { id: string; name: string; series: number; reps: string; weight: string; }[] }[];
-  selectedDays: number[]; dayToBlock: Record<number, string>;
-  weeks: number; startDate: string; endDate: string; alumnoIds: string[];
-}
-
-const DAY_LONG  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-const IC = 'w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-4 py-3 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#121212]' as const;
+const IC ='w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-4 py-3 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#121212]' as const;
 const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#5E5E5E]' as const;
 const SL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]' as const;
 
-function isActive(r: Routine) {
-  if (!r.startDate || !r.endDate) return false;
+function isActive(r: RutinaDB) {
+  if (!r.start_date || !r.end_date) return false;
   const t = new Date().toISOString().slice(0,10);
-  return t >= r.startDate && t <= r.endDate;
+  return t >= r.start_date && t <= r.end_date;
+}
+
+function computeHistorialPeso(sesionesArr: Sesion[], ejercicioNombre: string): { fecha: string; peso: number }[] {
+  return sesionesArr
+    .filter(s => s.ejercicios.some(e => e.nombre.toLowerCase() === ejercicioNombre.toLowerCase()))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .map(s => {
+      const ej = s.ejercicios.find(e => e.nombre.toLowerCase() === ejercicioNombre.toLowerCase())!;
+      const maxP = Math.max(...ej.series.filter(x => x.completada).map(x => parseFloat(x.peso) || 0));
+      return { fecha: s.fecha, peso: maxP };
+    }).filter(p => p.peso > 0);
 }
 
 // Simple SVG line chart
@@ -110,7 +116,8 @@ export default function AlumnoPerfilPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [alumno, setAlumno]     = useState<AlumnoExtended | null>(null);
-  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routines, setRoutines] = useState<RutinaDB[]>([]);
+  const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [showMedicion, setShowMedicion] = useState(false);
   const [medForm, setMedForm]   = useState<Omit<Medicion,'id'>>({ fecha: new Date().toISOString().slice(0,10), peso: '', grasa: '', musculo: '', notas: '' });
   const [expandedSesion, setExpandedSesion] = useState<string | null>(null);
@@ -131,8 +138,6 @@ export default function AlumnoPerfilPage() {
   const [bloqueos,     setBloqueos]     = useState<HorarioBloqueo[]>([]);
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
-
-  const sesiones = alumno ? getSesionesAlumno(id) : [];
 
   useEffect(() => {
     // Busca en Supabase primero, con fallback a localStorage
@@ -157,9 +162,8 @@ export default function AlumnoPerfilPage() {
         } catch {}
       }
     });
-    try {
-      const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r));
-    } catch {}
+    getRutinasDB().then(setRoutines).catch(() => {});
+    getSesionesAlumnoDB(id).then(setSesiones).catch(() => {});
     // Salud (RLS filtra automáticamente si no tiene acceso)
     getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
     // Planes, reservas y reagendas desde Supabase
@@ -336,8 +340,8 @@ export default function AlumnoPerfilPage() {
     );
   }
 
-  const activeRoutines = routines.filter(r => (r.alumnoIds ?? []).includes(id) && isActive(r));
-  const allRoutines    = routines.filter(r => (r.alumnoIds ?? []).includes(id));
+  const activeRoutines = routines.filter(r => (r.alumno_ids ?? []).includes(id) && isActive(r));
+  const allRoutines    = routines.filter(r => (r.alumno_ids ?? []).includes(id));
   const mediciones     = (alumno.mediciones || []).sort((a,b) => b.fecha.localeCompare(a.fecha));
   const ultimaPeso     = mediciones.find(m => m.peso);
   const pesoChartData  = mediciones.filter(m => m.peso).map(m => ({ fecha: m.fecha, peso: parseFloat(m.peso) })).filter(m => !isNaN(m.peso)).reverse();
@@ -386,23 +390,19 @@ export default function AlumnoPerfilPage() {
               <p className="text-sm text-[#5E5E5E]">Sin rutinas activas. Asigna una en /rutinas.</p>
             ) : (
               <div className="space-y-2">
-                {activeRoutines.map(r => {
-                  const diasStr = [...r.selectedDays].sort((a,b)=>a-b).map(d => DAY_LONG[d].slice(0,3)).join(' · ');
-                  return (
-                    <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
-                      <p className="font-semibold text-[#121212]">{r.name}</p>
-                      <p className="mt-1 text-xs text-[#5E5E5E]">{diasStr} · {r.weeks} semanas</p>
-                      <p className="text-xs text-[#5E5E5E]">{r.startDate} → {r.endDate}</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {r.blocks.map(b => (
-                          <span key={b.id} className="rounded-md border border-[#CACACA] px-2 py-0.5 text-xs text-[#5E5E5E]">
-                            {b.name}
-                          </span>
-                        ))}
-                      </div>
+                {activeRoutines.map(r => (
+                  <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
+                    <p className="font-semibold text-[#121212]">{r.nombre}</p>
+                    <p className="text-xs text-[#5E5E5E]">{r.start_date} → {r.end_date}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {(r.blocks as { id?: string; nombre?: string; name?: string }[]).map((b, i) => (
+                        <span key={b.id ?? i} className="rounded-md border border-[#CACACA] px-2 py-0.5 text-xs text-[#5E5E5E]">
+                          {b.nombre ?? b.name ?? `Bloque ${i + 1}`}
+                        </span>
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -618,7 +618,7 @@ export default function AlumnoPerfilPage() {
               </div>
               <div className="space-y-4">
                 {ejerciciosUnicos.map(nombre => {
-                  const historial = getHistorialPeso(id, nombre);
+                  const historial = computeHistorialPeso(sesiones, nombre);
                   const ultimo = historial[historial.length - 1];
                   if (!ultimo) return null;
                   return (
