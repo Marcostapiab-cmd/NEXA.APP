@@ -57,7 +57,7 @@ export default function LoginPage() {
           >
             <span
               className="text-[18px] font-black tracking-wider"
-              style={{ color: '#000000' }}
+              style={{ color: '#FFFFFF' }}
             >
               N
             </span>

@@ -196,7 +196,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
             </button>
             <button onClick={onSave} disabled={saving || !draft.nombre.trim()}
               className="rounded-xl px-5 py-2.5 text-[12px] font-bold transition"
-              style={{ background: 'var(--nexa-accent)', color: '#000', opacity: (saving || !draft.nombre.trim()) ? 0.5 : 1 }}>
+              style={{ background: 'var(--nexa-accent)', color: '#FFFFFF', opacity: (saving || !draft.nombre.trim()) ? 0.5 : 1 }}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
@@ -392,7 +392,7 @@ export default function ProfesoresPage() {
           {isAdmin && (
             <button onClick={openCreate}
               className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold"
-              style={{ background: 'var(--nexa-accent)', color: '#000' }}>
+              style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
               <Plus size={14} />
               Nuevo profesor
             </button>

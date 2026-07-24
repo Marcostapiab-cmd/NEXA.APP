@@ -192,7 +192,7 @@ export default function ConfiguracionPage() {
             className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold transition"
             style={{
               background: saved ? '#2E7D55' : 'var(--nexa-accent)',
-              color: '#000',
+              color: '#FFFFFF',
               opacity: saving ? 0.6 : 1,
             }}>
             <Save size={13} />

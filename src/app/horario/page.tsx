@@ -12,7 +12,8 @@ import {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const DAY_LABELS  = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+const ESTADOS_QUE_QUEMAN  = ['presente', 'no_show', 'cancelada_tarde'];
 
 const ESTADOS_ASISTENCIA = [
   { value: 'PRESENT',          label: 'Presente',       color: '#2E7D55' },
@@ -42,18 +43,32 @@ interface Slot {
 }
 
 interface RawReserva {
-  id:                 number | string;
-  rut?:               string;
-  alumno_id?:         string;
-  fecha:              string;
-  hora?:              string;
-  coach_id?:          string;
-  tipo_clase?:        string;
-  descripcion?:       string;
-  attendance_status?: string;
-  estado?:            string;
-  atletas?:           { nombre: string; apellido: string } | null;
-  nombre_atleta?:     string;
+  id:          number | string;
+  rut?:        string;
+  alumno_id?:  string;
+  fecha:       string;
+  hora?:       string;
+  coach_id?:   string;
+  tipo_clase?: string;
+  descripcion?: string;
+  estado?:     string;
+  atletas?:    { nombre: string; apellido: string } | null;
+  nombre_atleta?: string;
+}
+
+interface AtletaBusqueda {
+  id:       string;
+  nombre:   string;
+  apellido: string;
+  rut?:     string;
+}
+
+interface PlanActivo {
+  id:           string;
+  nombre:       string;
+  total_clases: number;
+  end_date:     string;
+  usado:        number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -127,7 +142,7 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrup
     map.get(key)!.alumnos.push({
       reservaId: r.id,
       nombre:    alumnoLabel(r),
-      status:    String(r.attendance_status || r.estado || 'pendiente'),
+      status:    String(r.estado || 'pendiente'),
     });
   }
   return map;
@@ -216,7 +231,7 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
         <div className="px-4 pb-4">
           <button onClick={handleSave} disabled={saving}
             className="w-full rounded-xl py-2.5 text-[13px] font-bold transition"
-            style={{ background: 'var(--nexa-accent)', color: '#000', opacity: saving ? 0.6 : 1 }}>
+            style={{ background: 'var(--nexa-accent)', color: '#FFFFFF', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Guardando...' : 'Guardar asistencia'}
           </button>
         </div>
@@ -235,39 +250,131 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
   onClose:        () => void;
   onSaved:        () => void;
 }) {
-  const [tipo,    setTipo]    = useState<TipoClase>('1:1');
-  const [coachId, setCoachId] = useState(defaultCoachId ?? coaches[0]?.id ?? '');
-  const [rut,     setRut]     = useState('');
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState('');
+  const [tipo,         setTipo]         = useState<TipoClase>('1:1');
+  const [coachId,      setCoachId]      = useState(defaultCoachId ?? coaches[0]?.id ?? '');
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState('');
+
+  // Búsqueda de alumno
+  const [query,        setQuery]        = useState('');
+  const [resultados,   setResultados]   = useState<AtletaBusqueda[]>([]);
+  const [buscando,     setBuscando]     = useState(false);
+  const [alumno,       setAlumno]       = useState<AtletaBusqueda | null>(null);
+  // undefined = aún no cargado, null = sin plan activo, objeto = plan encontrado
+  const [plan,         setPlan]         = useState<PlanActivo | null | undefined>(undefined);
+  const [cargandoPlan, setCargandoPlan] = useState(false);
+
+  // Modo walk-in (excepción explícita)
+  const [walkIn,    setWalkIn]    = useState(false);
+  const [rutWalkIn, setRutWalkIn] = useState('');
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Búsqueda debounced de atletas
+  useEffect(() => {
+    if (walkIn || query.length < 2) { setResultados([]); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setBuscando(true);
+      const { data } = await supabase
+        .from('atletas')
+        .select('id, nombre, apellido, rut')
+        .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,rut.ilike.%${query}%`)
+        .limit(6);
+      setResultados((data ?? []) as AtletaBusqueda[]);
+      setBuscando(false);
+    }, 300);
+  }, [query, walkIn]);
+
+  // Cargar plan activo al seleccionar alumno
+  async function seleccionarAlumno(a: AtletaBusqueda) {
+    setAlumno(a);
+    setQuery(`${a.nombre} ${a.apellido}`.trim());
+    setResultados([]);
+    setCargandoPlan(true);
+    setPlan(undefined);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: planesData } = await supabase
+      .from('planes')
+      .select('id, nombre, total_clases, end_date')
+      .eq('alumno_id', a.id)
+      .gte('end_date', today)
+      .order('end_date', { ascending: true })
+      .limit(1);
+
+    if (!planesData || planesData.length === 0) {
+      setPlan(null);
+      setCargandoPlan(false);
+      return;
+    }
+
+    const p = planesData[0] as { id: string; nombre: string; total_clases: number; end_date: string };
+
+    const { count } = await supabase
+      .from('reservas')
+      .select('*', { count: 'exact', head: true })
+      .eq('plan_id', p.id)
+      .in('estado', ESTADOS_QUE_QUEMAN);
+
+    setPlan({ ...p, usado: count ?? 0 });
+    setCargandoPlan(false);
+  }
 
   async function handleSave() {
-    if (!rut.trim()) { setError('Ingresa el RUT del alumno'); return; }
-    setSaving(true);
     setError('');
+
+    if (walkIn) {
+      setSaving(true);
+      try {
+        const { error: err } = await supabase.from('reservas').insert({
+          fecha,
+          hora,
+          end_time:     addOneHour(hora),
+          coach_id:     coachId || null,
+          tipo_clase:   tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
+          rut:          rutWalkIn.trim() || null,
+          estado:       'confirmada',
+          duracion_min: 60,
+        });
+        if (err) throw err;
+        onSaved(); onClose();
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Error al guardar');
+      } finally { setSaving(false); }
+      return;
+    }
+
+    if (!alumno) { setError('Selecciona un alumno'); return; }
+    if (plan === undefined) { setError('Espera, cargando plan...'); return; }
+
+    setSaving(true);
     try {
       const { error: err } = await supabase.from('reservas').insert({
-        fecha:        fecha,
+        fecha,
+        hora,
         end_time:     addOneHour(hora),
         coach_id:     coachId || null,
         tipo_clase:   tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
-        rut:          rut.trim(),
+        alumno_id:    alumno.id,
+        plan_id:      plan?.id ?? null,
+        rut:          alumno.rut ?? null,
         estado:       'confirmada',
         duracion_min: 60,
       });
       if (err) throw err;
-      onSaved();
-      onClose();
+      onSaved(); onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   const fechaLabel = new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {
     weekday: 'long', day: 'numeric', month: 'long',
   });
+
+  const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined));
+  const sinPlan      = alumno !== null && !cargandoPlan && plan === null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -298,7 +405,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
                   className="rounded-lg py-2 text-[12px] font-semibold transition"
                   style={{
                     background: tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
-                    color:      tipo === t ? '#000' : 'var(--nexa-muted)',
+                    color:      tipo === t ? '#FFFFFF' : 'var(--nexa-muted)',
                     border:     `1px solid ${tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-border)'}`,
                   }}>
                   {t}
@@ -326,24 +433,99 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
             </div>
           )}
 
-          {/* RUT */}
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
-              style={{ color: 'var(--nexa-muted)' }}>RUT del alumno</p>
-            <input
-              value={rut}
-              onChange={e => setRut(e.target.value)}
-              placeholder="12345678-9"
-              autoFocus
-              className="w-full rounded-lg px-3 py-2.5 text-[13px]"
-              style={{
-                background: 'var(--nexa-card-alt)',
-                border:     `1px solid ${error ? '#B44040' : 'var(--nexa-border)'}`,
-                color:      'var(--nexa-text)',
-              }}
-            />
-            {error && <p className="text-[11px] mt-1" style={{ color: '#B44040' }}>{error}</p>}
-          </div>
+          {/* Alumno o Walk-in */}
+          {!walkIn ? (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
+                style={{ color: 'var(--nexa-muted)' }}>Alumno</p>
+              <div className="relative">
+                <input
+                  value={query}
+                  onChange={e => { setQuery(e.target.value); setAlumno(null); setPlan(undefined); }}
+                  placeholder="Buscar por nombre o RUT..."
+                  autoFocus
+                  className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                  style={{
+                    background: 'var(--nexa-card-alt)',
+                    border:     '1px solid var(--nexa-border)',
+                    color:      'var(--nexa-text)',
+                  }}
+                />
+                {resultados.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden z-10"
+                    style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                    {resultados.map(a => (
+                      <button key={a.id} onClick={() => seleccionarAlumno(a)}
+                        className="w-full text-left px-4 py-2.5 text-[13px] transition"
+                        style={{ color: 'var(--nexa-text)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--nexa-card-alt)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                        {a.nombre} {a.apellido}
+                        {a.rut && <span className="ml-2 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>{a.rut}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {buscando && (
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--nexa-muted)' }}>Buscando...</p>
+                )}
+              </div>
+
+              {/* Estado del plan */}
+              {alumno && cargandoPlan && (
+                <p className="text-[11px] mt-2" style={{ color: 'var(--nexa-muted)' }}>Cargando plan...</p>
+              )}
+              {alumno && !cargandoPlan && plan && (
+                <div className="mt-2 rounded-lg px-3 py-2.5"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
+                  <p className="text-[12px] font-semibold" style={{ color: 'var(--nexa-text)' }}>{plan.nombre}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>
+                    {plan.usado}/{plan.total_clases} clases usadas · vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+              )}
+              {sinPlan && (
+                <div className="mt-2 rounded-lg px-3 py-2.5"
+                  style={{ background: '#C9A96E18', border: '1px solid #C9A96E66' }}>
+                  <p className="text-[12px] font-semibold" style={{ color: '#C9A96E' }}>
+                    Sin plan activo — esta clase no descontará del plan
+                  </p>
+                </div>
+              )}
+
+              <button onClick={() => { setWalkIn(true); setAlumno(null); setQuery(''); setPlan(undefined); setResultados([]); }}
+                className="mt-3 text-[11px] underline"
+                style={{ color: 'var(--nexa-muted)' }}>
+                Agendar como invitado / sin buscar alumno →
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--nexa-muted)' }}>
+                  Invitado / Walk-in
+                </p>
+                <button onClick={() => { setWalkIn(false); setRutWalkIn(''); }}
+                  className="text-[11px] underline" style={{ color: 'var(--nexa-muted)' }}>
+                  ← Buscar alumno
+                </button>
+              </div>
+              <div className="mb-3 rounded-lg px-3 py-2"
+                style={{ background: '#C9A96E18', border: '1px solid #C9A96E66' }}>
+                <p className="text-[11px]" style={{ color: '#C9A96E' }}>Esta clase no descontará de ningún plan</p>
+              </div>
+              <input
+                value={rutWalkIn}
+                onChange={e => setRutWalkIn(e.target.value)}
+                placeholder="RUT del invitado (opcional)"
+                autoFocus
+                className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+              />
+            </div>
+          )}
+
+          {error && <p className="text-[11px]" style={{ color: '#B44040' }}>{error}</p>}
         </div>
 
         <div className="px-4 pb-4 flex gap-2">
@@ -352,10 +534,14 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
             style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-muted)', border: '1px solid var(--nexa-border)' }}>
             Cancelar
           </button>
-          <button onClick={handleSave} disabled={saving}
+          <button onClick={handleSave} disabled={!puedeAgendar}
             className="flex-1 rounded-xl py-2.5 text-[13px] font-bold transition"
-            style={{ background: 'var(--nexa-accent)', color: '#000', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Guardando...' : 'Agendar'}
+            style={{
+              background: sinPlan || walkIn ? '#C9A96E' : 'var(--nexa-accent)',
+              color:      '#FFFFFF',
+              opacity:    puedeAgendar ? 1 : 0.4,
+            }}>
+            {saving ? 'Guardando...' : sinPlan ? 'Agendar sin plan' : walkIn ? 'Agendar invitado' : 'Agendar'}
           </button>
         </div>
       </div>
