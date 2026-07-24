@@ -18,6 +18,7 @@ import {
   recalcUsedClasesDB,
   getReagendasAlumnoDB, upsertReagendaDB,
 } from '@/lib/planes-supabase';
+import { getBloqueos, type HorarioBloqueo } from '@/lib/horario-config';
 
 interface Medicion {
   id: string; fecha: string; peso: string;
@@ -125,7 +126,9 @@ export default function AlumnoPerfilPage() {
   const [planes,   setPlanes]   = useState<Plan[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [reagendas,  setReagendas]  = useState<Reagenda[]>([]);
-  const [asignando,  setAsignando]  = useState<{ reagendaId: string; fecha: string; hora: string } | null>(null);
+  const [asignando,    setAsignando]    = useState<{ reagendaId: string; fecha: string; hora: string } | null>(null);
+  const [reagendaErr,  setReagendaErr]  = useState('');
+  const [bloqueos,     setBloqueos]     = useState<HorarioBloqueo[]>([]);
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
 
@@ -162,6 +165,7 @@ export default function AlumnoPerfilPage() {
     // Planes, reservas y reagendas desde Supabase
     getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
     getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+    getBloqueos().then(setBloqueos).catch(() => {});
     getReagendasAlumnoDB(id).then(rs => {
       const hoy = todayStr();
       // Marcar vencidas automáticamente
@@ -286,6 +290,18 @@ export default function AlumnoPerfilPage() {
     if (!reagenda) return;
     const check = canReagendar(reagenda, nuevaFecha);
     if (!check.ok) { console.warn('Reagenda inválida:', check.reason); return; }
+    // Verificar que la fecha no esté bloqueada
+    const bloqueado = bloqueos.find(b => {
+      if (b.fecha !== nuevaFecha) return false;
+      if (!b.horaInicio) return true; // día completo
+      if (!hora) return true;
+      return hora >= b.horaInicio && hora < (b.horaFin ?? '23:59');
+    });
+    if (bloqueado) {
+      setReagendaErr(`Fecha bloqueada${bloqueado.motivo ? ': ' + bloqueado.motivo : ''}`);
+      return;
+    }
+    setReagendaErr('');
     // Crear nueva reserva vinculada a la reagenda
     const nuevaReserva: Reserva = {
       id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
@@ -499,7 +515,7 @@ export default function AlumnoPerfilPage() {
                               value={asignando.fecha}
                               min={todayStr()}
                               max={r.fechaLimite}
-                              onChange={e => setAsignando(p => p ? { ...p, fecha: e.target.value } : p)}
+                              onChange={e => { setReagendaErr(''); setAsignando(p => p ? { ...p, fecha: e.target.value } : p); }}
                               className="rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
                             />
                             <input
@@ -509,6 +525,12 @@ export default function AlumnoPerfilPage() {
                               className="rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-sm outline-none focus:border-[#121212]"
                             />
                           </div>
+                          {reagendaErr && (
+                            <p className="text-[11px] font-semibold rounded-lg px-3 py-2"
+                              style={{ background: 'rgba(180,64,64,0.1)', color: '#B44040', border: '1px solid rgba(180,64,64,0.3)' }}>
+                              {reagendaErr}
+                            </p>
+                          )}
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleAsignarReagenda(r.id, asignando.fecha, asignando.hora || undefined)}
@@ -516,7 +538,7 @@ export default function AlumnoPerfilPage() {
                               Confirmar
                             </button>
                             <button
-                              onClick={() => setAsignando(null)}
+                              onClick={() => { setAsignando(null); setReagendaErr(''); }}
                               className="rounded-lg border border-[#CACACA] px-4 py-2 text-xs text-[#5E5E5E] transition hover:border-[#888]">
                               Cancelar
                             </button>
