@@ -353,8 +353,8 @@ export default function CheckinPage() {
             atletas(id, nombre, apellido, tiene_observaciones_salud,
               atletas_salud(enfermedades, lesiones, medicamentos, alergias))
           `)
-          .gte('fecha', today + 'T00:00:00')
-          .lte('fecha', today + 'T23:59:59')
+          .gte('fecha', today)
+          .lte('fecha', today)
           .order('hora'),
         supabase.from('coaches').select('id, nombre, color'),
       ]);

@@ -32,7 +32,7 @@ export async function getCoachesActivosDB(): Promise<Coach[]> {
   const { data, error } = await supabase
     .from('coaches')
     .select(SELECT)
-    .eq('activo', true)
+    .or('activo.eq.true,activo.is.null')
     .order('nombre');
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => toCoach(r));

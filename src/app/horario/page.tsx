@@ -247,14 +247,13 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
     setError('');
     try {
       const { error: err } = await supabase.from('reservas').insert({
-        fecha:             `${fecha}T${hora}:00+00:00`,
-        end_time:          addOneHour(hora),
-        coach_id:          coachId || null,
-        tipo_clase:        tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
-        rut:               rut.trim(),
-        attendance_status: 'pendiente',
-        estado:            'confirmada',
-        duracion_min:      60,
+        fecha:        fecha,
+        end_time:     addOneHour(hora),
+        coach_id:     coachId || null,
+        tipo_clase:   tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
+        rut:          rut.trim(),
+        estado:       'confirmada',
+        duracion_min: 60,
       });
       if (err) throw err;
       onSaved();
@@ -619,8 +618,8 @@ export default function HorarioPage() {
         supabase
           .from('reservas')
           .select('*, atletas(nombre, apellido)')
-          .gte('fecha', weekStart + 'T00:00:00')
-          .lte('fecha', weekEnd   + 'T23:59:59')
+          .gte('fecha', weekStart)
+          .lte('fecha', weekEnd)
           .order('fecha'),
         supabase
           .from('atletas')
