@@ -38,8 +38,7 @@ export default function LoginPage() {
     <div
       className="flex min-h-screen items-center justify-center p-4"
       style={{
-        background: 'var(--nexa-black)',
-        backgroundImage: 'radial-gradient(ellipse at top right, rgba(18,18,18,0.08) 0%, transparent 60%)',
+        background: 'var(--nexa-surface)',
       }}
     >
       <div

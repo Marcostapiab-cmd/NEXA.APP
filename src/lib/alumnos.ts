@@ -49,7 +49,7 @@ export async function getAlumnoById(id: string): Promise<Alumno | null> {
     .eq('id', id)
     .single();
   if (error) return null;
-  return toAlumno(data as Record<string, unknown>);
+  return toAlumno(data as unknown as Record<string, unknown>);
 }
 
 export async function createAlumno(a: Omit<Alumno, 'id'>): Promise<Alumno> {
@@ -73,7 +73,7 @@ export async function createAlumno(a: Omit<Alumno, 'id'>): Promise<Alumno> {
     .select(SELECT_FIELDS)
     .single();
   if (error) throw error;
-  return toAlumno(data as Record<string, unknown>);
+  return toAlumno(data as unknown as Record<string, unknown>);
 }
 
 export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): Promise<Alumno> {
@@ -104,7 +104,7 @@ export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): 
     .select(SELECT_FIELDS)
     .single();
   if (error) throw error;
-  return toAlumno(data as Record<string, unknown>);
+  return toAlumno(data as unknown as Record<string, unknown>);
 }
 
 export async function deleteAlumno(id: string): Promise<void> {
@@ -122,7 +122,7 @@ export async function getAtletaSaludDB(atletaId: string): Promise<AtletaSalud | 
     .maybeSingle();
   if (error) return null; // RLS bloqueó el acceso → ocultar sección
   if (!data) return { atletaId, enfermedades: '', lesiones: '', medicamentos: '', alergias: '' };
-  const r = data as Record<string, unknown>;
+  const r = data as unknown as Record<string, unknown>;
   return {
     atletaId,
     enfermedades: r.enfermedades ? String(r.enfermedades) : '',

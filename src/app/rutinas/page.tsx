@@ -9,6 +9,8 @@ import {
 import type { Alumno } from '@/app/alumnos/page';
 import { getMergedEjercicios, getEjerciciosPropios, saveEjercicioPropio, type EjBiblioteca } from '@/lib/ejercicios';
 import { getRutinasDB, saveRutinaDB, deleteRutinaDB } from '@/lib/rutinas-supabase';
+import { getAllPlanesDB } from '@/lib/planes-supabase';
+import type { Plan } from '@/lib/planes';
 import { getAlumnos } from '@/lib/alumnos';
 import QuickCreateModal, { type QuickExercise } from './QuickCreateModal';
 
@@ -41,7 +43,7 @@ function computeEndDate(start: string, weeks: number): string {
 }
 
 function migrateToCalendar(raw: any): Routine {
-  if ('sessions' in raw && !('blocks' in raw)) {
+  if ('sessions' in raw && !(raw.blocks?.length > 0)) {
     return {
       ...raw as Routine,
       alumnoId: raw.alumnoId ?? raw.alumnoIds?.[0],
@@ -112,19 +114,14 @@ const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-
 
 // ─── Plan status helper ───────────────────────────────────────────────────────
 
-function getAlumnoPlanBadge(alumnoId: string): { label: string; color: string } | null {
-  try {
-    const planes = JSON.parse(localStorage.getItem('nexa_planes') ?? '[]') as Array<{
-      alumnoId: string; totalClases: number; usedClases: number; endDate: string;
-    }>;
-    const today = new Date().toISOString().slice(0, 10);
-    const active = planes.find(p =>
-      p.alumnoId === alumnoId && p.endDate >= today && (p.totalClases - p.usedClases) > 0
-    );
-    if (active) return { label: `${active.totalClases - active.usedClases} clases`, color: '#4A8A5A' };
-    if (planes.some(p => p.alumnoId === alumnoId)) return { label: 'Plan vencido', color: '#B44040' };
-    return null;
-  } catch { return null; }
+function getAlumnoPlanBadge(alumnoId: string, planes: Plan[]): { label: string; color: string } | null {
+  const today = new Date().toISOString().slice(0, 10);
+  const active = planes.find(p =>
+    p.alumnoId === alumnoId && p.endDate >= today && (p.totalClases - p.usedClases) > 0
+  );
+  if (active) return { label: `${active.totalClases - active.usedClases} clases`, color: '#4A8A5A' };
+  if (planes.some(p => p.alumnoId === alumnoId)) return { label: 'Plan vencido', color: '#B44040' };
+  return null;
 }
 
 // ─── ExerciseSearch ───────────────────────────────────────────────────────────
@@ -891,8 +888,8 @@ return `<p class="day">${label}${s.name ? ' — ' + s.name : ''}</p>${s.exercise
 
 // ─── RoutineCalendarEditor ────────────────────────────────────────────────────
 
-function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
-  routine: Routine; alumno: Alumno;
+function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
+  routine: Routine; alumno: Alumno; planes: Plan[];
   onUpdate: (r: Routine) => void; onBack: () => void;
 }) {
   const today    = new Date();
@@ -907,7 +904,7 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
   const grid = buildMonthGrid(viewYear, viewMonth);
   const isCurrentMonthView = viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
-  const plan     = getAlumnoPlanBadge(alumno.id);
+  const plan     = getAlumnoPlanBadge(alumno.id, planes);
   const initials = `${alumno.nombre[0] ?? ''}${(alumno.apellido ?? '')[0] ?? ''}`.toUpperCase();
 
   function patch(partial: Partial<Routine>) { onUpdate({ ...routine, ...partial }); }
@@ -1118,8 +1115,8 @@ function RoutineCalendarEditor({ routine, alumno, onUpdate, onBack }: {
 
 // ─── AlumnoSelectorScreen ─────────────────────────────────────────────────────
 
-function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
-  alumnos: Alumno[]; routines: Routine[];
+function AlumnoSelectorScreen({ alumnos, routines, planes, onSelect }: {
+  alumnos: Alumno[]; routines: Routine[]; planes: Plan[];
   onSelect: (alumno: Alumno) => void;
 }) {
   const [q, setQ] = useState('');
@@ -1169,7 +1166,7 @@ function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(alumno => {
-            const plan     = getAlumnoPlanBadge(alumno.id);
+            const plan     = getAlumnoPlanBadge(alumno.id, planes);
             const initials = `${alumno.nombre[0] ?? ''}${(alumno.apellido ?? '')[0] ?? ''}`.toUpperCase();
             const sessions = sessionCount(alumno.id);
             const r        = getRoutine(alumno.id);
@@ -1215,6 +1212,7 @@ function AlumnoSelectorScreen({ alumnos, routines, onSelect }: {
 export default function RutinasPage() {
   const [routines, setRoutines]           = useState<Routine[]>([]);
   const [alumnos, setAlumnos]             = useState<Alumno[]>([]);
+  const [planes,  setPlanes]              = useState<Plan[]>([]);
   const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null);
 
   useEffect(() => {
@@ -1250,6 +1248,7 @@ export default function RutinasPage() {
       try { const s = localStorage.getItem('nexa_routines'); if (s) setRoutines(JSON.parse(s).map(migrateToCalendar)); } catch {}
     }
     loadData();
+    getAllPlanesDB().then(setPlanes).catch(() => {});
   }, []);
 
   function save(next: Routine[]) {
@@ -1304,6 +1303,7 @@ export default function RutinasPage() {
           <RoutineCalendarEditor
             routine={currentRoutine}
             alumno={selectedAlumno}
+            planes={planes}
             onUpdate={updateRoutine}
             onBack={() => setSelectedAlumno(null)}
           />
@@ -1311,6 +1311,7 @@ export default function RutinasPage() {
           <AlumnoSelectorScreen
             alumnos={alumnos}
             routines={routines}
+            planes={planes}
             onSelect={handleSelectAlumno}
           />
         )}

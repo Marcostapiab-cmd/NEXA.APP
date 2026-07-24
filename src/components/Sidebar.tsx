@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck } from 'lucide-react';
+import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -33,12 +33,20 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
-  const [role, setRole] = useState<string | null>(null);
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const [role,  setRole]  = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRole(data as string | null));
+    supabase.auth.getUser().then(res => setEmail(res.data.user?.email ?? null));
   }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
 
   if (AUTH_ROUTES.includes(pathname)) return null;
 
@@ -136,17 +144,39 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer — user + logout */}
         <div
-          className="shrink-0 px-5 py-4"
+          className="shrink-0 px-3 py-3"
           style={{ borderTop: '1px solid var(--nexa-border)' }}
         >
-          <p
-            className="text-[10px] font-semibold uppercase tracking-[0.16em]"
-            style={{ color: 'var(--nexa-faint)' }}
-          >
-            Performance
-          </p>
+          <div className="flex items-center gap-2.5 rounded-[8px] px-2 py-2">
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black"
+              style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}
+            >
+              {email ? email[0].toUpperCase() : '?'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>
+                {email ?? '—'}
+              </p>
+              {role && (
+                <p className="text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--nexa-faint)' }}>
+                  {role}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="shrink-0 rounded-[6px] p-1.5 transition-colors"
+              style={{ color: 'var(--nexa-muted)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--nexa-text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--nexa-muted)')}
+            >
+              <LogOut size={13} strokeWidth={2} />
+            </button>
+          </div>
         </div>
       </aside>
 

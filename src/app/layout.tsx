@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/AppShell';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -22,12 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         className="min-h-full antialiased"
         style={{ background: 'var(--nexa-bg)', color: 'var(--nexa-text)' }}
       >
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 min-h-screen lg:ml-[220px] pb-20 lg:pb-0">
-            {children}
-          </main>
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
