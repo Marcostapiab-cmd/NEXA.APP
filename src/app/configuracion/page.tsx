@@ -85,7 +85,8 @@ export default function ConfiguracionPage() {
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
-  const [err,     setErr]     = useState('');
+  const [err,      setErr]     = useState('');
+  const [bloqueoErr, setBloqueoErr] = useState('');
 
   const [newB, setNewB] = useState({
     fecha: '', horaInicio: '', horaFin: '', motivo: '', diaCompleto: true,
@@ -131,7 +132,7 @@ export default function ConfiguracionPage() {
   async function handleAddBloqueo() {
     if (!newB.fecha) return;
     setAddingB(true);
-    setErr('');
+    setBloqueoErr('');
     try {
       await addBloqueo({
         fecha:      newB.fecha,
@@ -142,7 +143,10 @@ export default function ConfiguracionPage() {
       setBloqueos(await getBloqueos());
       setNewB({ fecha: '', horaInicio: '', horaFin: '', motivo: '', diaCompleto: true });
     } catch (e: unknown) {
-      setErr(typeof e === 'object' && e && 'message' in e ? String((e as { message: string }).message) : 'Error al agregar bloqueo');
+      const msg = typeof e === 'object' && e && 'message' in e
+        ? String((e as { message: string }).message)
+        : 'Error al guardar el bloqueo';
+      setBloqueoErr(msg);
     } finally {
       setAddingB(false);
     }
@@ -415,6 +419,13 @@ export default function ConfiguracionPage() {
                     style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
                   />
                 </div>
+              </div>
+            )}
+
+            {bloqueoErr && (
+              <div className="rounded-lg px-3 py-2 text-[11px]"
+                style={{ background: 'rgba(180,64,64,0.12)', border: '1px solid #B44040', color: '#B44040' }}>
+                {bloqueoErr}
               </div>
             )}
 
