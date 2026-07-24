@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, Users, Dumbbell, TrendingUp, Grid3x3 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Home, Calendar, Users, Dumbbell, TrendingUp, Grid3x3, Settings } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 interface NavItem {
   href: string;
@@ -30,6 +32,11 @@ function isActive(pathname: string, href: string): boolean {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRole(data as string | null));
+  }, []);
 
   if (AUTH_ROUTES.includes(pathname)) return null;
 
@@ -100,6 +107,32 @@ export default function Sidebar() {
             })}
           </ul>
         </nav>
+
+        {/* Config link — solo admin */}
+        {role === 'admin' && (
+          <div className="px-3 pb-2">
+            <Link
+              href="/configuracion"
+              className="relative flex items-center gap-3 rounded-[8px] px-3 py-2.5 text-[13px] font-medium transition-all duration-150"
+              style={isActive(pathname, '/configuracion') ? {
+                background: 'var(--nexa-card-alt)',
+                color: 'var(--nexa-text)',
+                fontWeight: 600,
+              } : { color: 'var(--nexa-muted)' }}
+              onMouseEnter={e => {
+                if (!isActive(pathname, '/configuracion'))
+                  (e.currentTarget as HTMLElement).style.color = 'var(--nexa-text-sub)';
+              }}
+              onMouseLeave={e => {
+                if (!isActive(pathname, '/configuracion'))
+                  (e.currentTarget as HTMLElement).style.color = 'var(--nexa-muted)';
+              }}
+            >
+              <Settings size={15} strokeWidth={isActive(pathname, '/configuracion') ? 2.25 : 1.75} className="shrink-0" />
+              Configuración
+            </Link>
+          </div>
+        )}
 
         {/* Footer */}
         <div

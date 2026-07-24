@@ -4,16 +4,16 @@ import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, type Coach } from '@/lib/coaches-supabase';
+import {
+  getHorarioConfig, getBloqueos, generateHours,
+  DEFAULT_HORARIO_CONFIG,
+  type HorarioConfig, type HorarioBloqueo,
+} from '@/lib/horario-config';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const HOR_HOURS = [
-  '06:00','07:00','08:00','09:00','10:00','11:00',
-  '12:00','13:00','14:00','17:00','18:00','19:00','20:00','21:00',
-];
-const DAY_LABELS     = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-const CAPACIDAD_GRUPAL = 12;
-const COACH_COLORS   = ['#C9A96E','#5B9BD5','#70AD47','#ED7D31','#A5A5A5','#FFC000'];
+const DAY_LABELS  = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+const COACH_COLORS = ['#C9A96E','#5B9BD5','#70AD47','#ED7D31','#A5A5A5','#FFC000'];
 
 const ESTADOS_ASISTENCIA = [
   { value: 'PRESENT',          label: 'Presente',       color: '#2E7D55' },
@@ -82,10 +82,10 @@ function parseTipo(tc?: string, desc?: string): TipoClase {
   return '1:1';
 }
 
-function getCupos(tipo: TipoClase): number {
+function getCupos(tipo: TipoClase, capacidadGrupal: number): number {
   if (tipo === '1:1') return 1;
   if (tipo === '2:1') return 2;
-  return CAPACIDAD_GRUPAL;
+  return capacidadGrupal;
 }
 
 function alumnoLabel(r: RawReserva): string {
@@ -107,7 +107,7 @@ function addOneHour(hora: string): string {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
-function buildSlotMap(reservas: RawReserva[], coachFiltro: string): Map<string, Slot> {
+function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrupal: number): Map<string, Slot> {
   const map = new Map<string, Slot>();
   for (const r of reservas) {
     const pos = getSlotPos(r);
@@ -119,7 +119,7 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string): Map<string, 
     if (!map.has(key)) {
       map.set(key, {
         fecha: pos.fecha, hora: pos.hora, coachId, tipo,
-        alumnos: [], cuposTotal: getCupos(tipo),
+        alumnos: [], cuposTotal: getCupos(tipo, capacidadGrupal),
         estado: String(r.estado || 'pendiente'),
       });
     }
@@ -365,20 +365,53 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
 
 // ─── Celda ────────────────────────────────────────────────────────────────────
 
-function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickSlot, onClickEmpty }: {
-  slot:        Slot | null;
-  isPast:      boolean;
-  isToday:     boolean;
-  coachColor:  string;
-  coachNombre: string;
-  onClickSlot: (s: Slot) => void;
-  onClickEmpty: () => void;
+function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickSlot, onClickEmpty, isCerrado, bloqueado, motivoBloqueo }: {
+  slot:          Slot | null;
+  isPast:        boolean;
+  isToday:       boolean;
+  coachColor:    string;
+  coachNombre:   string;
+  onClickSlot:   (s: Slot) => void;
+  onClickEmpty:  () => void;
+  isCerrado:     boolean;
+  bloqueado:     boolean;
+  motivoBloqueo?: string;
 }) {
   const [hover, setHover] = useState(false);
 
   const bg = isToday ? 'rgba(201,169,110,0.03)' : 'var(--nexa-black)';
 
   if (!slot) {
+    if (isCerrado) {
+      return (
+        <div style={{
+          minHeight: 60,
+          borderRight: '1px solid var(--nexa-border)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'rgba(0,0,0,0.35)',
+          cursor: 'default',
+        }} />
+      );
+    }
+    if (bloqueado) {
+      return (
+        <div style={{
+          minHeight: 60,
+          borderRight: '1px solid var(--nexa-border)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'rgba(180,64,64,0.04)',
+          cursor: 'default',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{
+            fontSize: 8, color: 'rgba(180,64,64,0.5)', fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center', padding: '0 4px',
+          }}>
+            {motivoBloqueo || 'Bloqueado'}
+          </span>
+        </div>
+      );
+    }
     return (
       <div
         style={{
@@ -549,6 +582,8 @@ export default function HorarioPage() {
   const [coachFiltro, setCoachFiltro] = useState<string>('all');
   const [coaches,     setCoaches]     = useState<Coach[]>([]);
   const [reservas,    setReservas]    = useState<RawReserva[]>([]);
+  const [horConfig,   setHorConfig]   = useState<HorarioConfig>(DEFAULT_HORARIO_CONFIG);
+  const [bloqueos,    setBloqueos]    = useState<HorarioBloqueo[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
   const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
@@ -573,16 +608,22 @@ export default function HorarioPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cs, { data }] = await Promise.all([
+      const weekStart = dateStr(days[0]);
+      const weekEnd   = dateStr(days[5]);
+      const [cs, cfg, bls, { data }] = await Promise.all([
         getCoachesActivosDB(),
+        getHorarioConfig(),
+        getBloqueos(weekStart, weekEnd),
         supabase
           .from('reservas')
           .select('*')
-          .gte('fecha', dateStr(days[0]) + 'T00:00:00')
-          .lte('fecha', dateStr(days[5]) + 'T23:59:59')
+          .gte('fecha', weekStart + 'T00:00:00')
+          .lte('fecha', weekEnd   + 'T23:59:59')
           .order('fecha'),
       ]);
       setCoaches(cs);
+      setHorConfig(cfg);
+      setBloqueos(bls);
       setReservas((data ?? []) as RawReserva[]);
     } catch (err) {
       console.error('horario load error', err);
@@ -598,7 +639,7 @@ export default function HorarioPage() {
   useEffect(() => {
     if (loading || weekOffset !== 0 || !gridRef.current) return;
     const nowHour   = `${String(now.getHours()).padStart(2, '0')}:00`;
-    const targetH   = HOR_HOURS.find(h => h >= nowHour) ?? HOR_HOURS[0];
+    const targetH   = showHours.find(h => h >= nowHour) ?? showHours[0];
     const headerH   = 40;
     const rowH      = 60;
     const rowIndex  = showHours.indexOf(targetH);
@@ -608,13 +649,22 @@ export default function HorarioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  const slotMap    = buildSlotMap(reservas, coachFiltro);
+  // Horas del config para los días de esta semana
+  const configHoursSet = new Set<string>();
+  days.forEach(d => {
+    const diaConfig = horConfig.dias.find(x => x.dow === d.getDay());
+    if (!diaConfig?.abierto) return;
+    generateHours(diaConfig.apertura, diaConfig.cierre, horConfig.duracionBloque)
+      .forEach(h => configHoursSet.add(h));
+  });
+
+  const slotMap    = buildSlotMap(reservas, coachFiltro, horConfig.capacidadGrupal);
   const extraHours = new Set<string>();
   slotMap.forEach((_, key) => {
     const h = key.split('|')[1];
-    if (!HOR_HOURS.includes(h)) extraHours.add(h);
+    if (!configHoursSet.has(h)) extraHours.add(h);
   });
-  const showHours = [...HOR_HOURS, ...extraHours].sort();
+  const showHours = [...configHoursSet, ...extraHours].sort();
 
   // Conteo de clases por día (para el header)
   function clasesEnDia(ds: string): number {
@@ -700,7 +750,7 @@ export default function HorarioPage() {
               {DAY_LABELS.map(d => (
                 <div key={d} style={{ height: 40, background: '#111', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
               ))}
-              {HOR_HOURS.slice(0, 6).map(h => (
+              {['06:00','07:00','08:00','09:00','10:00','11:00'].map(h => (
                 <Fragment key={h}>
                   <div style={{ height: 60, background: '#0e0e0e', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
                   {[0,1,2,3,4,5].map(i => (
@@ -747,13 +797,16 @@ export default function HorarioPage() {
 
                   {/* Day headers sticky */}
                   {days.map((d, i) => {
-                    const ds       = dateStr(d);
-                    const isT      = ds === today;
-                    const nClases  = clasesEnDia(ds);
+                    const ds          = dateStr(d);
+                    const isT         = ds === today;
+                    const nClases     = clasesEnDia(ds);
+                    const diaConfig   = horConfig.dias.find(x => x.dow === d.getDay());
+                    const esCerrado   = !diaConfig?.abierto;
                     return (
                       <div key={i} style={{
                         position:     'sticky', top: 0, zIndex: 3,
-                        height:       40, background: isT ? '#161208' : '#111',
+                        height:       40,
+                        background:   isT ? '#161208' : esCerrado ? 'rgba(0,0,0,0.6)' : '#111',
                         borderRight:  '1px solid var(--nexa-border)',
                         borderBottom: '1px solid var(--nexa-border)',
                         display:      'flex', flexDirection: 'column',
@@ -762,13 +815,13 @@ export default function HorarioPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{
                             fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
-                            color: isT ? 'var(--nexa-accent)' : 'var(--nexa-muted)',
+                            color: isT ? 'var(--nexa-accent)' : esCerrado ? '#444' : 'var(--nexa-muted)',
                           }}>
                             {DAY_LABELS[i]}
                           </span>
                           <span style={{
                             fontSize: 11, fontWeight: isT ? 700 : 400,
-                            color: isT ? 'var(--nexa-accent)' : 'var(--nexa-text-sub)',
+                            color: isT ? 'var(--nexa-accent)' : esCerrado ? '#444' : 'var(--nexa-text-sub)',
                           }}>
                             {d.getDate()}
                           </span>
@@ -781,6 +834,11 @@ export default function HorarioPage() {
                               padding: '1px 4px',
                             }}>
                               {nClases}
+                            </span>
+                          )}
+                          {esCerrado && nClases === 0 && (
+                            <span style={{ fontSize: 7, fontWeight: 700, color: '#444', letterSpacing: '0.1em' }}>
+                              CERRADO
                             </span>
                           )}
                         </div>
@@ -805,11 +863,20 @@ export default function HorarioPage() {
 
                       {/* Celdas */}
                       {days.map((d, di) => {
-                        const ds     = dateStr(d);
-                        const key    = `${ds}|${hora}`;
-                        const slot   = slotMap.get(key) ?? null;
-                        const isPast = new Date(`${ds}T${hora}:00`) < now;
-                        const coach  = slot?.coachId ? coachById.get(slot.coachId) : undefined;
+                        const ds        = dateStr(d);
+                        const key       = `${ds}|${hora}`;
+                        const slot      = slotMap.get(key) ?? null;
+                        const isPast    = new Date(`${ds}T${hora}:00`) < now;
+                        const coach     = slot?.coachId ? coachById.get(slot.coachId) : undefined;
+                        const diaConfig = horConfig.dias.find(x => x.dow === d.getDay());
+                        const esCerrado = !diaConfig?.abierto ||
+                          hora < (diaConfig?.apertura ?? '00:00') ||
+                          hora > (diaConfig?.cierre   ?? '23:59');
+                        const bloqueo   = bloqueos.find(b => {
+                          if (b.fecha !== ds) return false;
+                          if (!b.horaInicio) return true;
+                          return hora >= b.horaInicio && hora < (b.horaFin ?? '23:59');
+                        });
                         return (
                           <HorarioCelda
                             key={`${hora}-${di}`}
@@ -818,6 +885,9 @@ export default function HorarioPage() {
                             isToday={ds === today}
                             coachColor={coach?.color ?? ''}
                             coachNombre={coach?.nombre ?? ''}
+                            isCerrado={!slot && esCerrado}
+                            bloqueado={!slot && !!bloqueo}
+                            motivoBloqueo={bloqueo?.motivo}
                             onClickSlot={s => setEditSlot(s)}
                             onClickEmpty={() => setNuevaSlot({
                               fecha:   ds,
