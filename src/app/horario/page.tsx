@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { getCoachesActivosDB, type Coach } from '@/lib/coaches-supabase';
+import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
 import {
   getHorarioConfig, getBloqueos, generateHours,
   DEFAULT_HORARIO_CONFIG,
@@ -13,7 +13,6 @@ import {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const DAY_LABELS  = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-const COACH_COLORS = ['#C9A96E','#5B9BD5','#70AD47','#ED7D31','#A5A5A5','#FFC000'];
 
 const ESTADOS_ASISTENCIA = [
   { value: 'PRESENT',          label: 'Presente',       color: '#2E7D55' },
@@ -522,7 +521,7 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
       borderTop:  '2px solid var(--nexa-border)',
     }}>
       {coaches.map((c, i) => {
-        const color   = COACH_COLORS[i % COACH_COLORS.length];
+        const color   = c.color || COACH_COLORS[i % COACH_COLORS.length];
         const clases  = reservas.filter(r => r.coach_id === c.id).length;
         const tarifa1 = c.tarifa_1a1;
         const tarifa2 = c.tarifa_2a1;
@@ -602,7 +601,7 @@ export default function HorarioPage() {
 
   // Mapa de coaches por id
   const coachById = new Map(
-    coaches.map((c, i) => [c.id, { ...c, color: COACH_COLORS[i % COACH_COLORS.length] }])
+    coaches.map((c, i) => [c.id, { ...c, color: c.color || COACH_COLORS[i % COACH_COLORS.length] }])
   );
 
   const load = useCallback(async () => {
@@ -727,7 +726,7 @@ export default function HorarioPage() {
           </button>
           {coaches.map((c, idx) => {
             const active = coachFiltro === c.id;
-            const color  = COACH_COLORS[idx % COACH_COLORS.length];
+            const color  = c.color || COACH_COLORS[idx % COACH_COLORS.length];
             return (
               <button key={c.id} onClick={() => setCoachFiltro(c.id)}
                 className="shrink-0 px-4 py-2.5 text-[12px] font-semibold transition"
