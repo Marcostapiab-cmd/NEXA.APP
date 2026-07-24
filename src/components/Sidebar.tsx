@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings } from 'lucide-react';
+import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -20,6 +20,7 @@ const NAV: NavItem[] = [
   { href: '/rutinas',    label: 'Rutinas',    shortLabel: 'Rut',    Icon: Calendar },
   { href: '/alumnos',     label: 'Alumnos',     shortLabel: 'Alumn', Icon: Users },
   { href: '/profesores',  label: 'Profesores',  shortLabel: 'Prof',  Icon: Users2 },
+  { href: '/checkin',     label: 'Check-in',    shortLabel: 'Check', Icon: ClipboardCheck },
   { href: '/weightroom',  label: 'Weightroom',  shortLabel: 'WR',    Icon: Dumbbell },
   { href: '/progreso',   label: 'Progreso',   shortLabel: 'Prog',   Icon: TrendingUp },
 ];
