@@ -378,7 +378,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
 }) {
   const [hover, setHover] = useState(false);
 
-  const bg = isToday ? 'rgba(201,169,110,0.03)' : 'var(--nexa-black)';
+  const bg = isToday ? 'var(--nexa-accent-sub)' : 'var(--nexa-bg)';
 
   if (!slot) {
     if (isCerrado) {
@@ -386,8 +386,8 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
         <div style={{
           minHeight: 60,
           borderRight: '1px solid var(--nexa-border)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
-          background: 'rgba(0,0,0,0.35)',
+          borderBottom: '1px solid var(--nexa-border-sub)',
+          background: 'var(--nexa-surface)',
           cursor: 'default',
         }} />
       );
@@ -397,14 +397,15 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
         <div style={{
           minHeight: 60,
           borderRight: '1px solid var(--nexa-border)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
-          background: 'rgba(180,64,64,0.04)',
+          borderBottom: '1px solid var(--nexa-border-sub)',
+          background: 'var(--nexa-danger-bg)',
           cursor: 'default',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{
-            fontSize: 8, color: 'rgba(180,64,64,0.5)', fontWeight: 700,
+            fontSize: 8, color: 'var(--nexa-danger)', fontWeight: 700,
             letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center', padding: '0 4px',
+            opacity: 0.7,
           }}>
             {motivoBloqueo || 'Bloqueado'}
           </span>
@@ -417,8 +418,8 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
           position:     'relative',
           minHeight:    60,
           borderRight:  '1px solid var(--nexa-border)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
-          background:   hover && !isPast ? 'rgba(201,169,110,0.05)' : bg,
+          borderBottom: '1px solid var(--nexa-border-sub)',
+          background:   hover && !isPast ? 'var(--nexa-card)' : bg,
           opacity:      isPast ? 0.4 : 1,
           cursor:       isPast ? 'default' : 'pointer',
           transition:   'background 0.12s',
@@ -431,7 +432,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
         onClick={() => !isPast && onClickEmpty()}
       >
         {hover && !isPast && (
-          <Plus size={14} style={{ color: 'rgba(201,169,110,0.4)' }} />
+          <Plus size={14} style={{ color: 'var(--nexa-faint)' }} />
         )}
       </div>
     );
@@ -446,7 +447,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
         position:     'relative',
         minHeight:    60,
         borderRight:  '1px solid var(--nexa-border)',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid var(--nexa-border-sub)',
         background:   bg,
         opacity:      isPast ? 0.5 : 1,
         cursor:       'pointer',
@@ -457,8 +458,8 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
         position:     'absolute',
         inset:        3,
         padding:      '4px 7px',
-        background:   coachColor ? coachColor + '18' : 'rgba(30,60,40,0.25)',
-        borderLeft:   `3px solid ${coachColor || '#2E7D55'}`,
+        background:   coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
+        borderLeft:   `3px solid ${coachColor || 'var(--nexa-muted)'}`,
         overflow:     'hidden',
         borderRadius: 2,
       }}>
@@ -477,19 +478,19 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
           </div>
         ))}
         {slot.alumnos.length > 2 && (
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.3 }}>
+          <div style={{ fontSize: 9, color: 'var(--nexa-muted)', lineHeight: 1.3 }}>
             +{slot.alumnos.length - 2} más
           </div>
         )}
 
         {/* Footer: tipo + coach + cupos */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: 'var(--nexa-muted)', flexShrink: 0 }}>
             {slot.tipo}
           </span>
           {coachNombre && (
             <span style={{
-              fontSize: 9, color: coachColor ? coachColor + 'aa' : 'rgba(255,255,255,0.3)',
+              fontSize: 9, color: coachColor ? coachColor + 'aa' : 'var(--nexa-muted)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
             }}>
               · {coachNombre.split(' ')[0]}
@@ -497,7 +498,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
           )}
           <span style={{
             fontSize: 9, marginLeft: 'auto', flexShrink: 0,
-            color: cuposFull ? '#B44040' : 'rgba(255,255,255,0.3)',
+            color: cuposFull ? 'var(--nexa-danger)' : 'var(--nexa-muted)',
           }}>
             {cuposUsados}/{slot.cuposTotal}
           </span>
@@ -745,18 +746,18 @@ export default function HorarioPage() {
           /* Skeleton */
           <div style={{ border: '1px solid var(--nexa-border)', borderTop: 'none' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(6, 1fr)', minWidth: 700 }}>
-              <div style={{ height: 40, background: '#0e0e0e', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+              <div style={{ height: 40, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
               {DAY_LABELS.map(d => (
-                <div key={d} style={{ height: 40, background: '#111', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+                <div key={d} style={{ height: 40, background: 'var(--nexa-card)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
               ))}
               {['06:00','07:00','08:00','09:00','10:00','11:00'].map(h => (
                 <Fragment key={h}>
-                  <div style={{ height: 60, background: '#0e0e0e', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
+                  <div style={{ height: 60, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border-sub)' }} />
                   {[0,1,2,3,4,5].map(i => (
                     <div key={i} style={{
                       height: 60, borderRight: '1px solid var(--nexa-border)',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      background: Math.random() > 0.8 ? 'rgba(201,169,110,0.04)' : 'var(--nexa-black)',
+                      borderBottom: '1px solid var(--nexa-border-sub)',
+                      background: 'var(--nexa-bg)',
                     }} />
                   ))}
                 </Fragment>
@@ -785,7 +786,7 @@ export default function HorarioPage() {
                   {/* Corner sticky */}
                   <div style={{
                     position:     'sticky', top: 0, left: 0, zIndex: 4,
-                    height:       40, background: '#0e0e0e',
+                    height:       40, background: 'var(--nexa-card-alt)',
                     borderRight:  '1px solid var(--nexa-border)',
                     borderBottom: '1px solid var(--nexa-border)',
                     display:      'flex', alignItems: 'center', justifyContent: 'center',
@@ -805,30 +806,30 @@ export default function HorarioPage() {
                       <div key={i} style={{
                         position:     'sticky', top: 0, zIndex: 3,
                         height:       40,
-                        background:   isT ? '#161208' : esCerrado ? 'rgba(0,0,0,0.6)' : '#111',
+                        background:   isT ? 'var(--nexa-card-alt)' : esCerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
                         borderRight:  '1px solid var(--nexa-border)',
-                        borderBottom: '1px solid var(--nexa-border)',
+                        borderBottom: isT ? '2px solid var(--nexa-text)' : '1px solid var(--nexa-border)',
                         display:      'flex', flexDirection: 'column',
                         alignItems:   'center', justifyContent: 'center', gap: 1,
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{
                             fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
-                            color: isT ? 'var(--nexa-accent)' : esCerrado ? '#444' : 'var(--nexa-muted)',
+                            color: isT ? 'var(--nexa-text)' : esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
                           }}>
                             {DAY_LABELS[i]}
                           </span>
                           <span style={{
                             fontSize: 11, fontWeight: isT ? 700 : 400,
-                            color: isT ? 'var(--nexa-accent)' : esCerrado ? '#444' : 'var(--nexa-text-sub)',
+                            color: isT ? 'var(--nexa-text)' : esCerrado ? 'var(--nexa-muted)' : 'var(--nexa-text-sub)',
                           }}>
                             {d.getDate()}
                           </span>
                           {nClases > 0 && (
                             <span style={{
                               fontSize: 8, fontWeight: 700,
-                              background: 'rgba(46,125,85,0.25)',
-                              color: '#2E7D55',
+                              background: 'var(--nexa-success-bg)',
+                              color: 'var(--nexa-success)',
                               borderRadius: 3,
                               padding: '1px 4px',
                             }}>
@@ -836,7 +837,7 @@ export default function HorarioPage() {
                             </span>
                           )}
                           {esCerrado && nClases === 0 && (
-                            <span style={{ fontSize: 7, fontWeight: 700, color: '#444', letterSpacing: '0.1em' }}>
+                            <span style={{ fontSize: 7, fontWeight: 700, color: 'var(--nexa-faint)', letterSpacing: '0.1em' }}>
                               CERRADO
                             </span>
                           )}
@@ -851,11 +852,11 @@ export default function HorarioPage() {
                       {/* Hora sticky izquierda */}
                       <div style={{
                         position:     'sticky', left: 0, zIndex: 2,
-                        background:   '#0e0e0e',
+                        background:   'var(--nexa-card-alt)',
                         borderRight:  '1px solid var(--nexa-border)',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderBottom: '1px solid var(--nexa-border-sub)',
                         display:      'flex', alignItems: 'center', justifyContent: 'flex-end',
-                        padding:      '0 8px', fontSize: 9, color: '#555', minHeight: 60,
+                        padding:      '0 8px', fontSize: 9, color: 'var(--nexa-muted)', minHeight: 60,
                       }}>
                         {hora}
                       </div>
@@ -945,11 +946,11 @@ export default function HorarioPage() {
                             style={{
                               display: 'flex', alignItems: 'flex-start', gap: 12,
                               padding: '10px 12px',
-                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              borderBottom: '1px solid var(--nexa-border-sub)',
                               cursor: 'pointer',
-                              borderLeft: `3px solid ${coach?.color ?? '#2E7D55'}`,
+                              borderLeft: `3px solid ${coach?.color ?? 'var(--nexa-muted)'}`,
                             }}>
-                            <span style={{ fontSize: 11, color: '#555', minWidth: 40, paddingTop: 1 }}>{hora}</span>
+                            <span style={{ fontSize: 11, color: 'var(--nexa-text-sub)', minWidth: 40, paddingTop: 1 }}>{hora}</span>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', gap: 6, marginBottom: 2, alignItems: 'center' }}>
                                 <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>{slot!.tipo}</span>
@@ -960,7 +961,7 @@ export default function HorarioPage() {
                                 )}
                                 <span style={{
                                   fontSize: 10, marginLeft: 'auto',
-                                  color: slot!.alumnos.length >= slot!.cuposTotal ? '#B44040' : 'var(--nexa-muted)',
+                                  color: slot!.alumnos.length >= slot!.cuposTotal ? 'var(--nexa-danger)' : 'var(--nexa-muted)',
                                 }}>
                                   {slot!.alumnos.length}/{slot!.cuposTotal}
                                 </span>
