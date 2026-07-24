@@ -380,7 +380,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
 }) {
   const [hover, setHover] = useState(false);
 
-  const bg = isToday ? 'var(--nexa-accent-sub)' : 'var(--nexa-bg)';
+  const bg = 'var(--nexa-bg)';
 
   if (!slot) {
     if (isCerrado) {
@@ -823,25 +823,35 @@ export default function HorarioPage() {
                       <div key={i} style={{
                         position:     'sticky', top: 0, zIndex: 3,
                         height:       40,
-                        background:   isT ? 'var(--nexa-card-alt)' : esCerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
+                        background:   esCerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
                         borderRight:  '1px solid var(--nexa-border)',
-                        borderBottom: isT ? '2px solid var(--nexa-text-sub)' : '1px solid var(--nexa-border)',
+                        borderBottom: '1px solid var(--nexa-border)',
                         display:      'flex', alignItems: 'center', justifyContent: 'center',
-                        overflow:     'visible',
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{
-                            fontSize: 9, letterSpacing: '0.1em', fontWeight: isT ? 700 : 500,
-                            color: isT ? 'var(--nexa-text-sub)' : esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
+                            fontSize: 9, letterSpacing: '0.1em', fontWeight: 500,
+                            color: esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
                           }}>
                             {DAY_LABELS[i]}
                           </span>
-                          <span style={{
-                            fontSize: 13, fontWeight: isT ? 800 : 400,
-                            color: isT ? 'var(--nexa-text)' : esCerrado ? 'var(--nexa-muted)' : 'var(--nexa-text-sub)',
-                          }}>
-                            {d.getDate()}
-                          </span>
+                          {isT ? (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: 'var(--nexa-text)', color: 'var(--nexa-bg)',
+                              fontSize: 11, fontWeight: 800,
+                            }}>
+                              {d.getDate()}
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: 11, fontWeight: 400,
+                              color: esCerrado ? 'var(--nexa-muted)' : 'var(--nexa-text-sub)',
+                            }}>
+                              {d.getDate()}
+                            </span>
+                          )}
                           {nClases > 0 && (
                             <span style={{
                               fontSize: 8, fontWeight: 700,
