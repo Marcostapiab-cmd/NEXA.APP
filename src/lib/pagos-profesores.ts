@@ -62,6 +62,26 @@ function normalizarTipo(tipo_clase: string | null): '1:1' | '2:1' | 'Grupal' | n
   return null;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Extrae 'HH:MM' de un timestamp ISO ('2026-07-20 08:00:00+00' → '08:00').
+// Devuelve null si no hay parte horaria (fecha pura como '2026-07-20').
+function extraerHora(fecha: string): string | null {
+  // Formato: 'YYYY-MM-DD HH:MM:SS...' o 'YYYY-MM-DDTHH:MM:SS...'
+  const match = fecha.match(/[T ](\d{2}:\d{2})/);
+  if (!match) return null;
+  const hhmm = match[1];
+  // Timestamp sin hora real (00:00) podría ser fecha pura almacenada como timestamp;
+  // lo aceptamos igual — si dos clases del mismo coach están a las 00:00
+  // en la misma fecha es un caso de datos, no un error nuestro.
+  return hhmm;
+}
+
+// Devuelve solo la parte 'YYYY-MM-DD' de un timestamp o fecha.
+function soloFecha(fecha: string): string {
+  return fecha.slice(0, 10);
+}
+
 // ─── Agrupación ───────────────────────────────────────────────────────────────
 
 export function agruparClases(reservas: ReservaParaPago[]): ResultadoAgrupacion {
@@ -72,8 +92,11 @@ export function agruparClases(reservas: ReservaParaPago[]): ResultadoAgrupacion 
     if (!ESTADOS_QUE_QUEMAN.has(r.estado)) continue;
     if (!r.coach_id) continue;
 
-    // Sin hora → riesgo de fusión de clases distintas: reportar, no calcular
-    if (!r.hora) {
+    // hora_efectiva: usar columna hora si existe; si no, extraer del timestamp fecha.
+    // Solo va a advertencia si ninguna de las dos tiene información horaria.
+    const hora_efectiva = r.hora ?? extraerHora(r.fecha);
+
+    if (!hora_efectiva) {
       advertencias.push({
         id: r.id, coach_id: r.coach_id, fecha: r.fecha,
         hora: null, tipo_clase: r.tipo_clase, estado: r.estado,
@@ -87,20 +110,20 @@ export function agruparClases(reservas: ReservaParaPago[]): ResultadoAgrupacion 
     // Tipo desconocido → reportar, no pagar en silencio
     if (!tipo_norm) {
       advertencias.push({
-        id: r.id, coach_id: r.coach_id, fecha: r.fecha,
-        hora: r.hora, tipo_clase: r.tipo_clase, estado: r.estado,
+        id: r.id, coach_id: r.coach_id, fecha: soloFecha(r.fecha),
+        hora: hora_efectiva, tipo_clase: r.tipo_clase, estado: r.estado,
         motivo: 'tipo_desconocido',
       });
       continue;
     }
 
-    const key = `${r.coach_id}|${r.fecha}|${r.hora}`;
+    const key = `${r.coach_id}|${soloFecha(r.fecha)}|${hora_efectiva}`;
 
     if (!grupos.has(key)) {
       grupos.set(key, {
         coach_id:         r.coach_id,
-        fecha:            r.fecha,
-        hora:             r.hora,
+        fecha:            soloFecha(r.fecha),
+        hora:             hora_efectiva,
         tipo_norm,
         tipo_raw:         r.tipo_clase ?? '',
         alumnos_quemados: 0,
