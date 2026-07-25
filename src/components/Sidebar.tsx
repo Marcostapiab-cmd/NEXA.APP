@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut } from 'lucide-react';
+import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut, DollarSign } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -118,29 +118,36 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        {/* Config link — solo admin */}
+        {/* Links solo admin */}
         {role === 'admin' && (
-          <div className="px-3 pb-2">
-            <Link
-              href="/configuracion"
-              className="relative flex items-center gap-3 rounded-[8px] px-3 py-2.5 text-[13px] font-medium transition-all duration-150"
-              style={isActive(pathname, '/configuracion') ? {
-                background: 'var(--nexa-card-alt)',
-                color: 'var(--nexa-text)',
-                fontWeight: 600,
-              } : { color: 'var(--nexa-muted)' }}
-              onMouseEnter={e => {
-                if (!isActive(pathname, '/configuracion'))
-                  (e.currentTarget as HTMLElement).style.color = 'var(--nexa-text-sub)';
-              }}
-              onMouseLeave={e => {
-                if (!isActive(pathname, '/configuracion'))
-                  (e.currentTarget as HTMLElement).style.color = 'var(--nexa-muted)';
-              }}
-            >
-              <Settings size={15} strokeWidth={isActive(pathname, '/configuracion') ? 2.25 : 1.75} className="shrink-0" />
-              Configuración
-            </Link>
+          <div className="px-3 pb-1">
+            {[
+              { href: '/pagos-profesores', label: 'Pagos profesores', Icon: DollarSign },
+              { href: '/configuracion',    label: 'Configuración',    Icon: Settings   },
+            ].map(({ href, label, Icon }) => {
+              const active = isActive(pathname, href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="relative flex items-center gap-3 rounded-[8px] px-3 py-2.5 text-[13px] font-medium transition-all duration-150"
+                  style={active ? {
+                    background: 'var(--nexa-card-alt)',
+                    color: 'var(--nexa-text)',
+                    fontWeight: 600,
+                  } : { color: 'var(--nexa-muted)' }}
+                  onMouseEnter={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--nexa-text-sub)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.color = 'var(--nexa-muted)';
+                  }}
+                >
+                  <Icon size={15} strokeWidth={active ? 2.25 : 1.75} className="shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         )}
 
