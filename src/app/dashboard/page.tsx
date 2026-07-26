@@ -70,11 +70,12 @@ export default function DashboardPage() {
   const [sesiones,    setSesiones]    = useState<Sesion[]>([]);
   const [planes,      setPlanes]      = useState<Plan[]>([]);
   const [reservasHoy, setReservasHoy] = useState<Reserva[]>([]);
+  const [staleData,   setStaleData]   = useState(false);
 
   useEffect(() => {
     // Alumnos
     getAlumnos().then(setAlumnos).catch(() => {
-      try { const a = localStorage.getItem('nexa_alumnos'); if (a) setAlumnos(JSON.parse(a)); } catch {}
+      try { const a = localStorage.getItem('nexa_alumnos'); if (a) { setAlumnos(JSON.parse(a)); setStaleData(true); } } catch {}
     });
     // Rutinas
     getRutinasDB().then(setRoutines).catch(() => {
@@ -82,22 +83,22 @@ export default function DashboardPage() {
         const r = localStorage.getItem('nexa_routines');
         if (r) {
           const parsed = JSON.parse(r);
-          // Mapea el formato viejo de localStorage al formato RutinaDB
           setRoutines(parsed.map((x: Record<string, unknown>) => ({
-            id: String(x.id ?? ''),
-            nombre: String(x.name ?? x.nombre ?? ''),
-            alumno_ids: (x.alumnoIds ?? (x.alumnoId ? [x.alumnoId] : [])) as string[],
+            id:         String(x.id ?? ''),
+            nombre:     String(x.name ?? x.nombre ?? ''),
+            alumno_ids: (Array.isArray(x.alumnoIds) ? x.alumnoIds : x.alumnoId ? [x.alumnoId] : []) as string[],
             start_date: String(x.startDate ?? x.start_date ?? ''),
             end_date:   String(x.endDate   ?? x.end_date   ?? ''),
             sessions:   (x.sessions ?? {}) as Record<string, unknown>,
-            blocks:     (x.blocks   ?? []) as unknown[],
+            blocks:     (Array.isArray(x.blocks) ? x.blocks : []) as unknown[],
           })));
+          setStaleData(true);
         }
       } catch {}
     });
     // Sesiones
     getSesionesDB().then(setSesiones).catch(() => {
-      try { const s = localStorage.getItem('nexa_sesiones'); if (s) setSesiones(JSON.parse(s)); } catch {}
+      try { const s = localStorage.getItem('nexa_sesiones'); if (s) { setSesiones(JSON.parse(s)); setStaleData(true); } } catch {}
     });
     // Planes (todos)
     getAllPlanesDB().then(setPlanes).catch(() => {});
@@ -147,6 +148,27 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
+
+      {/* ── Banner datos en caché ── */}
+      {staleData && (
+        <div
+          className="mb-5 flex items-center gap-2.5 rounded-xl px-4 py-3 text-[12px]"
+          style={{ background: 'rgba(196,120,58,0.08)', border: '1px solid rgba(196,120,58,0.25)' }}
+        >
+          <AlertTriangle size={13} strokeWidth={2} style={{ color: '#C4783A', flexShrink: 0 }} />
+          <span style={{ color: '#C4783A' }}>
+            Datos en caché — sin conexión al servidor. Algunos números pueden estar desactualizados.
+          </span>
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-auto flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            style={{ color: '#C4783A', border: '1px solid rgba(196,120,58,0.4)' }}
+          >
+            <RefreshCw size={11} strokeWidth={2.5} />
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="mb-8">
