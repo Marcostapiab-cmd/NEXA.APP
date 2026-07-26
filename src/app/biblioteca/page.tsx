@@ -278,9 +278,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
             {onDelete && (
               confirmDelete ? (
                 <div className="flex items-center gap-2 rounded-xl border border-[#B44040]/20 bg-[#FAEAEA] p-3">
-                  <p className="flex-1 text-xs text-[#B44040]">
-                    {ejercicio.esPropio ? '¿Eliminar este ejercicio?' : '¿Quitar nombre y video personalizados?'}
-                  </p>
+                  <p className="flex-1 text-xs text-[#B44040]">¿Eliminar este ejercicio?</p>
                   <button type="button" onClick={() => setConfirmDelete(false)}
                     className="text-xs text-[#777777] transition hover:text-[#121212]">
                     No
@@ -663,13 +661,7 @@ export default function BibliotecaPage() {
         <EditModal
           ejercicio={editando}
           onSave={handleSave}
-          onDelete={
-            editando.esPropio
-              ? () => handleDelete(editando.id)
-              : customs[editando.id]
-                ? () => handleDeleteCustom(editando.id)
-                : undefined
-          }
+          onDelete={editando.esPropio ? () => handleDelete(editando.id) : undefined}
           onClose={() => setEditando(null)}
         />
       )}
