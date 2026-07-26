@@ -116,6 +116,11 @@ export default function ConfiguracionPage() {
   }
 
   async function handleSave() {
+    const horaInvalida = draft.dias.find(d => d.abierto && d.cierre <= d.apertura);
+    if (horaInvalida) {
+      setErr(`Horario inválido: el cierre debe ser posterior a la apertura.`);
+      return;
+    }
     setSaving(true);
     setErr('');
     try {
