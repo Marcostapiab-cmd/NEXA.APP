@@ -44,7 +44,7 @@ export async function upsertPlanDB(plan: Plan): Promise<void> {
     nombre:         plan.nombre,
     tipo:           plan.tipo,
     total_clases:   plan.totalClases,
-    used_clases:    plan.usedClases,
+    // used_clases se omite — siempre se calcula desde reservas, nunca se guarda
     start_date:     plan.startDate,
     end_date:       plan.endDate,
     extended_until: plan.extendedUntil || null,
@@ -100,18 +100,25 @@ export async function deleteReservaDB(reservaId: string): Promise<void> {
 
 // Todos los planes (para el dashboard)
 export async function getAllPlanesDB(): Promise<Plan[]> {
-  const { data, error } = await supabase
-    .from('planes')
-    .select('*')
-    .order('start_date', { ascending: false });
+  const [{ data, error }, { data: reservasData }] = await Promise.all([
+    supabase.from('planes').select('*').order('start_date', { ascending: false }),
+    supabase.from('reservas').select('plan_id, estado').in('estado', ESTADOS_QUE_QUEMAN),
+  ]);
   if (error) throw error;
+
+  const countByPlan = new Map<string, number>();
+  for (const r of (reservasData ?? [])) {
+    const pid = String(r.plan_id);
+    countByPlan.set(pid, (countByPlan.get(pid) ?? 0) + 1);
+  }
+
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
     alumnoId:      String(r.alumno_id),
     nombre:        String(r.nombre),
     tipo:          String(r.tipo) as Plan['tipo'],
     totalClases:   Number(r.total_clases),
-    usedClases:    Number(r.used_clases),
+    usedClases:    countByPlan.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,

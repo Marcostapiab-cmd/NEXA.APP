@@ -15,14 +15,19 @@ export interface Coach {
 
 const SELECT = 'id, nombre, especialidad, tarifa_1a1, tarifa_2a1, tarifa_incompleta_2a1, color, activo';
 
+function parseTarifa(val: unknown): number {
+  const n = Number(val);
+  return isFinite(n) ? n : 0;
+}
+
 function toCoach(r: Record<string, unknown>): Coach {
   return {
     id:                    String(r.id),
     nombre:                String(r.nombre),
     especialidad:          r.especialidad ? String(r.especialidad) : undefined,
-    tarifa_1a1:            Number(r.tarifa_1a1)            || 0,
-    tarifa_2a1:            Number(r.tarifa_2a1)            || 0,
-    tarifa_incompleta_2a1: Number(r.tarifa_incompleta_2a1) || 0,
+    tarifa_1a1:            parseTarifa(r.tarifa_1a1),
+    tarifa_2a1:            parseTarifa(r.tarifa_2a1),
+    tarifa_incompleta_2a1: parseTarifa(r.tarifa_incompleta_2a1),
     color:                 r.color ? String(r.color) : undefined,
     activo:                Boolean(r.activo),
   };
