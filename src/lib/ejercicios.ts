@@ -41,6 +41,7 @@ export interface BibliotecaCustom {
   equipamiento?: string;
   notas?: string;
   nombre?: string;
+  oculto?: boolean;
 }
 
 export function getBibliotecaCustoms(): Record<string, BibliotecaCustom> {

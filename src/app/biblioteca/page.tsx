@@ -10,7 +10,8 @@ import {
 } from '@/lib/ejercicios';
 import {
   getEjerciciosPropiosDB, saveEjercicioPropiooDB, deleteEjercicioPropiooDB,
-  getBibliotecaCustomsDB, saveBibliotecaCustomDB, deleteBibliotecaCustomDB,
+  getBibliotecaCustomsDB, saveBibliotecaCustomDB,
+  ocultarBibliotecaEjercicioDB, restaurarBibliotecaEjercicioDB,
   uploadEjercicioVideo, deleteEjercicioVideo,
 } from '@/lib/ejercicios-supabase';
 import { getRutinasDB } from '@/lib/rutinas-supabase';
@@ -278,7 +279,11 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
             {onDelete && (
               confirmDelete ? (
                 <div className="flex items-center gap-2 rounded-xl border border-[#B44040]/20 bg-[#FAEAEA] p-3">
-                  <p className="flex-1 text-xs text-[#B44040]">¿Eliminar este ejercicio?</p>
+                  <p className="flex-1 text-xs text-[#B44040]">
+                    {ejercicio.esPropio
+                      ? '¿Eliminar este ejercicio?'
+                      : 'Se ocultará de tu biblioteca. Podrás recuperarlo después.'}
+                  </p>
                   <button type="button" onClick={() => setConfirmDelete(false)}
                     className="text-xs text-[#777777] transition hover:text-[#121212]">
                     No
@@ -295,7 +300,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
                 <button type="button" onClick={() => setConfirmDelete(true)}
                   className="flex w-full items-center justify-center gap-1.5 py-1.5 text-[11px] text-[#9B9B9B] transition hover:text-red-500">
                   <Trash2 className="h-3 w-3" />
-                  Eliminar ejercicio
+                  {ejercicio.esPropio ? 'Eliminar ejercicio' : 'Ocultar de mi biblioteca'}
                 </button>
               )
             )}
@@ -315,6 +320,7 @@ export default function BibliotecaPage() {
   const [editando,     setEditando]     = useState<EjercicioMerged | null>(null);
   const [showNew,      setShowNew]      = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showOcultos,  setShowOcultos]  = useState(false);
   const [loading,      setLoading]      = useState(true);
   const searchWrapRef = useRef<HTMLDivElement>(null);
 
@@ -406,13 +412,14 @@ export default function BibliotecaPage() {
     await loadData();
   }
 
-  async function handleDeleteCustom(id: string) {
-    await deleteBibliotecaCustomDB(id).catch(() => {
-      const all = getBibliotecaCustoms();
-      delete all[id];
-      localStorage.setItem('nexa_biblioteca_custom', JSON.stringify(all));
-    });
+  async function handleOcultar(id: string) {
+    await ocultarBibliotecaEjercicioDB(id);
     setEditando(null);
+    await loadData();
+  }
+
+  async function handleRestaurar(id: string) {
+    await restaurarBibliotecaEjercicioDB(id);
     await loadData();
   }
 
@@ -451,12 +458,23 @@ export default function BibliotecaPage() {
     await loadData();
   }
 
-  const baseConCustom: EjercicioMerged[] = BIBLIOTECA_EJERCICIOS.map(e => ({
-    ...e,
-    nombre:   customs[e.id]?.nombre   ?? e.nombre,
-    videoUrl: customs[e.id]?.videoUrl ?? e.videoUrl ?? '',
-    esPropio: false,
-  }));
+  const baseConCustom: EjercicioMerged[] = BIBLIOTECA_EJERCICIOS
+    .filter(e => !customs[e.id]?.oculto)
+    .map(e => ({
+      ...e,
+      nombre:   customs[e.id]?.nombre   ?? e.nombre,
+      videoUrl: customs[e.id]?.videoUrl ?? e.videoUrl ?? '',
+      esPropio: false,
+    }));
+
+  const ocultos: EjercicioMerged[] = BIBLIOTECA_EJERCICIOS
+    .filter(e => customs[e.id]?.oculto)
+    .map(e => ({
+      ...e,
+      nombre:   customs[e.id]?.nombre ?? e.nombre,
+      videoUrl: customs[e.id]?.videoUrl ?? e.videoUrl ?? '',
+      esPropio: false,
+    }));
 
   const propiosMerged: EjercicioMerged[] = propios.map(e => ({
     ...e,
@@ -652,6 +670,37 @@ export default function BibliotecaPage() {
         </div>
       ))}
 
+      {/* Ejercicios ocultos */}
+      {ocultos.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowOcultos(v => !v)}
+            className="text-[11px] text-[#9B9B9B] transition hover:text-[#5E5E5E]"
+          >
+            {showOcultos ? '▲' : '▶'} {ocultos.length} ejercicio{ocultos.length !== 1 ? 's' : ''} oculto{ocultos.length !== 1 ? 's' : ''}
+          </button>
+
+          {showOcultos && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-dashed border-[#D8D8D8]">
+              {ocultos.map(ej => (
+                <div
+                  key={ej.id}
+                  className="flex items-center gap-3 border-b border-[#E8E8E8] px-4 py-3 last:border-none"
+                >
+                  <span className="flex-1 text-sm text-[#AAAAAA] line-through">{ej.nombre}</span>
+                  <button
+                    onClick={() => handleRestaurar(ej.id)}
+                    className="shrink-0 rounded-lg border border-[#CACACA] px-3 py-1 text-[11px] font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]"
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       {showNew && (
         <NewExerciseModal onSave={handleNew} onClose={() => setShowNew(false)} />
@@ -661,7 +710,11 @@ export default function BibliotecaPage() {
         <EditModal
           ejercicio={editando}
           onSave={handleSave}
-          onDelete={editando.esPropio ? () => handleDelete(editando.id) : undefined}
+          onDelete={
+            editando.esPropio
+              ? () => handleDelete(editando.id)
+              : () => handleOcultar(editando.id)
+          }
           onClose={() => setEditando(null)}
         />
       )}

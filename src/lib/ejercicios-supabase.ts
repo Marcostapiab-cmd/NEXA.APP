@@ -46,7 +46,7 @@ export async function deleteEjercicioPropiooDB(id: string): Promise<void> {
 export async function getBibliotecaCustomsDB(): Promise<Record<string, BibliotecaCustom>> {
   const { data, error } = await supabase
     .from('ejercicios_custom')
-    .select('ejercicio_id, nombre, video_url, video_path');
+    .select('ejercicio_id, nombre, video_url, video_path, oculto');
   if (error) throw error;
   const result: Record<string, BibliotecaCustom> = {};
   for (const r of data ?? []) {
@@ -54,14 +54,10 @@ export async function getBibliotecaCustomsDB(): Promise<Record<string, Bibliotec
       nombre:    r.nombre     ? String(r.nombre)     : undefined,
       videoUrl:  r.video_url  ? String(r.video_url)  : undefined,
       videoPath: r.video_path ? String(r.video_path) : undefined,
+      oculto:    r.oculto === true,
     };
   }
   return result;
-}
-
-export async function deleteBibliotecaCustomDB(id: string): Promise<void> {
-  const { error } = await supabase.from('ejercicios_custom').delete().eq('ejercicio_id', id);
-  if (error) throw error;
 }
 
 export async function saveBibliotecaCustomDB(id: string, custom: BibliotecaCustom): Promise<void> {
@@ -72,7 +68,30 @@ export async function saveBibliotecaCustomDB(id: string, custom: BibliotecaCusto
     nombre:       custom.nombre    || null,
     video_url:    custom.videoUrl  || null,
     video_path:   custom.videoPath || null,
+    oculto:       custom.oculto   ?? false,
   });
+  if (error) throw error;
+}
+
+export async function ocultarBibliotecaEjercicioDB(id: string): Promise<void> {
+  const coachId = await getCoachId();
+  const { error } = await supabase.from('ejercicios_custom').upsert({
+    ejercicio_id: id,
+    coach_id:     coachId,
+    oculto:       true,
+  });
+  if (error) throw error;
+}
+
+export async function restaurarBibliotecaEjercicioDB(id: string): Promise<void> {
+  const { error } = await supabase.from('ejercicios_custom')
+    .update({ oculto: false })
+    .eq('ejercicio_id', id);
+  if (error) throw error;
+}
+
+export async function deleteBibliotecaCustomDB(id: string): Promise<void> {
+  const { error } = await supabase.from('ejercicios_custom').delete().eq('ejercicio_id', id);
   if (error) throw error;
 }
 
