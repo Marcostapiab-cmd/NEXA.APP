@@ -11,6 +11,7 @@ export interface EjBiblioteca {
   // Campos editables por el coach (guardados en localStorage como overlay):
   equipamiento?: string;
   videoUrl?: string;
+  videoPath?: string;
   notas?: string;
 }
 
@@ -36,6 +37,7 @@ export const BIBLIOTECA_EJERCICIOS: EjBiblioteca[] = USER_EXERCISE_LIBRARY;
 
 export interface BibliotecaCustom {
   videoUrl?: string;
+  videoPath?: string;
   equipamiento?: string;
   notas?: string;
   nombre?: string;

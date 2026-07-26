@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Pencil, X, Save, Video, Plus, Trash2, ExternalLink } from 'lucide-react';
+import { Search, Pencil, X, Save, Video, Plus, Trash2, ExternalLink, Upload, Loader2 } from 'lucide-react';
 import {
   BIBLIOTECA_EJERCICIOS,
   getBibliotecaCustoms, saveBibliotecaCustom,
@@ -11,8 +11,12 @@ import {
 import {
   getEjerciciosPropiosDB, saveEjercicioPropiooDB, deleteEjercicioPropiooDB,
   getBibliotecaCustomsDB, saveBibliotecaCustomDB,
+  uploadEjercicioVideo, deleteEjercicioVideo,
 } from '@/lib/ejercicios-supabase';
+import { getRutinasDB } from '@/lib/rutinas-supabase';
 import VideoUrlInput from '@/components/ejercicios/VideoUrlInput';
+
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface EjercicioMerged extends EjBiblioteca {
   videoUrl: string;
@@ -22,22 +26,29 @@ interface EjercicioMerged extends EjBiblioteca {
 // ─── Modal: Nuevo ejercicio ───────────────────────────────────────────────────
 
 function NewExerciseModal({ onSave, onClose }: {
-  onSave: (ej: EjBiblioteca) => void;
+  onSave: (ej: EjBiblioteca) => Promise<void>;
   onClose: () => void;
 }) {
-  const [nombre,   setNombre]   = useState('');
+  const [nombre,  setNombre]  = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [saving,   setSaving]  = useState(false);
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!nombre.trim()) return;
-    onSave({
-      id:       `propio-${Date.now()}`,
-      nombre:   nombre.trim(),
-      grupo:    '',
-      videoUrl: videoUrl || undefined,
-    });
-    onClose();
+    setSaving(true);
+    try {
+      await onSave({
+        id:       `propio-${Date.now()}`,
+        nombre:   nombre.trim(),
+        grupo:    '',
+        videoUrl: videoUrl || undefined,
+      });
+      onClose();
+    } catch {
+      setSaving(false);
+      alert('Error al guardar el ejercicio. Intenta de nuevo.');
+    }
   }
 
   return (
@@ -79,10 +90,10 @@ function NewExerciseModal({ onSave, onClose }: {
               className="flex-1 rounded-xl border border-[#CACACA] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
               Cancelar
             </button>
-            <button type="submit" disabled={!nombre.trim()}
+            <button type="submit" disabled={!nombre.trim() || saving}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-30">
-              <Plus className="h-4 w-4" />
-              Agregar
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {saving ? 'Guardando…' : 'Agregar'}
             </button>
           </div>
         </form>
@@ -95,18 +106,45 @@ function NewExerciseModal({ onSave, onClose }: {
 
 function EditModal({ ejercicio, onSave, onDelete, onClose }: {
   ejercicio: EjercicioMerged;
-  onSave: (id: string, videoUrl: string, nombre: string) => void;
-  onDelete?: () => void;
+  onSave: (id: string, videoUrl: string, nombre: string, videoFile?: File) => Promise<void>;
+  onDelete?: () => Promise<void>;
   onClose: () => void;
 }) {
+  const [videoTab,      setVideoTab]      = useState<'link' | 'archivo'>('link');
   const [videoUrl,      setVideoUrl]      = useState(ejercicio.videoUrl ?? '');
+  const [videoFile,     setVideoFile]     = useState<File | null>(null);
+  const [fileError,     setFileError]     = useState('');
   const [nombre,        setNombre]        = useState(ejercicio.nombre);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleSave(e: React.FormEvent) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_FILE_BYTES) {
+      setFileError('El archivo supera el límite de 50 MB.');
+      return;
+    }
+    setFileError('');
+    setVideoFile(f);
+  }
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    onSave(ejercicio.id, videoUrl, nombre.trim() || ejercicio.nombre);
-    onClose();
+    setSaving(true);
+    try {
+      await onSave(
+        ejercicio.id,
+        videoTab === 'link' ? videoUrl : '',
+        nombre.trim() || ejercicio.nombre,
+        videoTab === 'archivo' ? (videoFile ?? undefined) : undefined,
+      );
+      onClose();
+    } catch (err) {
+      setSaving(false);
+      alert('Error al guardar: ' + (err instanceof Error ? err.message : String(err)));
+    }
   }
 
   return (
@@ -132,6 +170,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
 
         <form onSubmit={handleSave}>
           <div className="space-y-4 p-5">
+            {/* Nombre */}
             <div>
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
                 Nombre del ejercicio
@@ -142,11 +181,72 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
                 className="w-full rounded-xl border border-[#CACACA] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]"
               />
             </div>
+
+            {/* Video: tabs */}
             <div>
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
-                Link de video (YouTube, Instagram, Vimeo...)
+                Video
               </label>
-              <VideoUrlInput value={videoUrl} onChange={setVideoUrl} />
+
+              <div className="mb-2.5 flex overflow-hidden rounded-xl border border-[#CACACA]">
+                <button
+                  type="button"
+                  onClick={() => { setVideoTab('link'); setVideoFile(null); setFileError(''); }}
+                  className={`flex-1 py-2 text-[11px] font-bold transition ${
+                    videoTab === 'link'
+                      ? 'bg-[#121212] text-white'
+                      : 'bg-[#F5F5F5] text-[#777777] hover:bg-[#E8E8E8]'
+                  }`}
+                >
+                  Link (YouTube, Instagram…)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoTab('archivo')}
+                  className={`flex-1 py-2 text-[11px] font-bold transition ${
+                    videoTab === 'archivo'
+                      ? 'bg-[#121212] text-white'
+                      : 'bg-[#F5F5F5] text-[#777777] hover:bg-[#E8E8E8]'
+                  }`}
+                >
+                  Subir archivo
+                </button>
+              </div>
+
+              {videoTab === 'link' ? (
+                <VideoUrlInput value={videoUrl} onChange={setVideoUrl} />
+              ) : (
+                <div>
+                  <input
+                    type="file"
+                    accept="video/mp4,video/quicktime,video/webm"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  {videoFile ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-[#CACACA] bg-[#F8F8F8] px-3 py-2.5">
+                      <Video className="h-4 w-4 shrink-0 text-[#121212]" />
+                      <span className="flex-1 truncate text-sm text-[#121212]">{videoFile.name}</span>
+                      <button type="button" onClick={() => { setVideoFile(null); setFileError(''); }}>
+                        <X className="h-4 w-4 text-[#888888] transition hover:text-[#121212]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#CACACA] bg-[#F8F8F8] px-3 py-6 text-sm text-[#777777] transition hover:border-[#888888] hover:bg-[#F0F0F0] hover:text-[#5E5E5E]"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Seleccionar video (MP4, MOV, WebM · máx. 50 MB)
+                    </button>
+                  )}
+                  {fileError && (
+                    <p className="mt-1.5 text-[11px] text-red-500">{fileError}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -156,10 +256,22 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
                 className="flex-1 rounded-xl border border-[#CACACA] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
                 Cancelar
               </button>
-              <button type="submit"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110">
-                <Save className="h-4 w-4" />
-                Guardar
+              <button
+                type="submit"
+                disabled={saving || (videoTab === 'archivo' && !!fileError)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-40"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {videoTab === 'archivo' && videoFile ? 'Subiendo…' : 'Guardando…'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Guardar
+                  </>
+                )}
               </button>
             </div>
 
@@ -171,8 +283,11 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
                     className="text-xs text-[#777777] transition hover:text-[#121212]">
                     No
                   </button>
-                  <button type="button" onClick={() => { onDelete(); onClose(); }}
-                    className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-red-500">
+                  <button
+                    type="button"
+                    onClick={() => onDelete()}
+                    className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-red-500"
+                  >
                     Sí, eliminar
                   </button>
                 </div>
@@ -206,7 +321,7 @@ export default function BibliotecaPage() {
   function syncLocal(updatedPropios: EjBiblioteca[], updatedCustoms: Record<string, BibliotecaCustom>) {
     try {
       localStorage.setItem('nexa_ejercicios_propios', JSON.stringify(updatedPropios));
-      localStorage.setItem('nexa_biblioteca_custom', JSON.stringify(updatedCustoms));
+      localStorage.setItem('nexa_biblioteca_custom',  JSON.stringify(updatedCustoms));
     } catch { /* ignore */ }
   }
 
@@ -216,11 +331,27 @@ export default function BibliotecaPage() {
         getEjerciciosPropiosDB(),
         getBibliotecaCustomsDB(),
       ]);
+
       setPropios(dbPropios);
+
+      // Migración one-time: si DB está vacía pero localStorage tiene datos, migrar
+      if (Object.keys(dbCustoms).length === 0) {
+        const localCustoms = getBibliotecaCustoms();
+        if (Object.keys(localCustoms).length > 0) {
+          await Promise.allSettled(
+            Object.entries(localCustoms).map(([id, c]) => saveBibliotecaCustomDB(id, c)),
+          );
+          const fresh = await getBibliotecaCustomsDB().catch(() => localCustoms);
+          setCustoms(fresh);
+          syncLocal(dbPropios, fresh);
+          return;
+        }
+      }
+
       setCustoms(dbCustoms);
       syncLocal(dbPropios, dbCustoms);
     } catch {
-      // Si Supabase falla, usar localStorage como respaldo
+      // Supabase no disponible → usar localStorage
       setPropios(getEjerciciosPropios());
       setCustoms(getBibliotecaCustoms());
     } finally {
@@ -228,7 +359,7 @@ export default function BibliotecaPage() {
     }
   }
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -240,33 +371,79 @@ export default function BibliotecaPage() {
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  async function handleSaveVideo(id: string, videoUrl: string, nombre: string) {
+  async function handleSave(id: string, videoUrl: string, nombre: string, videoFile?: File) {
     const isPropio = propios.some(e => e.id === id);
+
+    let finalVideoUrl  = videoUrl;
+    let finalVideoPath: string | undefined;
+
+    if (videoFile) {
+      const { path, url } = await uploadEjercicioVideo(id, videoFile);
+      finalVideoUrl  = url;
+      finalVideoPath = path;
+    }
+
     if (isPropio) {
-      const base = propios.find(e => e.id === id)!;
-      const updated = { ...base, nombre, videoUrl: videoUrl || undefined };
-      await saveEjercicioPropiooDB(updated).catch(() => saveEjercicioPropio(updated));
+      const base    = propios.find(e => e.id === id)!;
+      const updated = {
+        ...base,
+        nombre,
+        videoUrl:  finalVideoUrl  || undefined,
+        videoPath: finalVideoPath ?? (videoFile ? undefined : base.videoPath),
+      };
+      await saveEjercicioPropiooDB(updated);
     } else {
       const existing = customs[id] ?? {};
-      const custom = { ...existing, videoUrl, nombre };
-      await saveBibliotecaCustomDB(id, custom).catch(() => saveBibliotecaCustom(id, custom));
+      const custom: BibliotecaCustom = {
+        ...existing,
+        nombre,
+        videoUrl:  finalVideoUrl  || undefined,
+        videoPath: finalVideoPath ?? (videoFile ? undefined : existing.videoPath),
+      };
+      await saveBibliotecaCustomDB(id, custom);
     }
+
     await loadData();
   }
 
   async function handleDelete(id: string) {
-    await deleteEjercicioPropiooDB(id).catch(() => deleteEjercicioPropio(id));
+    // Verificar si el ejercicio está en uso en alguna rutina
+    try {
+      const rutinas = await getRutinasDB();
+      let usedCount = 0;
+      for (const r of rutinas) {
+        const sessions = r.sessions as Record<string, { exercises?: Array<{ exerciseLibraryId?: string }> }>;
+        for (const s of Object.values(sessions)) {
+          usedCount += (s.exercises ?? []).filter(e => e.exerciseLibraryId === id).length;
+        }
+      }
+      if (usedCount > 0) {
+        const ok = confirm(
+          `Este ejercicio aparece ${usedCount} vece${usedCount !== 1 ? 's' : ''} en rutinas activas.\n¿Eliminarlo de todas formas? (las rutinas ya creadas no se modifican)`,
+        );
+        if (!ok) return;
+      }
+    } catch { /* si falla la comprobación, continuar */ }
+
+    // Borrar video de Storage si existe
+    const propio = propios.find(e => e.id === id);
+    if (propio?.videoPath) {
+      await deleteEjercicioVideo(propio.videoPath).catch(() => {});
+    }
+
+    await deleteEjercicioPropiooDB(id);
+    setEditando(null);
     await loadData();
   }
 
   async function handleNew(ej: EjBiblioteca) {
-    await saveEjercicioPropiooDB(ej).catch(() => saveEjercicioPropio(ej));
+    await saveEjercicioPropiooDB(ej);
     await loadData();
   }
 
   const baseConCustom: EjercicioMerged[] = BIBLIOTECA_EJERCICIOS.map(e => ({
     ...e,
-    nombre: customs[e.id]?.nombre ?? e.nombre,
+    nombre:   customs[e.id]?.nombre   ?? e.nombre,
     videoUrl: customs[e.id]?.videoUrl ?? e.videoUrl ?? '',
     esPropio: false,
   }));
@@ -277,16 +454,13 @@ export default function BibliotecaPage() {
     esPropio: true,
   }));
 
-  const merged = [...baseConCustom, ...propiosMerged];
-
+  const merged   = [...baseConCustom, ...propiosMerged];
   const filtrados = busqueda.trim()
     ? merged.filter(e => e.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : merged;
-
   const autocomplete = busqueda.trim().length >= 1
     ? merged.filter(e => e.nombre.toLowerCase().includes(busqueda.toLowerCase())).slice(0, 8)
     : [];
-
   const totalConVideo = merged.filter(e => e.videoUrl?.trim()).length;
 
   return (
@@ -352,7 +526,7 @@ export default function BibliotecaPage() {
             ))}
             <div className="border-t border-[#E0E0E0] px-4 py-2">
               <p className="text-[10px] text-[#9B9B9B]">
-                {autocomplete.length} resultado{autocomplete.length !== 1 ? 's' : ''} · Click para agregar video
+                {autocomplete.length} resultado{autocomplete.length !== 1 ? 's' : ''} · Click para editar
               </p>
             </div>
           </div>
@@ -476,7 +650,7 @@ export default function BibliotecaPage() {
       {editando && (
         <EditModal
           ejercicio={editando}
-          onSave={handleSaveVideo}
+          onSave={handleSave}
           onDelete={editando.esPropio ? () => handleDelete(editando.id) : undefined}
           onClose={() => setEditando(null)}
         />
