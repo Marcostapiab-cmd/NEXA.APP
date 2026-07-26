@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Pencil, Trash2, X, Save, BarChart2, Eye, Users } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, Save, Eye, Users } from 'lucide-react';
 import { getAlumnos, createAlumno, updateAlumno, deleteAlumno } from '@/lib/alumnos';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -558,27 +558,9 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
         <div className="flex items-center justify-end gap-1.5">
           <ActionBtn
             href={`/alumnos/${alumno.id}`}
-            icon={<BarChart2 className="h-3.5 w-3.5" />}
-            label="Estadísticas"
-            bg="rgba(74,138,90,0.10)" color="#4A8A5A" hoverBg="rgba(74,138,90,0.18)"
-          />
-          <ActionBtn
-            icon={<Pencil className="h-3.5 w-3.5" />}
-            label="Editar"
-            bg="rgba(96,165,250,0.10)" color="#4A7AAA" hoverBg="rgba(96,165,250,0.18)"
-            onClick={onEdit}
-          />
-          <ActionBtn
-            href={`/alumnos/${alumno.id}`}
             icon={<Eye className="h-3.5 w-3.5" />}
             label="Ver perfil"
             bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
-          />
-          <ActionBtn
-            icon={<Trash2 className="h-3.5 w-3.5" />}
-            label="Eliminar"
-            bg="rgba(180,64,64,0.08)" color="#B44040" hoverBg="rgba(180,64,64,0.15)"
-            onClick={onDelete}
           />
         </div>
       </td>
@@ -632,16 +614,10 @@ function MobileRow({ alumno, onEdit, onDelete }: {
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <ActionBtn
-          icon={<Pencil className="h-3.5 w-3.5" />}
-          label="Editar"
-          bg="rgba(96,165,250,0.10)" color="#4A7AAA" hoverBg="rgba(96,165,250,0.18)"
-          onClick={onEdit}
-        />
-        <ActionBtn
-          icon={<Trash2 className="h-3.5 w-3.5" />}
-          label="Eliminar"
-          bg="rgba(180,64,64,0.08)" color="#B44040" hoverBg="rgba(180,64,64,0.15)"
-          onClick={onDelete}
+          href={`/alumnos/${alumno.id}`}
+          icon={<Eye className="h-3.5 w-3.5" />}
+          label="Ver perfil"
+          bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
         />
       </div>
     </div>
