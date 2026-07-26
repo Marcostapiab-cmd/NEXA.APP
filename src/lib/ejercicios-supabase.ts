@@ -59,6 +59,11 @@ export async function getBibliotecaCustomsDB(): Promise<Record<string, Bibliotec
   return result;
 }
 
+export async function deleteBibliotecaCustomDB(id: string): Promise<void> {
+  const { error } = await supabase.from('ejercicios_custom').delete().eq('ejercicio_id', id);
+  if (error) throw error;
+}
+
 export async function saveBibliotecaCustomDB(id: string, custom: BibliotecaCustom): Promise<void> {
   const coachId = await getCoachId();
   const { error } = await supabase.from('ejercicios_custom').upsert({
