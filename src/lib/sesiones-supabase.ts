@@ -20,7 +20,8 @@ export async function getSesionesDB(): Promise<Sesion[]> {
   const { data, error } = await supabase
     .from('sesiones')
     .select('id, alumno_id, fecha, fecha_planeada, rutina_id, rutina_nombre, bloque_nombre, notas, ejercicios')
-    .order('fecha', { ascending: false });
+    .order('fecha', { ascending: false })
+    .limit(1000);
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:             String(r.id),

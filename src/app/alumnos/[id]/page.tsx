@@ -175,15 +175,16 @@ export default function AlumnoPerfilPage() {
     // Planes, reservas y reagendas desde Supabase
     loadReservas();
     getBloqueos().then(setBloqueos).catch(() => {});
-    getReagendasAlumnoDB(id).then(rs => {
+    getReagendasAlumnoDB(id).then(async rs => {
       const hoy = todayStr();
-      // Marcar vencidas automáticamente
-      const actualizadas = rs.map(r =>
-        r.estado === 'pendiente' && hoy > r.fechaLimite ? { ...r, estado: 'vencida' as const } : r
+      const vencidas = rs.filter(r => r.estado === 'pendiente' && hoy > r.fechaLimite);
+      // Sincronizar vencidas en DB primero, luego actualizar UI
+      await Promise.allSettled(
+        vencidas.map(r => upsertReagendaDB({ ...r, estado: 'vencida' as const }))
       );
-      setReagendas(actualizadas);
-      actualizadas.filter(r => r.estado === 'vencida' && rs.find(x => x.id === r.id)?.estado === 'pendiente')
-        .forEach(r => upsertReagendaDB(r).catch(() => {}));
+      setReagendas(rs.map(r =>
+        vencidas.some(v => v.id === r.id) ? { ...r, estado: 'vencida' as const } : r
+      ));
     }).catch(() => {});
   }, [id, loadReservas]);
 

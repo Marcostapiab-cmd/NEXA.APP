@@ -14,7 +14,8 @@ export async function getRutinasDB(): Promise<RutinaDB[]> {
   const { data, error } = await supabase
     .from('rutinas')
     .select('id, nombre, alumno_ids, start_date, end_date, sessions, blocks')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(500);
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:         String(r.id),
