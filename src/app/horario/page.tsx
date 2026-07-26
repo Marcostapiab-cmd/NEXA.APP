@@ -171,13 +171,20 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
   async function handleSave() {
     setSaving(true);
     try {
-      await Promise.all(alumnos.map(a =>
-        supabase.from('reservas').update({
-          estado: a.status,
-        }).eq('id', a.reservaId)
-      ));
+      const results = await Promise.allSettled(
+        alumnos.map(a =>
+          supabase.from('reservas').update({ estado: a.status }).eq('id', a.reservaId)
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error));
+      if (failed.length > 0) {
+        alert(`Error: ${failed.length} asistencia(s) no se pudieron guardar. Intenta de nuevo.`);
+        return;
+      }
       onSaved();
       onClose();
+    } catch {
+      alert('Error al guardar asistencias. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -283,12 +290,13 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
       const { data } = await supabase
         .from('atletas')
         .select('id, nombre, apellido, rut')
+        .eq('coach_id', coachId)
         .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,rut.ilike.%${query}%`)
         .limit(6);
       setResultados((data ?? []) as AtletaBusqueda[]);
       setBuscando(false);
     }, 300);
-  }, [query, walkIn]);
+  }, [query, walkIn, coachId]);
 
   // Cargar plan activo al seleccionar alumno
   async function seleccionarAlumno(a: AtletaBusqueda) {
