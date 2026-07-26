@@ -118,6 +118,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
   const [nombre,        setNombre]        = useState(ejercicio.nombre);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving,        setSaving]        = useState(false);
+  const [saveError,     setSaveError]     = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,6 +135,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setSaveError('');
     try {
       await onSave(
         ejercicio.id,
@@ -144,7 +146,7 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
       onClose();
     } catch (err) {
       setSaving(false);
-      alert('Error al guardar: ' + (err instanceof Error ? err.message : String(err)));
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar');
     }
   }
 
@@ -252,6 +254,11 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
           </div>
 
           <div className="space-y-2 border-t border-[#CACACA] px-5 py-4">
+            {saveError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-600">
+                {saveError}
+              </div>
+            )}
             <div className="flex gap-3">
               <button type="button" onClick={onClose}
                 className="flex-1 rounded-xl border border-[#CACACA] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">

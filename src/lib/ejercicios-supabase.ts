@@ -62,14 +62,16 @@ export async function getBibliotecaCustomsDB(): Promise<Record<string, Bibliotec
 
 export async function saveBibliotecaCustomDB(id: string, custom: BibliotecaCustom): Promise<void> {
   const coachId = await getCoachId();
-  const { error } = await supabase.from('ejercicios_custom').upsert({
+  const payload: Record<string, unknown> = {
     ejercicio_id: id,
     coach_id:     coachId,
     nombre:       custom.nombre    || null,
     video_url:    custom.videoUrl  || null,
     video_path:   custom.videoPath || null,
-    oculto:       custom.oculto   ?? false,
-  });
+  };
+  // oculto solo se incluye si fue explícitamente seteado (la columna puede no existir aún)
+  if (custom.oculto !== undefined) payload.oculto = custom.oculto;
+  const { error } = await supabase.from('ejercicios_custom').upsert(payload);
   if (error) throw error;
 }
 
