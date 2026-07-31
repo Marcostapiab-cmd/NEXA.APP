@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
@@ -22,7 +23,7 @@ export default function LoginPage() {
       return;
     }
 
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
 
     if (err) {
       setError('Correo o contraseña incorrectos');
@@ -31,7 +32,8 @@ export default function LoginPage() {
     }
 
     setLoading(false);
-    router.push('/dashboard');
+    const rol = data.user?.user_metadata?.rol;
+    router.push(rol === 'alumno' ? '/mi-cuenta' : '/dashboard');
   }
 
   return (
@@ -136,10 +138,17 @@ export default function LoginPage() {
         </form>
 
         <p
-          className="mt-8 text-center text-[11px] font-medium uppercase tracking-[0.1em]"
-          style={{ color: 'var(--nexa-ghost)' }}
+          className="mt-8 text-center text-[13px]"
+          style={{ color: 'var(--nexa-muted)' }}
         >
-          NEXA · Uso exclusivo de coaches
+          ¿Sos alumno/a?{' '}
+          <Link
+            href="/registro"
+            className="font-semibold"
+            style={{ color: 'var(--nexa-text)' }}
+          >
+            Crear cuenta
+          </Link>
         </p>
       </div>
     </div>

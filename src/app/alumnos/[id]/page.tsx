@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
-import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon, CreditCard, ExternalLink, Loader2, Send } from 'lucide-react';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 import type { Sesion } from '@/lib/sesiones';
 import { getSesionesAlumnoDB } from '@/lib/sesiones-supabase';
@@ -21,15 +21,10 @@ import {
   getReagendasAlumnoDB, upsertReagendaDB,
 } from '@/lib/planes-supabase';
 import { getBloqueos, type HorarioBloqueo } from '@/lib/horario-config';
+import { getPagosAlumnoDB, type Pago } from '@/lib/pagos-supabase';
+import { getMedicionesAlumnoDB, insertMedicionDB, deleteMedicionDB, type Medicion } from '@/lib/mediciones-supabase';
 
-interface Medicion {
-  id: string; fecha: string; peso: string;
-  grasa?: string; musculo?: string; notas?: string;
-}
-
-interface AlumnoExtended extends Alumno {
-  mediciones?: Medicion[];
-}
+type AlumnoExtended = Alumno;
 
 const IC ='w-full rounded-[8px] border border-[#D8D8D8] bg-[#F8F8F8] px-4 py-3 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#121212]' as const;
 const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#5E5E5E]' as const;
@@ -118,8 +113,10 @@ export default function AlumnoPerfilPage() {
   const [alumno, setAlumno]     = useState<AlumnoExtended | null>(null);
   const [routines, setRoutines] = useState<RutinaDB[]>([]);
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
+  const [mediciones,   setMediciones]  = useState<Medicion[]>([]);
   const [showMedicion, setShowMedicion] = useState(false);
-  const [medForm, setMedForm]   = useState<Omit<Medicion,'id'>>({ fecha: new Date().toISOString().slice(0,10), peso: '', grasa: '', musculo: '', notas: '' });
+  const [medSaving,    setMedSaving]   = useState(false);
+  const [medForm, setMedForm] = useState<Omit<Medicion, 'id' | 'alumnoId' | 'createdAt'>>({ fecha: new Date().toISOString().slice(0, 10), peso: '', grasa: '', musculo: '', notas: '' });
   const [expandedSesion, setExpandedSesion] = useState<string | null>(null);
 
   // Salud (solo admin/profesor — null = sin acceso)
@@ -139,6 +136,18 @@ export default function AlumnoPerfilPage() {
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
 
+  // Invitación portal
+  const [invitando,    setInvitando]    = useState(false);
+  const [inviteOk,     setInviteOk]     = useState(false);
+  const [inviteError,  setInviteError]  = useState('');
+
+  // Pagos Flow
+  const [pagos,        setPagos]        = useState<Pago[]>([]);
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [pagoForm,     setPagoForm]     = useState({ monto: '', descripcion: '' });
+  const [pagoLoading,  setPagoLoading]  = useState(false);
+  const [pagoError,    setPagoError]    = useState('');
+
   // Recarga solo reservas/planes (lo que cambia al hacer check-in)
   const loadReservas = useCallback(() => {
     getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
@@ -146,19 +155,10 @@ export default function AlumnoPerfilPage() {
   }, [id]);
 
   useEffect(() => {
-    // Busca en Supabase primero, con fallback a localStorage
     getAlumnoById(id).then(base => {
       if (base) {
-        // Preserva mediciones locales si existen
-        try {
-          const stored = localStorage.getItem('nexa_alumnos');
-          const local = stored ? (JSON.parse(stored) as AlumnoExtended[]).find(a => a.id === id) : null;
-          setAlumno(local?.mediciones ? { ...base, mediciones: local.mediciones } : base);
-        } catch {
-          setAlumno(base);
-        }
+        setAlumno(base);
       } else {
-        // Fallback a localStorage si Supabase no responde
         try {
           const stored = localStorage.getItem('nexa_alumnos');
           if (stored) {
@@ -170,11 +170,11 @@ export default function AlumnoPerfilPage() {
     });
     getRutinasDB().then(setRoutines).catch(() => {});
     getSesionesAlumnoDB(id).then(setSesiones).catch(() => {});
-    // Salud (RLS filtra automáticamente si no tiene acceso)
     getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
-    // Planes, reservas y reagendas desde Supabase
+    getMedicionesAlumnoDB(id).then(setMediciones).catch(() => {});
     loadReservas();
     getBloqueos().then(setBloqueos).catch(() => {});
+    getPagosAlumnoDB(id).then(setPagos).catch(() => {});
     getReagendasAlumnoDB(id).then(async rs => {
       const hoy = todayStr();
       const vencidas = rs.filter(r => r.estado === 'pendiente' && hoy > r.fechaLimite);
@@ -233,18 +233,24 @@ export default function AlumnoPerfilPage() {
 
   function cancelEdit() { setEditSec(null); setEditBuf({}); setSaludBuf({}); }
 
-  function addMedicion() {
-    if (!alumno || !medForm.peso) return;
-    const med: Medicion = { ...medForm, id: crypto.randomUUID() };
-    const mediciones = [...(alumno.mediciones || []), med].sort((a,b) => b.fecha.localeCompare(a.fecha));
-    saveAlumno({ ...alumno, mediciones });
-    setShowMedicion(false);
-    setMedForm({ fecha: new Date().toISOString().slice(0,10), peso: '', grasa: '', musculo: '', notas: '' });
+  async function addMedicion() {
+    if (!medForm.peso) return;
+    setMedSaving(true);
+    try {
+      const nueva = await insertMedicionDB({ alumnoId: id, ...medForm });
+      setMediciones(prev => [nueva, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
+      setShowMedicion(false);
+      setMedForm({ fecha: new Date().toISOString().slice(0, 10), peso: '', grasa: '', musculo: '', notas: '' });
+    } catch (e) {
+      console.error('Error guardando medición:', e);
+    } finally {
+      setMedSaving(false);
+    }
   }
 
-  function deleteMedicion(mid: string) {
-    if (!alumno) return;
-    saveAlumno({ ...alumno, mediciones: (alumno.mediciones || []).filter(m => m.id !== mid) });
+  async function deleteMedicion(mid: string) {
+    await deleteMedicionDB(mid).catch(() => {});
+    setMediciones(prev => prev.filter(m => m.id !== mid));
   }
 
   function handleInscripcionSaved(plan: Plan, reservasCount: number) {
@@ -345,6 +351,58 @@ export default function AlumnoPerfilPage() {
     }
   }
 
+  async function handleInvitarPortal() {
+    if (!alumno?.email) return;
+    setInvitando(true);
+    setInviteError('');
+    setInviteOk(false);
+    try {
+      const res  = await fetch('/api/portal/invitar', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ alumnoId: id, email: alumno.email, nombre: alumno.nombre }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'Error');
+      setInviteOk(true);
+    } catch (e) {
+      setInviteError(e instanceof Error ? e.message : 'Error al enviar invitación');
+    } finally {
+      setInvitando(false);
+    }
+  }
+
+  async function handleCrearPago() {
+    if (!alumno || !pagoForm.monto || !pagoForm.descripcion) return;
+    setPagoLoading(true);
+    setPagoError('');
+    try {
+      const res  = await fetch('/api/pagos/crear-checkout', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          alumnoId:     id,
+          alumnoNombre: `${alumno.nombre} ${alumno.apellido}`,
+          alumnoEmail:  alumno.email ?? '',
+          monto:        parseInt(pagoForm.monto, 10),
+          descripcion:  pagoForm.descripcion,
+          planId:       planes.find(p => getPlanEstado(p) === 'activo')?.id,
+        }),
+      });
+      const data = await res.json() as { payUrl?: string; error?: string };
+      if (!res.ok || !data.payUrl) throw new Error(data.error ?? 'Error al crear cobro');
+      window.open(data.payUrl, '_blank');
+      setShowPagoModal(false);
+      setPagoForm({ monto: '', descripcion: '' });
+      // Recargar pagos
+      getPagosAlumnoDB(id).then(setPagos).catch(() => {});
+    } catch (e) {
+      setPagoError(e instanceof Error ? e.message : 'Error desconocido');
+    } finally {
+      setPagoLoading(false);
+    }
+  }
+
   if (!alumno) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -355,9 +413,8 @@ export default function AlumnoPerfilPage() {
 
   const activeRoutines = routines.filter(r => (r.alumno_ids ?? []).includes(id) && isActive(r));
   const allRoutines    = routines.filter(r => (r.alumno_ids ?? []).includes(id));
-  const mediciones     = (alumno.mediciones || []).sort((a,b) => b.fecha.localeCompare(a.fecha));
-  const ultimaPeso     = mediciones.find(m => m.peso);
-  const pesoChartData  = mediciones.filter(m => m.peso).map(m => ({ fecha: m.fecha, peso: parseFloat(m.peso) })).filter(m => !isNaN(m.peso)).reverse();
+  const ultimaPeso    = mediciones.find(m => m.peso);
+  const pesoChartData = mediciones.filter(m => m.peso).map(m => ({ fecha: m.fecha, peso: parseFloat(m.peso!) })).filter(m => !isNaN(m.peso)).reverse();
 
   // Unique exercises from all sessions for progress tracking
   const ejerciciosUnicos = [...new Set(sesiones.flatMap(s => s.ejercicios.map(e => e.nombre)))].sort();
@@ -806,6 +863,39 @@ export default function AlumnoPerfilPage() {
             )}
           </div>
 
+          {/* ── Portal del alumno: invitación ── */}
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Send className="h-3.5 w-3.5 text-[#5E5E5E]" />
+              <p className={SL}>Portal del alumno</p>
+            </div>
+            {!alumno.email ? (
+              <p className="text-xs text-[#9B9B9B]">Agrega un email al alumno para poder invitarlo.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-[#5E5E5E]">
+                  Envía un link de acceso a <strong>{alumno.email}</strong> para que el alumno pueda ver sus rutinas, clases y pagos.
+                </p>
+                {inviteOk && (
+                  <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">
+                    ✓ Invitación enviada a {alumno.email}
+                  </p>
+                )}
+                {inviteError && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{inviteError}</p>
+                )}
+                <button
+                  onClick={handleInvitarPortal}
+                  disabled={invitando}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#121212] px-3 py-2 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-40"
+                >
+                  {invitando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {invitando ? 'Enviando...' : 'Invitar al portal'}
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Plan */}
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
@@ -854,6 +944,66 @@ export default function AlumnoPerfilPage() {
             )}
           </div>
 
+          {/* ── Pagos Flow ── */}
+          <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5 text-[#5E5E5E]" />
+                <p className={SL}>Pagos</p>
+              </div>
+              <button
+                onClick={() => { setShowPagoModal(true); setPagoError(''); }}
+                disabled={!alumno.email}
+                title={!alumno.email ? 'Agrega un email al alumno primero' : ''}
+                className="flex items-center gap-1 rounded-lg border border-[#CACACA] px-2.5 py-1 text-xs text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212] disabled:cursor-not-allowed disabled:opacity-40">
+                <Plus className="h-3 w-3" /> Generar cobro
+              </button>
+            </div>
+
+            {!alumno.email && (
+              <p className="mb-2 text-xs text-amber-600">⚠ Agrega un email al alumno para poder generar cobros.</p>
+            )}
+
+            {pagos.length === 0 ? (
+              <p className="text-sm text-[#5E5E5E]">Sin pagos registrados.</p>
+            ) : (
+              <div className="space-y-2">
+                {pagos.map(p => {
+                  const estadoColor: Record<string, string> = {
+                    pagado:       '#16a34a',
+                    pendiente:    '#d97706',
+                    fallido:      '#dc2626',
+                    reembolsado:  '#6b7280',
+                  };
+                  return (
+                    <div key={p.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[#121212]">{p.descripcion}</p>
+                          <p className="text-xs text-[#5E5E5E]">
+                            ${p.monto.toLocaleString('es-CL')} CLP
+                            {p.fechaPago && ` · ${new Date(p.fechaPago).toLocaleDateString('es-CL')}`}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-[11px] font-bold" style={{ color: estadoColor[p.estado] ?? '#5E5E5E' }}>
+                            {p.estado}
+                          </span>
+                          {p.checkoutUrl && p.estado === 'pendiente' && (
+                            <a href={p.checkoutUrl} target="_blank" rel="noreferrer"
+                              className="rounded p-1 text-[#9B9B9B] transition hover:text-[#121212]">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
               <p className={SL}>Métricas corporales</p>
@@ -893,9 +1043,9 @@ export default function AlumnoPerfilPage() {
                     placeholder="Observaciones..." className={IC} />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={addMedicion}
-                    className="nexa-btn-primary flex-1 justify-center text-xs py-2">
-                    Guardar
+                  <button onClick={addMedicion} disabled={medSaving || !medForm.peso}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#121212] py-2 text-xs font-bold text-white disabled:opacity-40">
+                    {medSaving ? <><Loader2 className="h-3 w-3 animate-spin" /> Guardando...</> : 'Guardar'}
                   </button>
                   <button onClick={() => setShowMedicion(false)}
                     className="nexa-btn-secondary px-4 py-2 text-xs">
@@ -975,6 +1125,59 @@ export default function AlumnoPerfilPage() {
           onSave={handleSavePlan}
           onClose={() => setPlanModal(null)}
         />
+      )}
+
+      {/* ── Modal generar cobro Flow ── */}
+      {showPagoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[#D8D8D8] bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#121212]">Generar cobro</h2>
+              <button onClick={() => setShowPagoModal(false)} className="rounded-lg border border-[#CACACA] p-1.5 text-[#5E5E5E] hover:text-[#121212]">
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={LC}>Descripción</label>
+                <input
+                  className={IC}
+                  placeholder="Ej: Plan mensual julio 2026"
+                  value={pagoForm.descripcion}
+                  onChange={e => setPagoForm(p => ({ ...p, descripcion: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={LC}>Monto (CLP)</label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="1000"
+                  className={IC}
+                  placeholder="Ej: 50000"
+                  value={pagoForm.monto}
+                  onChange={e => setPagoForm(p => ({ ...p, monto: e.target.value }))}
+                />
+              </div>
+              {!alumno.email && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Este alumno no tiene email registrado. Agrégalo en Datos personales para generar el link de pago.
+                </p>
+              )}
+              {pagoError && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{pagoError}</p>
+              )}
+              <button
+                onClick={handleCrearPago}
+                disabled={pagoLoading || !pagoForm.monto || !pagoForm.descripcion || !alumno.email}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-40"
+              >
+                {pagoLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creando...</> : <><ExternalLink className="h-4 w-4" /> Abrir link de pago</>}
+              </button>
+              <p className="text-center text-[11px] text-[#9B9B9B]">El link se abre en una nueva pestaña para enviarlo al alumno</p>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

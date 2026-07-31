@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut, DollarSign, FileText } from 'lucide-react';
+import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut, DollarSign, FileText, CreditCard } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -25,7 +25,8 @@ const NAV: NavItem[] = [
   { href: '/progreso',   label: 'Progreso',   shortLabel: 'Prog',   Icon: TrendingUp },
 ];
 
-const AUTH_ROUTES = ['/', '/login'];
+const AUTH_ROUTES = ['/', '/login', '/registro'];
+const PORTAL_PREFIX = '/portal';
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/dashboard') return pathname === href;
@@ -35,8 +36,9 @@ function isActive(pathname: string, href: string): boolean {
 export default function Sidebar() {
   const pathname  = usePathname();
   const router    = useRouter();
-  const [role,  setRole]  = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
+  const [role,         setRole]        = useState<string | null>(null);
+  const [email,        setEmail]       = useState<string | null>(null);
+  const [loggingOut,   setLoggingOut]  = useState(false);
 
   useEffect(() => {
     supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRole(data as string | null));
@@ -44,11 +46,13 @@ export default function Sidebar() {
   }, []);
 
   async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     await supabase.auth.signOut();
     router.push('/login');
   }
 
-  if (AUTH_ROUTES.includes(pathname)) return null;
+  if (AUTH_ROUTES.includes(pathname) || pathname.startsWith(PORTAL_PREFIX) || pathname.startsWith('/mi-cuenta')) return null;
 
   return (
     <>
@@ -123,6 +127,7 @@ export default function Sidebar() {
           <div className="px-3 pb-1">
             {[
               { href: '/contratos',         label: 'Contratos',         Icon: FileText   },
+              { href: '/pagos',            label: 'Pagos alumnos',    Icon: CreditCard  },
               { href: '/pagos-profesores', label: 'Pagos profesores', Icon: DollarSign },
               { href: '/configuracion',    label: 'Configuración',    Icon: Settings   },
             ].map(({ href, label, Icon }) => {
@@ -176,13 +181,14 @@ export default function Sidebar() {
             </div>
             <button
               onClick={handleLogout}
+              disabled={loggingOut}
               title="Cerrar sesión"
-              className="shrink-0 rounded-[6px] p-1.5 transition-colors"
+              className="shrink-0 rounded-[6px] p-1.5 transition-colors disabled:opacity-40"
               style={{ color: 'var(--nexa-muted)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--nexa-text)')}
+              onMouseEnter={e => { if (!loggingOut) e.currentTarget.style.color = 'var(--nexa-text)'; }}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--nexa-muted)')}
             >
-              <LogOut size={13} strokeWidth={2} />
+              <LogOut size={13} strokeWidth={2} className={loggingOut ? 'animate-pulse' : ''} />
             </button>
           </div>
         </div>

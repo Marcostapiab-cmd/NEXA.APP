@@ -292,11 +292,16 @@ export default function ContratoPage() {
     if (!alumno) return;
     setSaving(true);
     try {
-      await updateAlumno(alumno.id, {
+      const updated = await updateAlumno(alumno.id, {
         contratoFirmado:    true,
         contratoFechaFirma: new Date().toISOString().slice(0, 10),
       });
-      setSaved(true);
+      if (updated) {
+        setAlumno(prev => prev ? { ...prev, contratoFirmado: true, contratoFechaFirma: new Date().toISOString().slice(0, 10) } : prev);
+        setSaved(true);
+      }
+    } catch {
+      alert('Error al marcar como firmado. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
