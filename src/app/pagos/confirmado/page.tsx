@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function PagoConfirmadoPage() {
+function PagoConfirmadoContent() {
   const params = useSearchParams();
   const token  = params.get('token');
 
@@ -14,7 +14,6 @@ export default function PagoConfirmadoPage() {
   useEffect(() => {
     if (!token) { setEstado('error'); return; }
 
-    // Flow redirige aquí con ?token=XXX; verificamos el estado
     const verificar = async () => {
       try {
         const res  = await fetch(`/api/pagos/estado?token=${token}`);
@@ -27,7 +26,6 @@ export default function PagoConfirmadoPage() {
       }
     };
 
-    // Pequeña espera para que el webhook ya haya procesado
     const t = setTimeout(verificar, 1200);
     return () => clearTimeout(t);
   }, [token]);
@@ -79,5 +77,17 @@ export default function PagoConfirmadoPage() {
         </Link>
       </div>
     </main>
+  );
+}
+
+export default function PagoConfirmadoPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center bg-[#F5F5F5]">
+        <Loader2 className="h-10 w-10 animate-spin text-[#121212]" />
+      </main>
+    }>
+      <PagoConfirmadoContent />
+    </Suspense>
   );
 }
