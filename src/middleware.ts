@@ -51,10 +51,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Alumno no puede entrar a rutas de staff
   const rol = user.user_metadata?.rol as string | undefined;
+
+  // Alumno: solo puede ver clases públicas y su cuenta
   if (rol === 'alumno' && STAFF_PREFIXES.some(p => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL('/mi-cuenta', request.url));
+    return NextResponse.redirect(new URL('/clases-grupales', request.url));
+  }
+
+  // Profesor: solo puede ver horario, checkin y rutinas
+  const PROFESOR_ALLOWED = ['/horario', '/checkin', '/rutinas', '/clases-grupales'];
+  if (rol === 'profesor' && !PROFESOR_ALLOWED.some(p => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/horario', request.url));
   }
 
   return response;
