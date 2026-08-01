@@ -1,5 +1,5 @@
 const CACHE = 'nexa-portal-v1';
-const SHELL = ['/portal', '/portal/rutinas', '/portal/pagos', '/portal/login'];
+const SHELL = ['/portal', '/portal/clases', '/portal/rutinas', '/portal/pagos', '/portal/login'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

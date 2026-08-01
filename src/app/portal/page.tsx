@@ -250,6 +250,16 @@ export default function PortalPage() {
 
         {/* Accesos rápidos */}
         <div className="grid grid-cols-2 gap-3">
+          <Link href="/portal/clases"
+            className="flex items-center justify-between rounded-2xl border border-[#D8D8D8] bg-white p-4 transition hover:border-[#121212]">
+            <div>
+              <Calendar className="mb-2 h-5 w-5 text-[#121212]" />
+              <p className="font-bold text-[#121212]">Mis clases</p>
+              <p className="text-xs text-[#5E5E5E]">Agenda</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-[#9B9B9B]" />
+          </Link>
+
           <Link href="/portal/rutinas"
             className="flex items-center justify-between rounded-2xl border border-[#D8D8D8] bg-white p-4 transition hover:border-[#121212]">
             <div>
@@ -261,11 +271,11 @@ export default function PortalPage() {
           </Link>
 
           <Link href="/portal/pagos"
-            className="flex items-center justify-between rounded-2xl border border-[#D8D8D8] bg-white p-4 transition hover:border-[#121212]">
+            className="col-span-2 flex items-center justify-between rounded-2xl border border-[#D8D8D8] bg-white p-4 transition hover:border-[#121212]">
             <div>
               <CreditCard className="mb-2 h-5 w-5 text-[#121212]" />
               <p className="font-bold text-[#121212]">Mis pagos</p>
-              <p className="text-xs text-[#5E5E5E]">Historial</p>
+              <p className="text-xs text-[#5E5E5E]">Historial de cobros</p>
             </div>
             {pagosPendientes.length > 0 && (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-white">
