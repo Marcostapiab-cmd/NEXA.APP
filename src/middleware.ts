@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/registro'];
+const PUBLIC_ROUTES = ['/login', '/registro', '/clases-grupales'];
 
 // Rutas que solo puede acceder el staff (cualquier rol distinto de alumno)
 const STAFF_PREFIXES = [
