@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/registro', '/clases-grupales'];
+// Accesibles sin sesión y sin redirigir aunque el usuario esté logueado
+const PUBLIC_OPEN = ['/clases-grupales'];
+// Accesibles sin sesión pero redirigen si el usuario ya tiene sesión
+const AUTH_ROUTES = ['/login', '/registro'];
 
 // Rutas que solo puede acceder el staff (cualquier rol distinto de alumno)
 const STAFF_PREFIXES = [
@@ -34,13 +37,17 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const isPublic = PUBLIC_ROUTES.includes(pathname);
 
-  // Rutas públicas (login, registro)
-  if (isPublic) {
+  // Páginas abiertas: cualquiera puede verlas, logueado o no
+  if (PUBLIC_OPEN.some(p => pathname.startsWith(p))) {
+    return response;
+  }
+
+  // Login / registro: redirigir si ya hay sesión activa
+  if (AUTH_ROUTES.includes(pathname)) {
     if (user) {
       const rol = user.user_metadata?.rol as string | undefined;
-      const dest = rol === 'alumno' ? '/mi-cuenta' : '/dashboard';
+      const dest = rol === 'alumno' ? '/clases-grupales' : '/dashboard';
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return response;
