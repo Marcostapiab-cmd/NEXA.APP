@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut, DollarSign, FileText, CreditCard } from 'lucide-react';
+import { Home, Calendar, Users, Users2, Dumbbell, TrendingUp, Grid3x3, Settings, ClipboardCheck, LogOut, DollarSign, FileText, CreditCard, UserPlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -126,7 +126,8 @@ export default function Sidebar() {
         {role === 'admin' && (
           <div className="px-3 pb-1">
             {[
-              { href: '/contratos',         label: 'Contratos',         Icon: FileText   },
+              { href: '/prospectos',       label: 'Prospectos',        Icon: UserPlus   },
+              { href: '/contratos',        label: 'Contratos',         Icon: FileText   },
               { href: '/pagos',            label: 'Pagos alumnos',    Icon: CreditCard  },
               { href: '/pagos-profesores', label: 'Pagos profesores', Icon: DollarSign },
               { href: '/configuracion',    label: 'Configuración',    Icon: Settings   },
