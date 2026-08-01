@@ -76,6 +76,18 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+// ─── Tipos ───────────────────────────────────────────────────────────────────
+
+interface ClaseGrupal {
+  id:         string;
+  nombre:     string;
+  dia_semana: number;
+  hora:       string;
+  coach_id:   string | null;
+  capacidad:  number;
+  activa:     boolean;
+}
+
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function ConfiguracionPage() {
@@ -93,6 +105,20 @@ export default function ConfiguracionPage() {
   });
   const [addingB, setAddingB] = useState(false);
 
+  const [clasesGrupales, setClasesGrupales] = useState<ClaseGrupal[]>([]);
+  const [claseErr,       setClaseErr]       = useState('');
+  const [addingClase,    setAddingClase]    = useState(false);
+  const [newClase, setNewClase] = useState({ nombre: '', dia_semana: 6, hora: '09:00', capacidad: 12 });
+
+  async function loadClases() {
+    const { data } = await supabase
+      .from('clases_grupales')
+      .select('*')
+      .order('dia_semana')
+      .order('hora');
+    setClasesGrupales((data ?? []) as ClaseGrupal[]);
+  }
+
   useEffect(() => {
     async function init() {
       const [{ data: roleData }, cfg, bls] = await Promise.all([
@@ -103,9 +129,11 @@ export default function ConfiguracionPage() {
       setRole(roleData as string ?? null);
       setDraft(cfg);
       setBloqueos(bls);
+      await loadClases();
       setLoading(false);
     }
     init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function updateDia(dow: number, patch: Partial<HorarioDiaConfig>) {
@@ -160,6 +188,40 @@ export default function ConfiguracionPage() {
   async function handleDeleteBloqueo(id: string) {
     await deleteBloqueo(id);
     setBloqueos(prev => prev.filter(b => b.id !== id));
+  }
+
+  async function handleToggleClase(id: string, activa: boolean) {
+    await supabase.from('clases_grupales').update({ activa: !activa }).eq('id', id);
+    setClasesGrupales(prev => prev.map(c => c.id === id ? { ...c, activa: !activa } : c));
+  }
+
+  async function handleDeleteClase(id: string) {
+    if (!window.confirm('¿Eliminar esta clase? Las reservas existentes no se borran.')) return;
+    await supabase.from('clases_grupales').delete().eq('id', id);
+    setClasesGrupales(prev => prev.filter(c => c.id !== id));
+  }
+
+  async function handleAddClase() {
+    if (!newClase.nombre.trim() || !newClase.hora) return;
+    setAddingClase(true);
+    setClaseErr('');
+    try {
+      const { error } = await supabase.from('clases_grupales').insert({
+        nombre:     newClase.nombre.trim(),
+        dia_semana: newClase.dia_semana,
+        hora:       newClase.hora,
+        capacidad:  newClase.capacidad,
+      });
+      if (error) throw error;
+      await loadClases();
+      setNewClase({ nombre: '', dia_semana: 6, hora: '09:00', capacidad: 12 });
+    } catch (e: unknown) {
+      setClaseErr(typeof e === 'object' && e && 'message' in e
+        ? String((e as { message: string }).message)
+        : 'Error al guardar');
+    } finally {
+      setAddingClase(false);
+    }
   }
 
   if (loading) {
@@ -444,6 +506,117 @@ export default function ConfiguracionPage() {
               }}>
               <Plus size={13} />
               {addingB ? 'Agregando...' : 'Agregar bloqueo'}
+            </button>
+          </div>
+        </Card>
+
+        {/* ─ Clases grupales ─ */}
+        <Card title="Clases grupales">
+
+          {clasesGrupales.length === 0 ? (
+            <p className="text-[12px] mb-4" style={{ color: 'var(--nexa-muted)' }}>
+              No hay clases grupales configuradas.
+            </p>
+          ) : (
+            <div className="space-y-1.5 mb-4">
+              {clasesGrupales.map(c => (
+                <div key={c.id}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-opacity"
+                  style={{
+                    background: 'var(--nexa-card-alt)',
+                    border: '1px solid var(--nexa-border)',
+                    opacity: c.activa ? 1 : 0.45,
+                  }}>
+                  <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+                    <span className="text-[13px] font-bold" style={{ color: 'var(--nexa-text)' }}>
+                      {c.nombre}
+                    </span>
+                    <span className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+                      {DIA_LABELS[c.dia_semana]} · {c.hora} · {c.capacidad} cupos
+                    </span>
+                    {!c.activa && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(155,155,155,0.15)', color: 'var(--nexa-muted)' }}>
+                        Pausada
+      </span>
+                    )}
+                  </div>
+                  <Toggle on={c.activa} onToggle={() => handleToggleClase(c.id, c.activa)} />
+                  <button onClick={() => handleDeleteClase(c.id)}
+                    className="rounded-lg p-1.5 shrink-0"
+                    style={{ color: '#B44040', background: 'rgba(180,64,64,0.1)' }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulario agregar */}
+          <div className="rounded-xl p-4 space-y-3"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--nexa-border)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--nexa-muted)' }}>
+              Agregar clase grupal
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Nombre</label>
+                <input type="text" value={newClase.nombre} placeholder="Ej: HYROX, Barre, GAP"
+                  onChange={e => setNewClase(n => ({ ...n, nombre: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-[12px]"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Día</label>
+                <select value={newClase.dia_semana}
+                  onChange={e => setNewClase(n => ({ ...n, dia_semana: parseInt(e.target.value) }))}
+                  className="w-full rounded-lg px-3 py-2 text-[12px]"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>
+                  {DIA_ORDER.map(dow => (
+                    <option key={dow} value={dow}>{DIA_LABELS[dow]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Hora</label>
+                <input type="time" value={newClase.hora}
+                  onChange={e => setNewClase(n => ({ ...n, hora: e.target.value }))}
+                  className="w-full rounded-lg px-3 py-2 text-[12px]"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Cupo máx.</label>
+                <input type="number" value={newClase.capacidad} min={1} max={100}
+                  onChange={e => setNewClase(n => ({ ...n, capacidad: parseInt(e.target.value) || 12 }))}
+                  className="w-full rounded-lg px-3 py-2 text-[12px]"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                />
+              </div>
+            </div>
+
+            {claseErr && (
+              <div className="rounded-lg px-3 py-2 text-[11px]"
+                style={{ background: 'rgba(180,64,64,0.12)', border: '1px solid #B44040', color: '#B44040' }}>
+                {claseErr}
+              </div>
+            )}
+
+            <button onClick={handleAddClase} disabled={!newClase.nombre.trim() || addingClase}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-bold transition"
+              style={{
+                background: 'var(--nexa-card-alt)',
+                border: '1px solid var(--nexa-border)',
+                color: 'var(--nexa-text)',
+                opacity: (!newClase.nombre.trim() || addingClase) ? 0.45 : 1,
+              }}>
+              <Plus size={13} />
+              {addingClase ? 'Agregando...' : 'Agregar clase'}
             </button>
           </div>
         </Card>
