@@ -4,19 +4,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
+type AtletaFila = {
+  nombre: string;
+  apellido: string;
+  telefono: string | null;
+  email: string | null;
+  rut: string | null;
+};
+
 interface Reserva {
   id: number;
   fecha: string;
   hora: string;
   estado: string;
   descripcion: string | null;
-  atletas: {
-    nombre: string;
-    apellido: string;
-    telefono: string | null;
-    email: string | null;
-    rut: string | null;
-  }[];
+  atletas: AtletaFila[];
 }
 
 interface ClaseInfo {
@@ -247,7 +249,7 @@ export default function GrupalesPage() {
                     {sesion.reservas.map((r, idx) => {
                       const cfg    = ESTADO_CFG[r.estado] ?? ESTADO_CFG.pendiente;
                       const Icn    = cfg.Icon;
-                      const atleta = r.atletas[0];
+                      const atleta = r.atletas[0] as AtletaFila | undefined;
                       return (
                         <div key={r.id} className="flex items-center gap-3 px-5 py-3">
                           {/* Número */}

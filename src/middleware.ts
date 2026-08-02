@@ -11,7 +11,7 @@ const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
   '/weightroom', '/progreso', '/rutinas', '/configuracion',
   '/pagos', '/contratos', '/calendario', '/notificaciones', '/biblioteca',
-  '/grupales',
+  '/grupales', '/planes',
 ];
 
 export async function middleware(request: NextRequest) {
