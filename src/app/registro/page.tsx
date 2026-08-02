@@ -36,12 +36,20 @@ export default function RegistroPage() {
     setLoading(false);
 
     if (err) {
-      if (err.message.includes('already registered') || err.message.includes('already been registered')) {
+      const msg = err.message ?? '';
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already been registered') ||
+        msg === '{}' ||
+        msg.trim() === ''
+      ) {
         setError('Ya existe una cuenta con ese correo. Ingresá desde el login.');
-      } else if (err.message.includes('Password')) {
+      } else if (msg.includes('Password') || msg.includes('password')) {
         setError('La contraseña debe tener al menos 6 caracteres.');
+      } else if (msg.includes('invalid') || msg.includes('email')) {
+        setError('El correo electrónico no es válido.');
       } else {
-        setError(err.message);
+        setError(msg);
       }
       return;
     }

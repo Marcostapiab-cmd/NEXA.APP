@@ -99,12 +99,21 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label
-              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em]"
-              style={{ color: 'var(--nexa-muted)' }}
-            >
-              Contraseña
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+              <label
+                className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+                style={{ color: 'var(--nexa-muted)' }}
+              >
+                Contraseña
+              </label>
+              <Link
+                href="/recuperar-contrasena"
+                className="text-[11px] font-semibold"
+                style={{ color: 'var(--nexa-accent)' }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}
