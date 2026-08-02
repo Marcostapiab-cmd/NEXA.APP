@@ -16,7 +16,7 @@ interface Reserva {
     telefono: string | null;
     email: string | null;
     rut: string | null;
-  } | null;
+  }[];
 }
 
 interface ClaseInfo {
@@ -245,8 +245,9 @@ export default function GrupalesPage() {
                 ) : (
                   <div className="divide-y" style={{ borderColor: 'var(--nexa-border)' }}>
                     {sesion.reservas.map((r, idx) => {
-                      const cfg = ESTADO_CFG[r.estado] ?? ESTADO_CFG.pendiente;
-                      const Icn = cfg.Icon;
+                      const cfg    = ESTADO_CFG[r.estado] ?? ESTADO_CFG.pendiente;
+                      const Icn    = cfg.Icon;
+                      const atleta = r.atletas[0];
                       return (
                         <div key={r.id} className="flex items-center gap-3 px-5 py-3">
                           {/* Número */}
@@ -258,28 +259,28 @@ export default function GrupalesPage() {
                           {/* Avatar */}
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-black"
                             style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}>
-                            {r.atletas?.nombre?.[0]?.toUpperCase() ?? '?'}
+                            {atleta?.nombre?.[0]?.toUpperCase() ?? '?'}
                           </div>
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--nexa-text)' }}>
-                              {r.atletas?.nombre ?? '—'} {r.atletas?.apellido ?? ''}
+                              {atleta?.nombre ?? '—'} {atleta?.apellido ?? ''}
                             </p>
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                              {r.atletas?.telefono && (
+                              {atleta?.telefono && (
                                 <span className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
-                                  {r.atletas.telefono}
+                                  {atleta.telefono}
                                 </span>
                               )}
-                              {r.atletas?.email && (
+                              {atleta?.email && (
                                 <span className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
-                                  {r.atletas.email}
+                                  {atleta.email}
                                 </span>
                               )}
-                              {r.atletas?.rut && (
+                              {atleta?.rut && (
                                 <span className="text-[11px]" style={{ color: 'var(--nexa-faint)' }}>
-                                  RUT: {r.atletas.rut}
+                                  RUT: {atleta.rut}
                                 </span>
                               )}
                             </div>
