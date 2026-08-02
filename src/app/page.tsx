@@ -92,7 +92,7 @@ export default function LandingPage() {
         </p>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/reservar?prueba=1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: '#fff', background: 'var(--nexa-text)', textDecoration: 'none', padding: '15px 30px', borderRadius: 12 }}>
+          <Link href="/reservar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: '#fff', background: 'var(--nexa-text)', textDecoration: 'none', padding: '15px 30px', borderRadius: 12 }}>
             Agenda tu clase <ArrowRight size={16} />
           </Link>
           <a href="#planes" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: 'var(--nexa-text-sub)', textDecoration: 'none', padding: '15px 30px', borderRadius: 12, border: '1px solid var(--nexa-border)' }}>
@@ -173,7 +173,7 @@ export default function LandingPage() {
                 ))}
               </ul>
 
-              <Link href="/reservar?prueba=1" style={{
+              <Link href="/reservar" style={{
                 display: 'block', textAlign: 'center', textDecoration: 'none',
                 fontSize: 14, fontWeight: 700,
                 color: plan.highlight ? 'var(--nexa-text)' : '#fff',
@@ -196,7 +196,7 @@ export default function LandingPage() {
           <p style={{ fontSize: 15, color: 'var(--nexa-muted)', margin: '0 auto 32px', lineHeight: 1.65, maxWidth: 420 }}>
             Elige la clase, el día y el horario que más te acomode. Reserva en línea en menos de 2 minutos.
           </p>
-          <Link href="/reservar?prueba=1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: '#fff', background: 'var(--nexa-text)', textDecoration: 'none', padding: '15px 32px', borderRadius: 12 }}>
+          <Link href="/reservar" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: '#fff', background: 'var(--nexa-text)', textDecoration: 'none', padding: '15px 32px', borderRadius: 12 }}>
             Agenda tu clase <ArrowRight size={16} />
           </Link>
         </div>

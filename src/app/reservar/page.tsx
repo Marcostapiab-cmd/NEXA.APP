@@ -160,7 +160,7 @@ function PasoClase({ clases, loading, selNombre, precioPrueba, precioNormal, onS
                   Clase de prueba
                 </p>
                 <p className="text-[12px] mt-0.5" style={{ color: selNombre === 'prueba' ? 'rgba(255,255,255,0.65)' : D.sub }}>
-                  Prueba cualquier clase · una sola vez
+                  Tu primera clase en el estudio
                 </p>
               </div>
               <div className="shrink-0 text-right">
