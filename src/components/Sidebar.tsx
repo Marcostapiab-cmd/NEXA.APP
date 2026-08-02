@@ -45,7 +45,7 @@ const SECTION_ADMIN: Section = {
   label: 'Administración',
   items: [
     { href: '/grupales',      label: 'Clases grupales', Icon: CalendarDays },
-    { href: '/planes',        label: 'Planes',          Icon: Tag          },
+    // { href: '/planes', label: 'Planes', Icon: Tag }, // oculto — integrado en /grupales tab Planes
     // { href: '/pagos', label: 'Pagos', Icon: CreditCard }, // oculto — pago integrado en /alumnos
     { href: '/configuracion', label: 'Configuración',   Icon: Settings     },
   ],
