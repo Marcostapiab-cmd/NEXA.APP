@@ -1,26 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
-  ChevronLeft, ChevronRight, Clock, Users, ArrowRight, Star, Calendar,
+  ChevronLeft, ChevronRight, Clock, Users, Calendar,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
-// ── Design tokens (NEXA blanco/negro) ────────────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
 const D = {
   bg:       'var(--nexa-bg)',
   surface:  'var(--nexa-surface)',
   card:     'var(--nexa-card)',
-  cardHov:  'var(--nexa-card-alt)',
   border:   'var(--nexa-border)',
   text:     'var(--nexa-text)',
   sub:      'var(--nexa-text-sub)',
   muted:    'var(--nexa-muted)',
-  lime:     'var(--nexa-text)',
-  limeDim:  'var(--nexa-accent-sub)',
-  limeBord: 'var(--nexa-accent-glow)',
   red:      'var(--nexa-danger)',
   redDim:   'var(--nexa-danger-bg)',
+  accent:   'var(--nexa-accent-sub)',
+  accentB:  'var(--nexa-accent-glow)',
 } as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,24 +32,25 @@ interface PlanGrupal {
   num_clases:  number;
   validez_dias: number;
   destacado:   boolean;
+  orden:       number;
 }
 
 interface ClaseTipo {
-  id:          string;
-  nombre:      string;
+  id:           string;
+  nombre:       string;
   duracion_min: number;
 }
 
 interface SesionDisponible {
-  clase_id:    string;
-  nombre:      string;
+  clase_id:     string;
+  nombre:       string;
   duracion_min: number;
-  hora:        string;
-  dia_semana:  number;
-  capacidad:   number;
-  disponibles: number;
-  fecha:       string;
-  bloqueada:   boolean;
+  hora:         string;
+  dia_semana:   number;
+  capacidad:    number;
+  disponibles:  number;
+  fecha:        string;
+  bloqueada:    boolean;
   coach_nombre: string;
 }
 
@@ -64,7 +64,6 @@ interface Datos {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-const DIAS_C = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const DIAS_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const MESES_C = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
@@ -72,11 +71,6 @@ const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agost
 
 function clp(n: number) {
   return new Intl.NumberFormat('es-CL',{ style:'currency', currency:'CLP', minimumFractionDigits:0 }).format(n);
-}
-
-function parseFecha(f: string) {
-  const d = new Date(f + 'T12:00:00');
-  return { dia: DIAS_C[d.getDay()], num: d.getDate(), mes: MESES_C[d.getMonth()] };
 }
 
 function fechaLarga(f: string) {
@@ -134,9 +128,9 @@ function Logo() {
 function PasoBar({ paso }: { paso: number }) {
   return (
     <div className="flex gap-1.5 mb-8">
-      {[1,2,3,4].map(n => (
+      {[1,2,3].map(n => (
         <div key={n} className="flex-1 h-1 rounded-full transition-all duration-300"
-          style={{ background: n <= paso ? D.lime : D.border }} />
+          style={{ background: n <= paso ? D.text : D.border }} />
       ))}
     </div>
   );
@@ -146,7 +140,7 @@ function Spinner() {
   return (
     <div className="flex justify-center py-12">
       <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
-        style={{ color: D.lime }} />
+        style={{ color: D.text }} />
     </div>
   );
 }
@@ -168,7 +162,7 @@ function BtnNext({ label='Continuar', disabled, onClick, loading=false }: {
     <button onClick={onClick} disabled={disabled || loading}
       className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-black tracking-wide transition-all"
       style={{
-        background: (disabled||loading) ? D.card : 'var(--nexa-text)',
+        background: (disabled||loading) ? D.card : D.text,
         color:      (disabled||loading) ? D.muted : '#fff',
       }}>
       {loading
@@ -186,7 +180,7 @@ function Campo({ label, required=false, type='text', value, onChange, placeholde
     <div className="space-y-1.5">
       <label className="block text-[11px] font-semibold uppercase tracking-[0.1em]"
         style={{ color: D.muted }}>
-        {label}{required && <span style={{ color: D.lime }}> *</span>}
+        {label}{required && <span style={{ color: D.text }}> *</span>}
       </label>
       <input type={type} value={value} onChange={e=>onChange(e.target.value)}
         placeholder={placeholder}
@@ -201,103 +195,28 @@ function Campo({ label, required=false, type='text', value, onChange, placeholde
   );
 }
 
-// ── Step 1: Plan ──────────────────────────────────────────────────────────────
+// ── Step 1: Clase tipo ────────────────────────────────────────────────────────
 
-function PasoPlan({ planes, loading, sel, onSel, onNext }: {
-  planes: PlanGrupal[]; loading: boolean;
-  sel: PlanGrupal|null; onSel:(p:PlanGrupal)=>void; onNext:()=>void;
-}) {
-  return (
-    <div>
-      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.lime }}>
-        Paso 1 de 4
-      </p>
-      <h1 className="text-[24px] font-black tracking-tight leading-tight mb-1" style={{ color: D.text }}>
-        Elige tu pack
-      </h1>
-      <p className="text-[13px] mb-6" style={{ color: D.sub }}>
-        Clases de prueba para conocer el estudio.
-      </p>
-
-      {loading ? <Spinner /> : planes.length === 0 ? (
-        <p className="text-center py-8 text-[13px]" style={{ color: D.muted }}>
-          No hay packs disponibles por el momento.
-        </p>
-      ) : (
-        <div className="space-y-3 mb-8">
-          {planes.map(p => {
-            const active = sel?.id === p.id;
-            return (
-              <button key={p.id} onClick={() => onSel(p)}
-                className="w-full text-left rounded-2xl p-4 transition-all duration-150 relative"
-                style={{
-                  background: active ? D.limeDim : D.card,
-                  border: `1.5px solid ${active ? D.lime : D.border}`,
-                }}>
-                {p.destacado && (
-                  <span className="absolute -top-2.5 left-4 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black"
-                    style={{ background: D.lime, color:'#000' }}>
-                    <Star size={9} fill="currentColor" /> Popular
-                  </span>
-                )}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="text-[16px] font-black mb-0.5" style={{ color: D.text }}>{p.nombre}</p>
-                    {p.descripcion && (
-                      <p className="text-[12px] mb-2" style={{ color: D.sub }}>{p.descripcion}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full"
-                        style={{ background: D.border, color: D.sub }}>
-                        {p.num_clases} {p.num_clases===1?'clase':'clases'}
-                      </span>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full"
-                        style={{ background: D.border, color: D.sub }}>
-                        Válido {p.validez_dias} días
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[22px] font-black leading-none"
-                      style={{ color: active ? D.lime : D.text }}>
-                      {clp(p.precio_clp)}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-wide" style={{ color: D.muted }}>CLP</p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <BtnNext disabled={!sel} onClick={onNext} />
-    </div>
-  );
-}
-
-// ── Step 2: Clase ─────────────────────────────────────────────────────────────
-
-function PasoClase({ clases, loading, sel, onSel, onNext, onBack }: {
+function PasoClase({ clases, loading, sel, onSel, onNext, titulo, subtitulo }: {
   clases: ClaseTipo[]; loading: boolean;
-  sel: ClaseTipo|null; onSel:(c:ClaseTipo)=>void; onNext:()=>void; onBack:()=>void;
+  sel: ClaseTipo|null; onSel:(c:ClaseTipo)=>void; onNext:()=>void;
+  titulo: string; subtitulo: string;
 }) {
   return (
     <div>
-      <Volver onClick={onBack} />
-      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.lime }}>
-        Paso 2 de 4
+      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.muted }}>
+        Paso 1 de 3
       </p>
       <h1 className="text-[24px] font-black tracking-tight leading-tight mb-1" style={{ color: D.text }}>
-        ¿Qué clase quieres probar?
+        {titulo}
       </h1>
       <p className="text-[13px] mb-6" style={{ color: D.sub }}>
-        Elige la disciplina que más te llame.
+        {subtitulo}
       </p>
 
       {loading ? <Spinner /> : clases.length === 0 ? (
         <p className="text-center py-8 text-[13px]" style={{ color: D.muted }}>
-          No hay clases disponibles.
+          No hay clases disponibles por el momento.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 mb-8">
@@ -307,12 +226,16 @@ function PasoClase({ clases, loading, sel, onSel, onNext, onBack }: {
               <button key={c.id} onClick={() => onSel(c)}
                 className="text-left rounded-2xl p-4 transition-all duration-150"
                 style={{
-                  background: active ? D.limeDim : D.card,
-                  border: `1.5px solid ${active ? D.lime : D.border}`,
+                  background: active ? D.text : D.card,
+                  border: `1.5px solid ${active ? D.text : D.border}`,
                 }}>
-                <div className="text-[26px] mb-2">{emoji(c.nombre)}</div>
-                <p className="text-[14px] font-black" style={{ color: D.text }}>{c.nombre}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: D.sub }}>{c.duracion_min} min</p>
+                <div className="text-[28px] mb-2">{emoji(c.nombre)}</div>
+                <p className="text-[14px] font-black" style={{ color: active ? '#fff' : D.text }}>
+                  {c.nombre}
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: active ? 'rgba(255,255,255,0.6)' : D.muted }}>
+                  {c.duracion_min} min
+                </p>
               </button>
             );
           })}
@@ -324,7 +247,7 @@ function PasoClase({ clases, loading, sel, onSel, onNext, onBack }: {
   );
 }
 
-// ── Step 3: Horario ───────────────────────────────────────────────────────────
+// ── Step 2: Horario ───────────────────────────────────────────────────────────
 
 function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
   sesiones: SesionDisponible[]; loading: boolean;
@@ -341,7 +264,8 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
     if (fechasDisp.length > 0 && !fechasDisp.includes(fechaSel)) {
       setFechaSel(fechasDisp[0]);
     }
-  }, [fechasDisp, fechaSel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesiones]);
 
   const slotsHoy = sesiones.filter(s => s.fecha === fechaSel);
 
@@ -353,8 +277,8 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
   return (
     <div>
       <Volver onClick={onBack} />
-      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.lime }}>
-        Paso 3 de 4
+      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.muted }}>
+        Paso 2 de 3
       </p>
       <h1 className="text-[24px] font-black tracking-tight leading-tight mb-1" style={{ color: D.text }}>
         Elige tu horario
@@ -380,9 +304,6 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
             {fechasDisp.map((f, i) => {
               const active = fechaSel === f;
               const d = new Date(f + 'T12:00:00');
-              const diaLargo = DIAS_L[d.getDay()];
-              const num = d.getDate();
-              const mesLargo = MESES_L[d.getMonth()];
               const isLast = i === fechasDisp.length - 1;
               return (
                 <button key={f} onClick={() => cambiarFecha(f)}
@@ -397,16 +318,16 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
                         background: active ? 'rgba(255,255,255,0.15)' : D.card,
                         color: active ? '#fff' : D.text,
                       }}>
-                      {num}
+                      {d.getDate()}
                     </div>
                     <div>
                       <p className="text-[14px] font-semibold capitalize"
                         style={{ color: active ? '#fff' : D.text }}>
-                        {diaLargo}
+                        {DIAS_L[d.getDay()]}
                       </p>
                       <p className="text-[11px] capitalize"
                         style={{ color: active ? 'rgba(255,255,255,0.6)' : D.muted }}>
-                        {num} de {mesLargo}
+                        {d.getDate()} de {MESES_L[d.getMonth()]}
                       </p>
                     </div>
                   </div>
@@ -428,19 +349,21 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
                   onClick={() => onSel(s)}
                   className="w-full text-left rounded-2xl p-4 transition-all duration-150"
                   style={{
-                    background: active ? D.limeDim : D.card,
-                    border: `1.5px solid ${active ? D.lime : D.border}`,
+                    background: active ? D.text : D.card,
+                    border: `1.5px solid ${active ? D.text : D.border}`,
                     opacity: lleno ? 0.4 : 1,
                     cursor:  lleno ? 'not-allowed' : 'pointer',
                   }}>
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
-                        <Clock size={12} style={{ color: active ? D.lime : D.muted }} />
-                        <p className="text-[17px] font-black" style={{ color: D.text }}>{s.hora}</p>
+                        <Clock size={12} style={{ color: active ? 'rgba(255,255,255,0.7)' : D.muted }} />
+                        <p className="text-[17px] font-black" style={{ color: active ? '#fff' : D.text }}>{s.hora}</p>
                       </div>
                       {s.coach_nombre && (
-                        <p className="text-[12px]" style={{ color: D.sub }}>{s.coach_nombre}</p>
+                        <p className="text-[12px]" style={{ color: active ? 'rgba(255,255,255,0.6)' : D.sub }}>
+                          {s.coach_nombre}
+                        </p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
@@ -450,12 +373,14 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
                       ) : (
                         <>
                           <div className="flex items-center gap-1 justify-end">
-                            <Users size={11} style={{ color: active ? D.lime : D.sub }} />
+                            <Users size={11} style={{ color: active ? 'rgba(255,255,255,0.7)' : D.sub }} />
                             <p className="text-[18px] font-black leading-none"
-                              style={{ color: active ? D.lime : D.text }}>{s.disponibles}</p>
+                              style={{ color: active ? '#fff' : D.text }}>{s.disponibles}</p>
                           </div>
                           <p className="text-[9px] uppercase tracking-wide"
-                            style={{ color: D.muted }}>de {s.capacidad}</p>
+                            style={{ color: active ? 'rgba(255,255,255,0.5)' : D.muted }}>
+                            de {s.capacidad}
+                          </p>
                         </>
                       )}
                     </div>
@@ -472,7 +397,7 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
   );
 }
 
-// ── Step 4: Datos + Resumen ───────────────────────────────────────────────────
+// ── Step 3: Datos + Resumen ───────────────────────────────────────────────────
 
 function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, error }: {
   plan: PlanGrupal; sesion: SesionDisponible;
@@ -493,8 +418,8 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
   return (
     <div>
       <Volver onClick={onBack} />
-      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.lime }}>
-        Paso 4 de 4
+      <p className="text-[11px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: D.muted }}>
+        Paso 3 de 3
       </p>
       <h1 className="text-[24px] font-black tracking-tight leading-tight mb-1" style={{ color: D.text }}>
         Tus datos
@@ -510,11 +435,10 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
         </p>
         <div className="space-y-2">
           {[
-            ['Clase',   sesion.nombre],
-            ['Fecha',   fechaLarga(sesion.fecha)],
-            ['Hora',    sesion.hora],
+            ['Clase',  sesion.nombre],
+            ['Fecha',  fechaLarga(sesion.fecha)],
+            ['Hora',   sesion.hora],
             ...(sesion.coach_nombre ? [['Profesor', sesion.coach_nombre]] : []),
-            ['Pack',    `${plan.nombre} · ${plan.num_clases} clase${plan.num_clases>1?'s':''}`],
           ].map(([k,v]) => (
             <div key={k} className="flex items-center justify-between gap-2">
               <p className="text-[11px] shrink-0" style={{ color: D.muted }}>{k}</p>
@@ -526,7 +450,7 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
             <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: D.muted }}>
               Total a pagar
             </p>
-            <p className="text-[20px] font-black" style={{ color: D.lime }}>{clp(plan.precio_clp)}</p>
+            <p className="text-[20px] font-black" style={{ color: D.text }}>{clp(plan.precio_clp)}</p>
           </div>
         </div>
       </div>
@@ -540,7 +464,6 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
         <Campo label="Email" required type="email" value={datos.email}
           onChange={v => setDatos({ ...datos, email: v })} placeholder="tu@email.com" />
 
-        {/* Teléfono con prefijo */}
         <div className="space-y-1.5">
           <label className="block text-[11px] font-semibold uppercase tracking-[0.1em]"
             style={{ color: D.muted }}>Teléfono</label>
@@ -581,54 +504,66 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
 
       <div className="flex items-center justify-center gap-2 mt-4">
         <span className="text-[11px]" style={{ color: D.muted }}>🔒</span>
-        <p className="text-[11px]" style={{ color: D.muted }}>
-          Pago seguro a través de Flow
-        </p>
+        <p className="text-[11px]" style={{ color: D.muted }}>Pago seguro a través de Flow</p>
       </div>
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Inner component (needs useSearchParams) ───────────────────────────────────
 
-type Paso = 1 | 2 | 3 | 4;
+function ReservarInner() {
+  const params   = useSearchParams();
+  const esPrueba = params.get('prueba') === '1';
 
-export default function ReservarPage() {
-  const [paso,      setPaso]      = useState<Paso>(1);
-  const [planes,    setPlanes]    = useState<PlanGrupal[]>([]);
-  const [clases,    setClases]    = useState<ClaseTipo[]>([]);
-  const [sesiones,  setSesiones]  = useState<SesionDisponible[]>([]);
-  const [loadP,     setLoadP]     = useState(true);
-  const [loadC,     setLoadC]     = useState(false);
-  const [loadS,     setLoadS]     = useState(false);
-  const [plan,      setPlan]      = useState<PlanGrupal|null>(null);
-  const [clase,     setClase]     = useState<ClaseTipo|null>(null);
-  const [sesion,    setSesion]    = useState<SesionDisponible|null>(null);
-  const [datos,     setDatos]     = useState<Datos>({ nombre:'', apellido:'', email:'', telefono:'', rut:'' });
-  const [paying,    setPaying]    = useState(false);
-  const [payError,  setPayError]  = useState('');
+  const [paso,     setPaso]     = useState<1|2|3>(1);
+  const [clases,   setClases]   = useState<ClaseTipo[]>([]);
+  const [sesiones, setSesiones] = useState<SesionDisponible[]>([]);
+  const [plan,     setPlan]     = useState<PlanGrupal|null>(null);
+  const [loadC,    setLoadC]    = useState(true);
+  const [loadS,    setLoadS]    = useState(false);
+  const [clase,    setClase]    = useState<ClaseTipo|null>(null);
+  const [sesion,   setSesion]   = useState<SesionDisponible|null>(null);
+  const [datos,    setDatos]    = useState<Datos>({ nombre:'', apellido:'', email:'', telefono:'', rut:'' });
+  const [paying,   setPaying]   = useState(false);
+  const [payError, setPayError] = useState('');
 
-  // Load plans on mount
+  // Load class types + auto-select plan on mount
   useEffect(() => {
-    supabase.from('planes_grupales').select('*').eq('activo',true).order('orden')
-      .then(({ data }) => { setPlanes((data ?? []) as PlanGrupal[]); setLoadP(false); });
-  }, []);
-
-  const cargarClases = useCallback(async () => {
-    setLoadC(true);
-    const { data } = await supabase
-      .from('clases_grupales')
+    // Load class types
+    supabase.from('clases_grupales')
       .select('id, nombre, duracion_min')
       .eq('activa', true)
-      .order('nombre');
-    // Deduplicate by nombre (same class can have multiple schedules)
-    const seen = new Set<string>();
-    const uniq: ClaseTipo[] = [];
-    for (const c of (data ?? []) as ClaseTipo[]) {
-      if (!seen.has(c.nombre)) { seen.add(c.nombre); uniq.push({ ...c, duracion_min: c.duracion_min ?? 50 }); }
-    }
-    setClases(uniq);
-    setLoadC(false);
+      .order('nombre')
+      .then(({ data }) => {
+        const seen = new Set<string>();
+        const uniq: ClaseTipo[] = [];
+        for (const c of (data ?? []) as ClaseTipo[]) {
+          if (!seen.has(c.nombre)) { seen.add(c.nombre); uniq.push({ ...c, duracion_min: c.duracion_min ?? 50 }); }
+        }
+        setClases(uniq);
+        setLoadC(false);
+      });
+
+    // Auto-select plan: if prueba=1, pick cheapest (1-class); otherwise pick cheapest overall
+    supabase.from('planes_grupales')
+      .select('*')
+      .eq('activo', true)
+      .order('orden')
+      .then(({ data }) => {
+        const lista = (data ?? []) as PlanGrupal[];
+        if (lista.length === 0) return;
+        if (esPrueba) {
+          // Pick 1-class plan first, otherwise cheapest
+          const prueba = lista.find(p => p.num_clases === 1) ?? lista[0];
+          setPlan(prueba);
+        } else {
+          // Pick cheapest
+          const cheapest = lista.reduce((a, b) => b.precio_clp < a.precio_clp ? b : a, lista[0]);
+          setPlan(cheapest);
+        }
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargarSesiones = useCallback(async (nombre: string) => {
@@ -638,9 +573,16 @@ export default function ReservarPage() {
     setLoadS(false);
   }, []);
 
-  function irPaso2() { if (!plan) return; cargarClases(); setPaso(2); }
-  function irPaso3() { if (!clase) return; cargarSesiones(clase.nombre); setPaso(3); }
-  function irPaso4() { if (!sesion) return; setPaso(4); }
+  function irPaso2() {
+    if (!clase) return;
+    cargarSesiones(clase.nombre);
+    setPaso(2);
+  }
+
+  function irPaso3() {
+    if (!sesion) return;
+    setPaso(3);
+  }
 
   async function handlePagar() {
     if (!plan || !clase || !sesion) return;
@@ -668,13 +610,17 @@ export default function ReservarPage() {
         setPaying(false);
         return;
       }
-      // Redirect to Flow (navigate away, spinner keeps showing)
       window.location.href = json.payUrl;
     } catch {
       setPayError('Error de conexión. Verifica tu internet e inténtalo nuevamente.');
       setPaying(false);
     }
   }
+
+  const tituloPaso1 = esPrueba ? '¿Qué clase quieres probar?' : '¿Qué quieres entrenar?';
+  const subtituloPaso1 = esPrueba
+    ? 'Elige la disciplina para tu clase de prueba.'
+    : 'Elige la disciplina que más te llame la atención.';
 
   return (
     <main style={{ background: 'var(--nexa-surface)', minHeight: '100vh' }}>
@@ -683,26 +629,45 @@ export default function ReservarPage() {
         <PasoBar paso={paso} />
 
         {paso === 1 && (
-          <PasoPlan planes={planes} loading={loadP}
-            sel={plan} onSel={setPlan} onNext={irPaso2} />
-        )}
-        {paso === 2 && (
-          <PasoClase clases={clases} loading={loadC}
+          <PasoClase
+            clases={clases} loading={loadC}
             sel={clase} onSel={setClase}
-            onNext={irPaso3} onBack={() => setPaso(1)} />
+            onNext={irPaso2}
+            titulo={tituloPaso1}
+            subtitulo={subtituloPaso1}
+          />
         )}
-        {paso === 3 && clase && (
-          <PasoHorario sesiones={sesiones} loading={loadS}
+        {paso === 2 && clase && (
+          <PasoHorario
+            sesiones={sesiones} loading={loadS}
             sel={sesion} onSel={setSesion}
-            onNext={irPaso4} onBack={() => setPaso(2)} />
+            onNext={irPaso3} onBack={() => setPaso(1)}
+          />
         )}
-        {paso === 4 && plan && sesion && (
-          <PasoDatos plan={plan} sesion={sesion}
+        {paso === 3 && plan && sesion && (
+          <PasoDatos
+            plan={plan} sesion={sesion}
             datos={datos} setDatos={setDatos}
-            onPagar={handlePagar} onBack={() => setPaso(3)}
-            loading={paying} error={payError} />
+            onPagar={handlePagar} onBack={() => setPaso(2)}
+            loading={paying} error={payError}
+          />
         )}
       </div>
     </main>
+  );
+}
+
+// ── Page export (Suspense for useSearchParams) ────────────────────────────────
+
+export default function ReservarPage() {
+  return (
+    <Suspense fallback={
+      <main style={{ background: 'var(--nexa-surface)', minHeight: '100vh' }}
+        className="flex items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#121212] border-t-transparent" />
+      </main>
+    }>
+      <ReservarInner />
+    </Suspense>
   );
 }
