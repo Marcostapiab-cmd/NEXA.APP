@@ -41,10 +41,14 @@ interface Pago {
 }
 
 const ESTADO_RESERVA: Record<string, { label: string; color: string }> = {
-  pendiente:  { label: 'Pendiente',   color: '#d97706' },
-  asistio:    { label: 'Asistió',     color: '#16a34a' },
-  ausente:    { label: 'No asistió',  color: '#dc2626' },
-  reagendada: { label: 'Reagendada',  color: '#6b7280' },
+  pendiente:       { label: 'Pendiente',   color: '#d97706' },
+  confirmada:      { label: 'Confirmada',  color: '#2563eb' },
+  presente:        { label: 'Asistió',     color: '#16a34a' },
+  no_show:         { label: 'No asistió',  color: '#dc2626' },
+  cancelada_tarde: { label: 'Cancelada',   color: '#dc2626' },
+  cancelada_tiempo:{ label: 'Cancelada',   color: '#9B9B9B' },
+  cancelada_nexa:  { label: 'Cancelada',   color: '#9B9B9B' },
+  reagendada:      { label: 'Reagendada',  color: '#6b7280' },
 };
 
 export default function PortalPage() {
@@ -292,7 +296,7 @@ export default function PortalPage() {
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]">Historial reciente</p>
             <div className="space-y-2">
               {reservas.filter(r => r.fecha < new Date().toISOString().slice(0, 10)).slice(0, 5).map(r => {
-                const asistio = r.estado === 'asistio';
+                const asistio = r.estado === 'presente';
                 return (
                   <div key={r.id} className="flex items-center gap-3">
                     {asistio
@@ -303,8 +307,8 @@ export default function PortalPage() {
                       {new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
                       {r.hora && ` · ${r.hora}`}
                     </span>
-                    <span className="ml-auto text-xs" style={{ color: asistio ? '#16a34a' : '#9B9B9B' }}>
-                      {asistio ? 'Asistió' : ESTADO_RESERVA[r.estado]?.label ?? r.estado}
+                    <span className="ml-auto text-xs" style={{ color: ESTADO_RESERVA[r.estado]?.color ?? '#9B9B9B' }}>
+                      {ESTADO_RESERVA[r.estado]?.label ?? r.estado}
                     </span>
                   </div>
                 );

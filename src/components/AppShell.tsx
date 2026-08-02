@@ -3,12 +3,12 @@
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 
-const NO_SIDEBAR_PATHS = ['/login', '/'];
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales'];
+const NO_SIDEBAR_PATHS = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const noSidebar = NO_SIDEBAR_PATHS.includes(pathname) ||
+  const noSidebar = NO_SIDEBAR_PATHS.has(pathname) ||
     NO_SIDEBAR_PREFIXES.some(p => pathname.startsWith(p));
 
   return (

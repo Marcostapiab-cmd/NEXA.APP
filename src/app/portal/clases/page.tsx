@@ -15,12 +15,14 @@ interface Reserva {
 }
 
 const ESTADO: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  pendiente:       { label: 'Pendiente',   icon: Clock,         color: '#d97706', bg: '#fffbeb' },
-  presente:        { label: 'Asistió',     icon: CheckCircle2,  color: '#16a34a', bg: '#f0fdf4' },
-  asistio:         { label: 'Asistió',     icon: CheckCircle2,  color: '#16a34a', bg: '#f0fdf4' },
-  no_show:         { label: 'No asistió',  icon: XCircle,       color: '#dc2626', bg: '#fef2f2' },
-  cancelada_tarde: { label: 'Cancelada',   icon: XCircle,       color: '#dc2626', bg: '#fef2f2' },
-  reagendada:      { label: 'Reagendada',  icon: RefreshCw,     color: '#6b7280', bg: '#f9fafb' },
+  pendiente:        { label: 'Pendiente',  icon: Clock,        color: '#d97706', bg: '#fffbeb' },
+  confirmada:       { label: 'Confirmada', icon: CheckCircle2, color: '#2563eb', bg: '#eff6ff' },
+  presente:         { label: 'Asistió',    icon: CheckCircle2, color: '#16a34a', bg: '#f0fdf4' },
+  no_show:          { label: 'No asistió', icon: XCircle,      color: '#dc2626', bg: '#fef2f2' },
+  cancelada_tarde:  { label: 'Cancelada',  icon: XCircle,      color: '#dc2626', bg: '#fef2f2' },
+  cancelada_tiempo: { label: 'Cancelada',  icon: XCircle,      color: '#9B9B9B', bg: '#f9fafb' },
+  cancelada_nexa:   { label: 'Cancelada',  icon: XCircle,      color: '#9B9B9B', bg: '#f9fafb' },
+  reagendada:       { label: 'Reagendada', icon: RefreshCw,    color: '#6b7280', bg: '#f9fafb' },
 };
 
 function agruparPorMes(reservas: Reserva[]): Record<string, Reserva[]> {

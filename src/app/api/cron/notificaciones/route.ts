@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
   );
   const resend = new Resend(process.env.RESEND_API_KEY);
   const fromEmail = process.env.RESEND_FROM ?? 'NEXA Performance <onboarding@resend.dev>';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://nexa-app.vercel.app';
+
 
   const hoy = new Date();
   const en3dias = new Date(hoy);
@@ -163,6 +163,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  void appUrl;
   return NextResponse.json({ ok: true, ...resultados });
 }

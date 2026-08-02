@@ -38,8 +38,8 @@ const NAV_PROFESOR: NavItem[] = [
 ];
 
 // Rutas sin sidebar
-const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/mi-cuenta'];
+const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta'];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/dashboard') return pathname === href;
