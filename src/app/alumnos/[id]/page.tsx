@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
-import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon, CreditCard, ExternalLink, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon, CreditCard, ExternalLink, Loader2, Send, FileText, CheckCircle, Clock } from 'lucide-react';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 import type { Sesion } from '@/lib/sesiones';
 import { getSesionesAlumnoDB } from '@/lib/sesiones-supabase';
@@ -143,6 +143,7 @@ export default function AlumnoPerfilPage() {
 
   // Pagos Flow
   const [pagos,        setPagos]        = useState<Pago[]>([]);
+  const [tabActivo,    setTabActivo]    = useState<'perfil' | 'contratos'>('perfil');
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [pagoForm,     setPagoForm]     = useState({ monto: '', descripcion: '' });
   const [pagoLoading,  setPagoLoading]  = useState(false);
@@ -449,6 +450,21 @@ export default function AlumnoPerfilPage() {
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="mb-6 flex gap-1 rounded-xl border border-[#CACACA] bg-[#F0F0F0] p-1" style={{ width: 'fit-content' }}>
+        {(['perfil', 'contratos'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTabActivo(t)}
+            className="rounded-lg px-5 py-2 text-sm font-semibold transition-all"
+            style={tabActivo === t ? { background: '#121212', color: '#FFFFFF' } : { color: '#5E5E5E' }}
+          >
+            {t === 'perfil' ? 'Perfil' : 'Contrato'}
+          </button>
+        ))}
+      </div>
+
+      {tabActivo === 'perfil' && (
       <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
         {/* Main column */}
         <div className="space-y-4">
@@ -1106,6 +1122,36 @@ export default function AlumnoPerfilPage() {
           </div>
         </div>
       </div>
+      )}
+
+      {tabActivo === 'contratos' && (
+        <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-6">
+          <div className="mb-5 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[#5E5E5E]" />
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]">Contrato</p>
+          </div>
+          {alumno.contratoFirmado ? (
+            <div className="mb-5 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-700">
+                Firmado{alumno.contratoFechaFirma ? ` el ${new Date(alumno.contratoFechaFirma).toLocaleDateString('es-CL')}` : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="mb-5 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-[#AAAAAA]" />
+              <span className="text-[#888888]">Contrato pendiente de firma</span>
+            </div>
+          )}
+          <a
+            href={`/contratos/${id}`}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#CACACA] px-4 py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]"
+          >
+            <FileText className="h-4 w-4" />
+            {alumno.contratoFirmado ? 'Ver contrato' : 'Generar contrato'}
+          </a>
+        </div>
+      )}
 
       {showInscripcion && (
         <InscripcionModal

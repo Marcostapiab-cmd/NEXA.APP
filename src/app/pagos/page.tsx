@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { getAllPagosDB, type Pago } from '@/lib/pagos-supabase';
 import { CreditCard, CheckCircle2, Clock, XCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import ProfesoresTab from './ProfesoresTab';
 
 const ESTADO_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   pagado:      { label: 'Pagado',      icon: CheckCircle2, color: '#16a34a', bg: '#f0fdf4' },
@@ -11,10 +13,12 @@ const ESTADO_CONFIG: Record<string, { label: string; icon: React.ElementType; co
   reembolsado: { label: 'Reembolsado', icon: RefreshCw,    color: '#6b7280', bg: '#f9fafb' },
 };
 
-export default function PagosPage() {
-  const [pagos,    setPagos]    = useState<Pago[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [filtro,   setFiltro]   = useState<'todos' | Pago['estado']>('todos');
+type Tab = 'alumnos' | 'profesores';
+
+function AlumnosTab() {
+  const [pagos,   setPagos]   = useState<Pago[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtro,  setFiltro]  = useState<'todos' | Pago['estado']>('todos');
 
   useEffect(() => {
     getAllPagosDB()
@@ -24,7 +28,6 @@ export default function PagosPage() {
   }, []);
 
   const filtrados = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
-
   const stats = {
     totalPagado:    pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.monto, 0),
     pendienteCount: pagos.filter(p => p.estado === 'pendiente').length,
@@ -32,15 +35,7 @@ export default function PagosPage() {
   };
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-4 py-8 sm:px-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-[#121212]" />
-          <h1 className="text-2xl font-black text-[#121212]">Pagos</h1>
-        </div>
-        <p className="mt-1 text-sm text-[#5E5E5E]">Historial de cobros generados vía Flow.cl</p>
-      </div>
-
+    <>
       {/* Stats */}
       <div className="mb-6 grid grid-cols-3 gap-3">
         {[
@@ -92,42 +87,29 @@ export default function PagosPage() {
             const cfg = ESTADO_CONFIG[pago.estado] ?? ESTADO_CONFIG.pendiente;
             const Icn = cfg.icon;
             return (
-              <div key={pago.id}
-                className="rounded-[12px] border border-[#CACACA] bg-[#F8F8F8] px-4 py-3"
-              >
+              <div key={pago.id} className="rounded-[12px] border border-[#CACACA] bg-[#F8F8F8] px-4 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-[#121212]">
                       {pago.descripcion || 'Cobro sin descripción'}
                     </p>
                     <div className="mt-0.5 flex flex-wrap gap-3 text-xs text-[#5E5E5E]">
-                      <span className="font-bold text-[#121212]">
-                        ${pago.monto.toLocaleString('es-CL')} CLP
-                      </span>
-                      {pago.fechaPago && (
-                        <span>Pagado: {new Date(pago.fechaPago).toLocaleDateString('es-CL')}</span>
-                      )}
-                      {!pago.fechaPago && (
-                        <span>Creado: {new Date(pago.createdAt).toLocaleDateString('es-CL')}</span>
-                      )}
+                      <span className="font-bold text-[#121212]">${pago.monto.toLocaleString('es-CL')} CLP</span>
+                      {pago.fechaPago
+                        ? <span>Pagado: {new Date(pago.fechaPago).toLocaleDateString('es-CL')}</span>
+                        : <span>Creado: {new Date(pago.createdAt).toLocaleDateString('es-CL')}</span>}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span
-                      className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                      style={{ color: cfg.color, background: cfg.bg }}
-                    >
+                    <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                      style={{ color: cfg.color, background: cfg.bg }}>
                       <Icn className="h-3 w-3" />
                       {cfg.label}
                     </span>
                     {pago.checkoutUrl && pago.estado === 'pendiente' && (
-                      <a
-                        href={pago.checkoutUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <a href={pago.checkoutUrl} target="_blank" rel="noreferrer"
                         className="rounded-lg border border-[#CACACA] p-1.5 text-[#5E5E5E] transition hover:text-[#121212]"
-                        title="Abrir link de pago"
-                      >
+                        title="Abrir link de pago">
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}
@@ -138,6 +120,57 @@ export default function PagosPage() {
           })}
         </div>
       )}
+    </>
+  );
+}
+
+function PagosContent() {
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+  const tabParam     = searchParams.get('tab') as Tab | null;
+  const [tab, setTab] = useState<Tab>(tabParam === 'profesores' ? 'profesores' : 'alumnos');
+
+  function cambiarTab(t: Tab) {
+    setTab(t);
+    router.replace(`/pagos${t === 'profesores' ? '?tab=profesores' : ''}`);
+  }
+
+  return (
+    <main className="mx-auto min-h-screen max-w-4xl px-4 py-8 sm:px-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-[#121212]" />
+          <h1 className="text-2xl font-black text-[#121212]">Pagos</h1>
+        </div>
+        <p className="mt-1 text-sm text-[#5E5E5E]">Gestión de cobros y liquidaciones</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6 flex gap-1 rounded-xl border border-[#CACACA] bg-[#F0F0F0] p-1" style={{ width: 'fit-content' }}>
+        {(['alumnos', 'profesores'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => cambiarTab(t)}
+            className="rounded-lg px-5 py-2 text-sm font-semibold transition-all"
+            style={tab === t
+              ? { background: '#121212', color: '#FFFFFF' }
+              : { color: '#5E5E5E' }}
+          >
+            {t === 'alumnos' ? 'Alumnos' : 'Profesores'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'alumnos' ? <AlumnosTab /> : <ProfesoresTab />}
     </main>
+  );
+}
+
+export default function PagosPage() {
+  return (
+    <Suspense>
+      <PagosContent />
+    </Suspense>
   );
 }
