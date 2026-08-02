@@ -2,15 +2,16 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // Accesibles sin sesión y sin redirigir aunque el usuario esté logueado
-const PUBLIC_OPEN = ['/clases-grupales'];
+const PUBLIC_OPEN = ['/clases-grupales', '/actualizar-contrasena'];
 // Accesibles sin sesión pero redirigen si el usuario ya tiene sesión
-const AUTH_ROUTES = ['/login', '/registro'];
+const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login', '/portal/sin-cuenta'];
 
 // Rutas que solo puede acceder el staff (cualquier rol distinto de alumno)
 const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
   '/weightroom', '/progreso', '/rutinas', '/configuracion',
   '/pagos', '/contratos', '/calendario', '/notificaciones', '/biblioteca',
+  '/grupales',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -47,7 +48,10 @@ export async function middleware(request: NextRequest) {
   if (AUTH_ROUTES.includes(pathname)) {
     if (user) {
       const rol = user.user_metadata?.rol as string | undefined;
-      const dest = rol === 'alumno' ? '/clases-grupales' : '/dashboard';
+      if (pathname === '/portal/login') {
+        return NextResponse.redirect(new URL('/portal', request.url));
+      }
+      const dest = rol === 'alumno' ? '/portal' : '/dashboard';
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return response;

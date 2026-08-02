@@ -89,7 +89,7 @@ DECLARE
   v_reservadas bigint;
   v_bloqueada  boolean;
   v_atleta_id  uuid;
-  v_reserva_id uuid;
+  v_reserva_id bigint;
 BEGIN
   -- Validar inputs mínimos
   IF trim(coalesce(p_nombre,'')) = '' OR trim(coalesce(p_apellido,'')) = '' THEN
@@ -185,6 +185,8 @@ BEGIN
     'fecha',      p_fecha::text,
     'hora',       v_clase.hora
   );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('ok', false, 'error', 'error_servidor', 'detail', SQLERRM);
 END;
 $$;
 
