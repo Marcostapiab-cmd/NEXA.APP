@@ -821,7 +821,6 @@ export default function AlumnoPerfilPage() {
                 <div><label className={LC}>Etapa CRM</label>
                   <select className={IC} value={editBuf.etapa ?? ''} onChange={e => setEditBuf(p => ({ ...p, etapa: e.target.value }))}>
                     <option value="lead">Lead</option>
-                    <option value="prospecto">Prospecto</option>
                     <option value="activo">Activo</option>
                     <option value="inactivo">Inactivo</option>
                   </select>
