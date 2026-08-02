@@ -374,25 +374,44 @@ function PasoHorario({ sesiones, loading, sel, onSel, onNext, onBack }: {
         </div>
       ) : (
         <>
-          {/* Date chips */}
-          <div className="flex gap-2 overflow-x-auto pb-1 mb-5" style={{ scrollbarWidth:'none' }}>
-            {fechasDisp.map(f => {
-              const { dia, num, mes } = parseFecha(f);
+          {/* Lista vertical de fechas */}
+          <div className="rounded-2xl overflow-hidden mb-5"
+            style={{ border: `1px solid ${D.border}` }}>
+            {fechasDisp.map((f, i) => {
               const active = fechaSel === f;
+              const d = new Date(f + 'T12:00:00');
+              const diaLargo = DIAS_L[d.getDay()];
+              const num = d.getDate();
+              const mesLargo = MESES_L[d.getMonth()];
+              const isLast = i === fechasDisp.length - 1;
               return (
                 <button key={f} onClick={() => cambiarFecha(f)}
-                  className="shrink-0 rounded-xl px-3 py-2.5 text-center transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left transition-all duration-150"
                   style={{
-                    background: active ? D.lime : D.card,
-                    border: `1.5px solid ${active ? D.lime : D.border}`,
-                    minWidth: '58px',
+                    background: active ? D.text : D.bg,
+                    borderBottom: isLast ? 'none' : `1px solid ${D.border}`,
                   }}>
-                  <p className="text-[9px] font-bold uppercase tracking-wide"
-                    style={{ color: active ? '#000' : D.muted }}>{dia}</p>
-                  <p className="text-[21px] font-black leading-none my-0.5"
-                    style={{ color: active ? '#000' : D.text }}>{num}</p>
-                  <p className="text-[9px] uppercase"
-                    style={{ color: active ? '#000' : D.muted }}>{mes}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-black shrink-0"
+                      style={{
+                        background: active ? 'rgba(255,255,255,0.15)' : D.card,
+                        color: active ? '#fff' : D.text,
+                      }}>
+                      {num}
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-semibold capitalize"
+                        style={{ color: active ? '#fff' : D.text }}>
+                        {diaLargo}
+                      </p>
+                      <p className="text-[11px] capitalize"
+                        style={{ color: active ? 'rgba(255,255,255,0.6)' : D.muted }}>
+                        {num} de {mesLargo}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: active ? '#fff' : D.border }} />
                 </button>
               );
             })}
