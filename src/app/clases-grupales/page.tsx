@@ -256,6 +256,21 @@ function FormView({
     setEnviando(false);
 
     if (result.ok) {
+      // Enviar email de confirmación si el usuario ingresó uno (fire-and-forget)
+      if (email.trim()) {
+        fetch('/api/confirmacion-grupal', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email:    email.trim(),
+            nombre:   nombre.trim(),
+            apellido: apellido.trim(),
+            clase:    result.clase ?? sesion.nombre,
+            fecha:    sesion.fecha,
+            hora:     result.hora  ?? sesion.hora,
+          }),
+        }).catch(() => { /* no bloquear si el email falla */ });
+      }
       onSuccess(nombre.trim());
     } else {
       setError(ERROR_MSG[result.error ?? ''] ?? ERROR_MSG.error_servidor);
