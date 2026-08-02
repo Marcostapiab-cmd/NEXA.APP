@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
-import { ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Plus, ClipboardCheck } from 'lucide-react';
+import CheckinTab from './CheckinTab';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
 import {
@@ -784,6 +785,7 @@ export default function HorarioPage() {
   const [horConfig,   setHorConfig]   = useState<HorarioConfig>(DEFAULT_HORARIO_CONFIG);
   const [bloqueos,    setBloqueos]    = useState<HorarioBloqueo[]>([]);
   const [loading,     setLoading]     = useState(true);
+  const [vista,       setVista]       = useState<'horario' | 'checkin'>('horario');
   const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
   const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
   const [toast,       setToast]       = useState<string | null>(null);
@@ -901,12 +903,31 @@ export default function HorarioPage() {
         <div className="mb-5 flex flex-wrap items-center gap-4">
           <div>
             <h1 className="text-lg font-black tracking-[0.12em]" style={{ color: 'var(--nexa-text)' }}>
-              HORARIO
+              {vista === 'horario' ? 'HORARIO' : 'CHECK-IN'}
             </h1>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--nexa-muted)' }}>
-              Clic en clase para editar · clic en celda vacía para agendar
+              {vista === 'horario' ? 'Clic en clase para editar · clic en celda vacía para agendar' : 'Clases individuales de hoy'}
             </p>
           </div>
+
+          {/* Switcher Horario / Check-in */}
+          <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+            <button
+              onClick={() => setVista('horario')}
+              className="rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
+              style={{ background: vista === 'horario' ? 'var(--nexa-text)' : 'transparent', color: vista === 'horario' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
+            >
+              Horario
+            </button>
+            <button
+              onClick={() => setVista('checkin')}
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
+              style={{ background: vista === 'checkin' ? 'var(--nexa-text)' : 'transparent', color: vista === 'checkin' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
+            >
+              <ClipboardCheck size={12} /> Check-in
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setWeekOffset(0)}
@@ -935,6 +956,12 @@ export default function HorarioPage() {
             </div>
           </div>
         </div>
+
+        {/* Vista Check-in */}
+        {vista === 'checkin' && <CheckinTab />}
+
+        {/* Vista Horario */}
+        {vista === 'horario' && <>
 
         {/* Pestañas coach */}
         <div className="flex gap-0 overflow-x-auto" style={{ borderBottom: '2px solid var(--nexa-border)' }}>
@@ -1222,7 +1249,6 @@ export default function HorarioPage() {
             </div>
           </>
         )}
-      </div>
 
       {/* Modal editar asistencia */}
       {editSlot && (
@@ -1245,6 +1271,10 @@ export default function HorarioPage() {
           onSaved={load}
         />
       )}
+
+        </>}
+
+      </div>
 
       {/* Toast aviso día bloqueado */}
       {toast && (

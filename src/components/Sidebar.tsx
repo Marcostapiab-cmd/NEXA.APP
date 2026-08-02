@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
-  Grid3x3, Settings, ClipboardCheck, LogOut, CreditCard,
+  Grid3x3, Settings, LogOut, CreditCard,
   UserPlus, ChevronDown, ChevronRight, CalendarDays, Tag,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -18,9 +18,8 @@ const SECTIONS_COMUN: Section[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', label: 'Inicio',   Icon: Home },
-      { href: '/horario',   label: 'Horario',  Icon: Grid3x3 },
-      { href: '/checkin',   label: 'Check-in', Icon: ClipboardCheck },
+      { href: '/dashboard', label: 'Inicio',  Icon: Home },
+      { href: '/horario',   label: 'Horario', Icon: Grid3x3 },
     ],
   },
   {
@@ -56,25 +55,22 @@ const SECTIONS_PROFESOR: Section[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/horario', label: 'Horario',  Icon: Grid3x3 },
-      { href: '/checkin', label: 'Check-in', Icon: ClipboardCheck },
-      { href: '/rutinas', label: 'Rutinas',  Icon: Calendar },
+      { href: '/horario', label: 'Horario', Icon: Grid3x3 },
+      { href: '/rutinas', label: 'Rutinas', Icon: Calendar },
     ],
   },
 ];
 
 const MOBILE_ITEMS: NavItem[] = [
-  { href: '/dashboard',  label: 'Inicio',   Icon: Home },
-  { href: '/horario',    label: 'Horario',  Icon: Grid3x3 },
-  { href: '/alumnos',    label: 'Alumnos',  Icon: Users },
-  { href: '/rutinas',    label: 'Rutinas',  Icon: Calendar },
-  { href: '/checkin',    label: 'Check-in', Icon: ClipboardCheck },
+  { href: '/dashboard', label: 'Inicio',    Icon: Home },
+  { href: '/horario',   label: 'Horario',   Icon: Grid3x3 },
+  { href: '/alumnos',   label: 'Alumnos',   Icon: Users },
+  { href: '/rutinas',   label: 'Rutinas',   Icon: Calendar },
 ];
 
 const MOBILE_ITEMS_PROFESOR: NavItem[] = [
-  { href: '/horario', label: 'Horario',  Icon: Grid3x3 },
-  { href: '/checkin', label: 'Check-in', Icon: ClipboardCheck },
-  { href: '/rutinas', label: 'Rutinas',  Icon: Calendar },
+  { href: '/horario', label: 'Horario', Icon: Grid3x3 },
+  { href: '/rutinas', label: 'Rutinas', Icon: Calendar },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);

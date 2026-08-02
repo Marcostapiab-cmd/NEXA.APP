@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function CheckinRedirect() {
+export default function CheckInHyphenRedirect() {
   const router = useRouter();
   useEffect(() => { router.replace('/horario'); }, [router]);
   return (
