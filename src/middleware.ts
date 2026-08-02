@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // Accesibles sin sesión y sin redirigir aunque el usuario esté logueado
-const PUBLIC_OPEN = ['/clases-grupales', '/actualizar-contrasena'];
+const PUBLIC_OPEN = ['/clases-grupales', '/actualizar-contrasena', '/reservar', '/api/reservar'];
 // Accesibles sin sesión pero redirigen si el usuario ya tiene sesión
 const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login', '/portal/sin-cuenta'];
 
