@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
@@ -15,6 +13,7 @@ export async function POST(req: NextRequest) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ ok: false, error: 'RESEND_API_KEY no configurado' }, { status: 500 });
   }
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const body = await req.json();
   const { email, nombre, apellido, clase, fecha, hora } = body as {

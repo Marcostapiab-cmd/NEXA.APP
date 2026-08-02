@@ -104,7 +104,7 @@ export default function GrupalesPage() {
 
     // Agrupar por fecha + hora
     const mapa: Record<string, SesionAgrupada> = {};
-    for (const r of (reservasData ?? []) as Reserva[]) {
+    for (const r of (reservasData ?? []) as unknown as Reserva[]) {
       const key = `${r.fecha}|${r.hora}`;
       if (!mapa[key]) {
         const dow = new Date(r.fecha + 'T12:00:00').getDay();
