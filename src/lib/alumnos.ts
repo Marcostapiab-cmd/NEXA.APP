@@ -6,7 +6,8 @@ const SELECT_FIELDS = `
   rut, telefono,
   contacto_emergencia_nombre, contacto_emergencia_tel, contacto_emergencia_relacion,
   objetivo, etapa, notas_profesor,
-  contrato_firmado, contrato_fecha_firma
+  contrato_firmado, contrato_fecha_firma,
+  estado_pago
 `.trim();
 
 function toAlumno(r: Record<string, unknown>): Alumno {
@@ -30,16 +31,25 @@ function toAlumno(r: Record<string, unknown>): Alumno {
     notasProfesor:   r.notas_profesor ? String(r.notas_profesor) : undefined,
     contratoFirmado:    Boolean(r.contrato_firmado ?? false),
     contratoFechaFirma: r.contrato_fecha_firma ? String(r.contrato_fecha_firma).slice(0, 10) : undefined,
+    estadoPago:         (r.estado_pago as 'al_dia' | 'debe') ?? 'al_dia',
   };
 }
 
 export async function getAlumnos(): Promise<Alumno[]> {
   const { data, error } = await supabase
     .from('atletas')
-    .select('id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado, rut, etapa')
+    .select('id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado, rut, etapa, estado_pago')
     .order('nombre', { ascending: true });
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => toAlumno(r));
+}
+
+export async function updateEstadoPago(id: string, estadoPago: 'al_dia' | 'debe'): Promise<void> {
+  const { error } = await supabase
+    .from('atletas')
+    .update({ estado_pago: estadoPago })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function getAlumnoById(id: string): Promise<Alumno | null> {

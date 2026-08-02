@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Pencil, Trash2, X, Save, Eye, Users } from 'lucide-react';
-import { getAlumnos, createAlumno, updateAlumno, deleteAlumno } from '@/lib/alumnos';
+import { Plus, Search, X, Save, Eye, Users, CreditCard } from 'lucide-react';
+import { getAlumnos, createAlumno, updateAlumno, deleteAlumno, updateEstadoPago } from '@/lib/alumnos';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,8 @@ export interface Alumno {
   // Contrato
   contratoFirmado?: boolean;
   contratoFechaFirma?: string;
+  // Pago
+  estadoPago?: 'al_dia' | 'debe';
 }
 
 export interface AtletaSalud {
@@ -132,7 +134,6 @@ function AlumnoModal({ initial, onSave, onClose }: {
         className="w-full max-w-md rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] shadow-2xl"
         style={{ animation: 'scale-in 0.18s ease-out forwards' }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E0E0E0] px-6 py-4">
           <h2 className="text-sm font-semibold text-[#121212]">
             {initial ? 'Editar alumno' : 'Nuevo alumno'}
@@ -233,6 +234,82 @@ function AlumnoModal({ initial, onSave, onClose }: {
   );
 }
 
+// ─── Modal de pago ────────────────────────────────────────────────────────────
+
+function PagoModal({ alumno, onClose, onMarcarAlDia }: {
+  alumno: Alumno;
+  onClose: () => void;
+  onMarcarAlDia: () => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function handlePagar() {
+    setSaving(true);
+    try {
+      // TODO: conectar con Flow (pasarela de pago Chile)
+      await onMarcarAlDia();
+    } finally {
+      setSaving(false);
+      onClose();
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        className="w-full max-w-sm rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] shadow-2xl"
+        style={{ animation: 'scale-in 0.18s ease-out forwards' }}
+      >
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] px-6 py-4">
+          <h2 className="text-sm font-semibold text-[#121212]">Registrar pago</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-[#777777] transition hover:bg-[#E4E4E4] hover:text-[#121212]">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-6">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#777777]">Alumno</p>
+            <p className="mt-1 text-base font-semibold text-[#121212]">
+              {alumno.nombre} {alumno.apellido}
+            </p>
+          </div>
+
+          <div className="rounded-[10px] border border-[#E0E0E0] bg-[#F8F8F8] px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#777777]">Estado actual</p>
+            <p className="mt-1 text-sm font-semibold" style={{ color: alumno.estadoPago === 'debe' ? '#B44040' : '#4A8A5A' }}>
+              {alumno.estadoPago === 'debe' ? 'Debe su plan' : 'Al día'}
+            </p>
+          </div>
+
+          <p className="text-xs text-[#777777]">
+            Al confirmar el pago, el alumno quedará marcado como <strong>al día</strong>.
+          </p>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-[#D8D8D8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#CACACA] hover:text-[#121212]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handlePagar}
+              disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#121212] py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A2A2A] disabled:opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              {saving ? 'Guardando...' : 'Pagar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 type Tab = 'activos' | 'archivados';
@@ -242,11 +319,10 @@ export default function AlumnosPage() {
   const [busqueda, setBusqueda] = useState('');
   const [tab, setTab] = useState<Tab>('activos');
   const [modal, setModal] = useState<'new' | Alumno | null>(null);
+  const [modalPago, setModalPago] = useState<Alumno | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  // Sincroniza a localStorage (para que otras secciones sigan funcionando)
-  // preservando datos extra como mediciones que solo viven en local
   function syncLocal(updated: Alumno[]) {
     try {
       const existing = JSON.parse(localStorage.getItem('nexa_alumnos') || '[]');
@@ -269,7 +345,6 @@ export default function AlumnosPage() {
         syncLocal(normalized);
       })
       .catch(() => {
-        // Si Supabase falla, usa localStorage como respaldo
         try {
           const raw = localStorage.getItem('nexa_alumnos');
           if (raw) setAlumnos(JSON.parse(raw).map((a: Alumno) => ({ ...a, estado: a.estado ?? 'activo' })));
@@ -296,6 +371,17 @@ export default function AlumnosPage() {
     }
   }
 
+  async function marcarEstadoPago(id: string, estadoPago: 'al_dia' | 'debe') {
+    try {
+      await updateEstadoPago(id, estadoPago);
+      const updated = alumnos.map(a => a.id === id ? { ...a, estadoPago } : a);
+      setAlumnos(updated);
+      syncLocal(updated);
+    } catch {
+      alert('Error al actualizar estado de pago.');
+    }
+  }
+
   async function del(id: string) {
     if (!confirm('¿Eliminar este alumno? Esta acción no se puede deshacer.')) return;
     try {
@@ -309,7 +395,6 @@ export default function AlumnosPage() {
     }
   }
 
-  // Filtros
   const porTab = alumnos.filter(a =>
     tab === 'archivados' ? a.estado === 'archivado' : a.estado !== 'archivado'
   );
@@ -317,7 +402,6 @@ export default function AlumnosPage() {
     `${a.nombre} ${a.apellido} ${a.email}`.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  // Selección
   const allChecked = filtrados.length > 0 && selected.size === filtrados.length;
   const someChecked = selected.size > 0 && !allChecked;
 
@@ -341,7 +425,6 @@ export default function AlumnosPage() {
           </p>
         </div>
 
-        {/* Tab toggle */}
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-xl border border-[#E0E0E0] bg-[#F5F5F5] p-1 gap-0.5">
             {(['activos', 'archivados'] as Tab[]).map(t => (
@@ -408,7 +491,6 @@ export default function AlumnosPage() {
           {/* Desktop — tabla */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse">
-              {/* Cabecera */}
               <thead>
                 <tr className="border-b border-[#E0E0E0] bg-[#F5F5F5]">
                   <th className="w-10 pl-4 pr-2 py-3">
@@ -430,7 +512,6 @@ export default function AlumnosPage() {
                 </tr>
               </thead>
 
-              {/* Filas */}
               <tbody>
                 {filtrados.map((a, idx) => (
                   <TableRow
@@ -441,6 +522,7 @@ export default function AlumnosPage() {
                     onCheck={() => toggleOne(a.id)}
                     onEdit={() => setModal(a)}
                     onDelete={() => del(a.id)}
+                    onPago={() => setModalPago(a)}
                   />
                 ))}
               </tbody>
@@ -455,11 +537,11 @@ export default function AlumnosPage() {
                 alumno={a}
                 onEdit={() => setModal(a)}
                 onDelete={() => del(a.id)}
+                onPago={() => setModalPago(a)}
               />
             ))}
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-between border-t border-[#E0E0E0] bg-[#F8F8F8] px-5 py-2.5">
             <span className="text-[11px] text-[#9B9B9B] tabular-nums">
               {filtrados.length} {filtrados.length === 1 ? 'alumno' : 'alumnos'}
@@ -474,12 +556,21 @@ export default function AlumnosPage() {
         </div>
       ))}
 
-      {/* Modal */}
+      {/* Modal editar/crear */}
       {modal && (
         <AlumnoModal
           initial={modal === 'new' ? undefined : modal}
           onSave={handleSave}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Modal pago */}
+      {modalPago && (
+        <PagoModal
+          alumno={modalPago}
+          onClose={() => setModalPago(null)}
+          onMarcarAlDia={() => marcarEstadoPago(modalPago.id, 'al_dia')}
         />
       )}
     </main>
@@ -498,13 +589,14 @@ function Th({ children }: { children: React.ReactNode }) {
 
 // ─── Fila de tabla ────────────────────────────────────────────────────────────
 
-function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
+function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete, onPago }: {
   alumno: Alumno;
   idx: number;
   checked: boolean;
   onCheck: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onPago: () => void;
 }) {
   const isZebra = idx % 2 === 1;
   return (
@@ -516,17 +608,14 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
       onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(18,18,18,0.04)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = checked ? 'rgba(18,18,18,0.04)' : isZebra ? '#F5F5F5' : '#F8F8F8'; }}
     >
-      {/* Checkbox */}
       <td className="w-10 pl-4 pr-2 py-3">
         <input type="checkbox" checked={checked} onChange={onCheck} />
       </td>
 
-      {/* Avatar */}
       <td className="w-10 px-2 py-3">
         <Avatar alumno={alumno} size={32} />
       </td>
 
-      {/* Nombre */}
       <td className="px-4 py-3">
         <Link
           href={`/alumnos/${alumno.id}`}
@@ -538,22 +627,18 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
         </Link>
       </td>
 
-      {/* Apellido */}
       <td className="px-4 py-3">
         <span className="text-sm text-[#3E3E3E]">{alumno.apellido || '—'}</span>
       </td>
 
-      {/* Email */}
       <td className="max-w-[220px] px-4 py-3">
         <span className="block truncate text-sm text-[#3E3E3E]">{alumno.email || '—'}</span>
       </td>
 
-      {/* Estado */}
       <td className="px-4 py-3">
         <EstadoText estado={alumno.estado} />
       </td>
 
-      {/* Acciones */}
       <td className="px-5 py-3">
         <div className="flex items-center justify-end gap-1.5">
           <ActionBtn
@@ -562,6 +647,22 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
             label="Ver perfil"
             bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
           />
+          {alumno.estadoPago === 'debe' ? (
+            <ActionBtn
+              icon={<CreditCard className="h-3.5 w-3.5" />}
+              label="Registrar pago (debe)"
+              bg="rgba(180,64,64,0.10)" color="#B44040" hoverBg="rgba(180,64,64,0.18)"
+              border="#B44040"
+              onClick={onPago}
+            />
+          ) : (
+            <ActionBtn
+              icon={<CreditCard className="h-3.5 w-3.5" />}
+              label="Registrar pago"
+              bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
+              onClick={onPago}
+            />
+          )}
         </div>
       </td>
     </tr>
@@ -570,14 +671,20 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete }: {
 
 // ─── Botón de acción coloreado ────────────────────────────────────────────────
 
-function ActionBtn({ href, icon, label, bg, color, hoverBg, onClick }: {
+function ActionBtn({ href, icon, label, bg, color, hoverBg, border, onClick }: {
   href?: string;
   icon: React.ReactNode;
   label: string;
   bg: string; color: string; hoverBg: string;
+  border?: string;
   onClick?: () => void;
 }) {
-  const style: React.CSSProperties = { background: bg, color, width: 28, height: 28, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.12s' };
+  const style: React.CSSProperties = {
+    background: bg, color, width: 28, height: 28, borderRadius: 7,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, transition: 'background 0.12s',
+    ...(border ? { border: `1px solid ${border}` } : {}),
+  };
   const handlers = {
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => (e.currentTarget.style.background = hoverBg),
     onMouseLeave: (e: React.MouseEvent<HTMLElement>) => (e.currentTarget.style.background = bg),
@@ -593,10 +700,11 @@ function ActionBtn({ href, icon, label, bg, color, hoverBg, onClick }: {
 
 // ─── Fila móvil ──────────────────────────────────────────────────────────────
 
-function MobileRow({ alumno, onEdit, onDelete }: {
+function MobileRow({ alumno, onEdit, onDelete, onPago }: {
   alumno: Alumno;
   onEdit: () => void;
   onDelete: () => void;
+  onPago: () => void;
 }) {
   return (
     <div className="flex items-center gap-3 bg-[#F8F8F8] px-4 py-3.5 transition hover:bg-[#F0F0F0]">
@@ -619,6 +727,22 @@ function MobileRow({ alumno, onEdit, onDelete }: {
           label="Ver perfil"
           bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
         />
+        {alumno.estadoPago === 'debe' ? (
+          <ActionBtn
+            icon={<CreditCard className="h-3.5 w-3.5" />}
+            label="Registrar pago (debe)"
+            bg="rgba(180,64,64,0.10)" color="#B44040" hoverBg="rgba(180,64,64,0.18)"
+            border="#B44040"
+            onClick={onPago}
+          />
+        ) : (
+          <ActionBtn
+            icon={<CreditCard className="h-3.5 w-3.5" />}
+            label="Registrar pago"
+            bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
+            onClick={onPago}
+          />
+        )}
       </div>
     </div>
   );
