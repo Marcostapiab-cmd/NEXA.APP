@@ -2,8 +2,15 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // Accesibles sin sesión y sin redirigir aunque el usuario esté logueado
-const PUBLIC_OPEN = ['/clases-grupales', '/actualizar-contrasena', '/reservar', '/api/reservar'];
-// Accesibles sin sesión pero redirigen si el usuario ya tiene sesión
+const PUBLIC_OPEN = [
+  '/clases-grupales', '/actualizar-contrasena', '/reservar', '/api/reservar',
+  '/api/grupales-alumno', // Flow webhooks y registro necesitan acceso abierto
+];
+
+// Rutas de auth grupales-alumno (redirigen si ya hay sesión)
+const GRUPALES_AUTH = ['/grupales-alumno/login', '/grupales-alumno/registro'];
+
+// Rutas de auth admin/portal (redirigen si ya hay sesión)
 const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login', '/portal/sin-cuenta'];
 
 // Rutas que solo puede acceder el staff (cualquier rol distinto de alumno)
@@ -38,18 +45,46 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
+  const rol = user?.user_metadata?.rol as string | undefined;
 
   // Páginas abiertas: cualquiera puede verlas, logueado o no
   if (PUBLIC_OPEN.some(p => pathname.startsWith(p))) {
     return response;
   }
 
+  // ── Mundo grupales-alumno ────────────────────────────────────
+
+  // Login/registro de grupales: redirigir a dashboard si ya tiene sesión grupal
+  if (GRUPALES_AUTH.includes(pathname)) {
+    if (user && rol === 'grupales') {
+      return NextResponse.redirect(new URL('/grupales-alumno/dashboard', request.url));
+    }
+    return response;
+  }
+
+  // Rutas protegidas del portal grupal
+  if (pathname.startsWith('/grupales-alumno')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/grupales-alumno/login', request.url));
+    }
+    if (rol !== 'grupales') {
+      // Otro tipo de usuario no tiene acceso
+      const dest = rol === 'alumno' ? '/portal' : '/dashboard';
+      return NextResponse.redirect(new URL(dest, request.url));
+    }
+    return response;
+  }
+
+  // ── Mundo admin/portal ───────────────────────────────────────
+
   // Login / registro: redirigir si ya hay sesión activa
   if (AUTH_ROUTES.includes(pathname)) {
     if (user) {
-      const rol = user.user_metadata?.rol as string | undefined;
       if (pathname === '/portal/login') {
         return NextResponse.redirect(new URL('/portal', request.url));
+      }
+      if (rol === 'grupales') {
+        return NextResponse.redirect(new URL('/grupales-alumno/dashboard', request.url));
       }
       const dest = rol === 'alumno' ? '/portal' : '/dashboard';
       return NextResponse.redirect(new URL(dest, request.url));
@@ -62,7 +97,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  const rol = user.user_metadata?.rol as string | undefined;
+  // Un alumno grupal que llega al área admin/portal se envía a su dashboard
+  if (rol === 'grupales') {
+    return NextResponse.redirect(new URL('/grupales-alumno/dashboard', request.url));
+  }
 
   // Alumno: solo puede ver clases públicas y su cuenta
   if (rol === 'alumno' && STAFF_PREFIXES.some(p => pathname.startsWith(p))) {

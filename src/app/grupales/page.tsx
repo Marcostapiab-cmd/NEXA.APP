@@ -1,8 +1,225 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw } from 'lucide-react';
+import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw, UserCircle, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+
+// ── Tipos para alumnos grupales ──────────────────────────────
+
+interface GrupalesAlumno {
+  id:        string;
+  nombre:    string;
+  apellido:  string;
+  email:     string;
+  telefono:  string | null;
+  rut:       string | null;
+  creado_en: string;
+}
+
+interface GrupalesCompra {
+  id:               string;
+  alumno_id:        string;
+  clases_totales:   number;
+  clases_restantes: number;
+  clases_usadas:    number;
+  fecha_expira:     string;
+  estado_pago:      string;
+  monto_clp:        number;
+  grupales_packs:   { nombre: string }[] | null;
+}
+
+const MESES_SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+function AlumnosGrupalesTab() {
+  const [alumnos,  setAlumnos]  = useState<GrupalesAlumno[]>([]);
+  const [compras,  setCompras]  = useState<GrupalesCompra[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const cargarAlumnos = useCallback(async () => {
+    setLoading(true);
+    const [{ data: als }, { data: comps }] = await Promise.all([
+      supabase.from('grupales_alumnos').select('*').order('creado_en', { ascending: false }),
+      supabase.from('grupales_compras')
+        .select('id, alumno_id, clases_totales, clases_restantes, clases_usadas, fecha_expira, estado_pago, monto_clp, grupales_packs(nombre)')
+        .order('creado_en', { ascending: false }),
+    ]);
+    setAlumnos((als ?? []) as GrupalesAlumno[]);
+    setCompras((comps ?? []) as GrupalesCompra[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { cargarAlumnos(); }, [cargarAlumnos]);
+
+  const now = new Date();
+
+  function comprasAlumno(id: string) {
+    return compras.filter(c => c.alumno_id === id);
+  }
+
+  function saldoActivo(id: string) {
+    return comprasAlumno(id)
+      .filter(c => c.estado_pago === 'pagado' && new Date(c.fecha_expira) > now)
+      .reduce((a, c) => a + c.clases_restantes, 0);
+  }
+
+  function diasHasta(iso: string) {
+    const dias = Math.ceil((new Date(iso).getTime() - now.getTime()) / 86400000);
+    return dias <= 0 ? 'Vencido' : `${dias}d`;
+  }
+
+  function formatFecha(iso: string) {
+    const d = new Date(iso);
+    return `${d.getDate()} ${MESES_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  const alumnoSeleccionado = alumnos.find(a => a.id === selected);
+  const comprasSeleccionado = selected ? comprasAlumno(selected) : [];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent"
+          style={{ color: 'var(--nexa-muted)' }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {alumnos.length === 0 && (
+        <div className="rounded-2xl py-16 text-center"
+          style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+          <UserCircle size={32} className="mx-auto mb-3" style={{ color: 'var(--nexa-faint)' }} />
+          <p className="text-[14px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>
+            Sin alumnos grupales registrados
+          </p>
+          <p className="mt-1 text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
+            Los alumnos que se registren en el portal grupal aparecerán aquí.
+          </p>
+        </div>
+      )}
+
+      {/* Lista de alumnos */}
+      {alumnos.length > 0 && (
+        <div className="overflow-hidden rounded-2xl"
+          style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+          <div className="divide-y" style={{ borderColor: 'var(--nexa-border)' }}>
+            {alumnos.map(al => {
+              const saldo = saldoActivo(al.id);
+              const compsAl = comprasAlumno(al.id);
+              const compraActiva = compsAl.find(c => c.estado_pago === 'pagado' && new Date(c.fecha_expira) > now);
+              return (
+                <button key={al.id}
+                  onClick={() => setSelected(selected === al.id ? null : al.id)}
+                  className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:opacity-80"
+                  style={{ background: selected === al.id ? 'var(--nexa-card-alt)' : 'transparent' }}>
+
+                  {/* Avatar */}
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[14px] font-black"
+                    style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}>
+                    {al.nombre[0]?.toUpperCase()}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold" style={{ color: 'var(--nexa-text)' }}>
+                      {al.nombre} {al.apellido}
+                    </p>
+                    <p className="text-[11px] truncate" style={{ color: 'var(--nexa-muted)' }}>{al.email}</p>
+                  </div>
+
+                  {/* Saldo */}
+                  <div className="shrink-0 text-right">
+                    <p className="text-[15px] font-black" style={{
+                      color: saldo > 0 ? 'var(--nexa-text)' : 'var(--nexa-faint)'
+                    }}>
+                      {saldo}
+                    </p>
+                    <p className="text-[10px]" style={{ color: 'var(--nexa-muted)' }}>
+                      {saldo === 1 ? 'clase' : 'clases'}
+                    </p>
+                  </div>
+
+                  {/* Vencimiento */}
+                  {compraActiva && (
+                    <div className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        background: new Date(compraActiva.fecha_expira) < new Date(Date.now() + 7 * 86400000)
+                          ? 'var(--nexa-warning-bg)' : 'var(--nexa-success-bg)',
+                        color: new Date(compraActiva.fecha_expira) < new Date(Date.now() + 7 * 86400000)
+                          ? 'var(--nexa-warning)' : 'var(--nexa-success)',
+                      }}>
+                      {diasHasta(compraActiva.fecha_expira)}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Detalle del alumno seleccionado */}
+      {alumnoSeleccionado && (
+        <div className="overflow-hidden rounded-2xl"
+          style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--nexa-border)' }}>
+            <p className="text-[13px] font-black" style={{ color: 'var(--nexa-text)' }}>
+              {alumnoSeleccionado.nombre} {alumnoSeleccionado.apellido} — Historial de packs
+            </p>
+            <div className="mt-1 flex gap-3 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+              {alumnoSeleccionado.telefono && <span>📞 {alumnoSeleccionado.telefono}</span>}
+              {alumnoSeleccionado.rut      && <span>ID {alumnoSeleccionado.rut}</span>}
+              <span>Registrado {formatFecha(alumnoSeleccionado.creado_en)}</span>
+            </div>
+          </div>
+
+          {comprasSeleccionado.length === 0 ? (
+            <div className="px-5 py-6 text-center">
+              <CreditCard size={24} className="mx-auto mb-2" style={{ color: 'var(--nexa-faint)' }} />
+              <p className="text-[12px]" style={{ color: 'var(--nexa-muted)' }}>Sin compras registradas</p>
+            </div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: 'var(--nexa-border)' }}>
+              {comprasSeleccionado.map(comp => {
+                const vencido = new Date(comp.fecha_expira) < now;
+                return (
+                  <div key={comp.id} className="flex items-center gap-4 px-5 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold" style={{ color: 'var(--nexa-text)' }}>
+                        {comp.grupales_packs?.[0]?.nombre ?? 'Pack'} — {comp.monto_clp.toLocaleString('es-CL')} CLP
+                      </p>
+                      <p className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+                        Vence {formatFecha(comp.fecha_expira)} · {comp.clases_usadas}/{comp.clases_totales} usadas
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[16px] font-black" style={{
+                        color: comp.clases_restantes > 0 && !vencido ? 'var(--nexa-success)' : 'var(--nexa-faint)'
+                      }}>
+                        {comp.clases_restantes}
+                      </p>
+                      <p className="text-[10px]" style={{ color: 'var(--nexa-muted)' }}>restantes</p>
+                    </div>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={comp.estado_pago === 'pagado'
+                        ? (vencido ? { background: 'var(--nexa-card-alt)', color: 'var(--nexa-faint)' }
+                                   : { background: 'var(--nexa-success-bg)', color: 'var(--nexa-success)' })
+                        : { background: 'var(--nexa-warning-bg)', color: 'var(--nexa-warning)' }
+                      }>
+                      {comp.estado_pago === 'pagado' ? (vencido ? 'Vencido' : 'Activo') : comp.estado_pago}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type AtletaFila = {
   nombre: string;
@@ -72,6 +289,7 @@ function CupoBar({ inscritos, capacidad }: { inscritos: number; capacidad: numbe
 }
 
 export default function GrupalesPage() {
+  const [tab,      setTab]      = useState<'sesiones' | 'alumnos'>('sesiones');
   const [sesiones, setSesiones] = useState<SesionAgrupada[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filtro,   setFiltro]   = useState<'hoy' | 'semana' | 'mes'>('semana');
@@ -158,7 +376,28 @@ export default function GrupalesPage() {
         </button>
       </div>
 
+      {/* Tabs: Sesiones | Alumnos grupales */}
+      <div className="flex border-b" style={{ background: 'var(--nexa-bg)', borderColor: 'var(--nexa-border)' }}>
+        {([['sesiones', 'Sesiones'] as const, ['alumnos', 'Alumnos grupales'] as const]).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="px-6 py-2.5 text-[12px] font-semibold transition"
+            style={{
+              color:        tab === key ? 'var(--nexa-text)'  : 'var(--nexa-muted)',
+              borderBottom: tab === key ? '2px solid var(--nexa-text)' : '2px solid transparent',
+              marginBottom: -1,
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="mx-auto max-w-4xl px-6 py-5">
+
+        {/* ── Tab Alumnos grupales ──────────────────── */}
+        {tab === 'alumnos' && <AlumnosGrupalesTab />}
+
+        {/* ── Tab Sesiones ─────────────────────────── */}
+        {tab === 'sesiones' && <>
         {/* Filtros */}
         <div className="mb-6 flex gap-2">
           {(['hoy', 'semana', 'mes'] as const).map(f => (
@@ -325,6 +564,7 @@ export default function GrupalesPage() {
             );
           })}
         </div>
+        </>}
       </div>
     </div>
   );
