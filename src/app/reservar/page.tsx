@@ -6,21 +6,21 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
-// ── Design tokens (dark + electric lime) ─────────────────────────────────────
+// ── Design tokens (NEXA blanco/negro) ────────────────────────────────────────
 const D = {
-  bg:       '#090909',
-  surface:  '#0F0F0F',
-  card:     '#161616',
-  cardHov:  '#1C1C1C',
-  border:   '#272727',
-  text:     '#F2F2F2',
-  sub:      '#A8A8A8',
-  muted:    '#5A5A5A',
-  lime:     '#C8E840',
-  limeDim:  'rgba(200,232,64,0.10)',
-  limeBord: 'rgba(200,232,64,0.28)',
-  red:      '#C05050',
-  redDim:   'rgba(180,64,64,0.12)',
+  bg:       'var(--nexa-bg)',
+  surface:  'var(--nexa-surface)',
+  card:     'var(--nexa-card)',
+  cardHov:  'var(--nexa-card-alt)',
+  border:   'var(--nexa-border)',
+  text:     'var(--nexa-text)',
+  sub:      'var(--nexa-text-sub)',
+  muted:    'var(--nexa-muted)',
+  lime:     'var(--nexa-text)',
+  limeDim:  'var(--nexa-accent-sub)',
+  limeBord: 'var(--nexa-accent-glow)',
+  red:      'var(--nexa-danger)',
+  redDim:   'var(--nexa-danger-bg)',
 } as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -121,8 +121,8 @@ function Logo() {
   return (
     <div className="flex items-center gap-2.5 mb-8">
       <div className="flex h-9 w-9 items-center justify-center rounded-[8px]"
-        style={{ background: D.lime }}>
-        <span className="select-none text-[13px] font-black tracking-widest" style={{ color:'#000' }}>N</span>
+        style={{ background: 'var(--nexa-text)' }}>
+        <span className="select-none text-[13px] font-black tracking-widest" style={{ color:'#fff' }}>N</span>
       </div>
       <span className="select-none text-[15px] font-black tracking-[0.2em]" style={{ color: D.text }}>
         NEXA
@@ -168,8 +168,8 @@ function BtnNext({ label='Continuar', disabled, onClick, loading=false }: {
     <button onClick={onClick} disabled={disabled || loading}
       className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-black tracking-wide transition-all"
       style={{
-        background: (disabled||loading) ? D.card : D.lime,
-        color:      (disabled||loading) ? D.muted : '#000',
+        background: (disabled||loading) ? D.card : 'var(--nexa-text)',
+        color:      (disabled||loading) ? D.muted : '#fff',
       }}>
       {loading
         ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> Procesando...</>
@@ -192,7 +192,7 @@ function Campo({ label, required=false, type='text', value, onChange, placeholde
         placeholder={placeholder}
         className="w-full rounded-xl px-4 py-3 text-[14px] outline-none transition"
         style={{
-          background: '#1A1A1A',
+          background: D.card,
           border: `1px solid ${error ? D.red : D.border}`,
           color: D.text,
         }} />
@@ -527,14 +527,14 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
             style={{ color: D.muted }}>Teléfono</label>
           <div className="flex gap-2">
             <div className="flex items-center gap-1.5 shrink-0 rounded-xl px-3 text-[13px] font-semibold"
-              style={{ background:'#1A1A1A', border:`1px solid ${D.border}`, color:D.text, height:'46px' }}>
+              style={{ background: D.card, border:`1px solid ${D.border}`, color:D.text, height:'46px' }}>
               🇨🇱 <span>+56</span>
             </div>
             <input type="tel" value={datos.telefono}
               onChange={e => setDatos({ ...datos, telefono: e.target.value })}
               placeholder="9 1234 5678"
               className="flex-1 rounded-xl px-4 text-[14px] outline-none"
-              style={{ background:'#1A1A1A', border:`1px solid ${D.border}`, color:D.text, height:'46px' }} />
+              style={{ background: D.card, border:`1px solid ${D.border}`, color:D.text, height:'46px' }} />
           </div>
         </div>
 
@@ -546,7 +546,7 @@ function PasoDatos({ plan, sesion, datos, setDatos, onPagar, onBack, loading, er
             onBlur={() => datos.rut && !validarRut(datos.rut) ? setRutErr('RUT inválido') : setRutErr('')}
             placeholder="12.345.678-9"
             className="w-full rounded-xl px-4 py-3 text-[14px] outline-none"
-            style={{ background:'#1A1A1A', border:`1px solid ${rutErr ? D.red : D.border}`, color:D.text }} />
+            style={{ background: D.card, border:`1px solid ${rutErr ? D.red : D.border}`, color:D.text }} />
           {rutErr && <p className="text-[11px]" style={{ color: D.red }}>{rutErr}</p>}
         </div>
       </div>
@@ -658,7 +658,7 @@ export default function ReservarPage() {
   }
 
   return (
-    <main style={{ background: D.bg, minHeight: '100vh' }}>
+    <main style={{ background: 'var(--nexa-surface)', minHeight: '100vh' }}>
       <div className="mx-auto max-w-md px-5 py-8 pb-16">
         <Logo />
         <PasoBar paso={paso} />

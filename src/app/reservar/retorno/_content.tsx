@@ -6,15 +6,15 @@ import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 const D = {
-  bg:    '#090909',
-  card:  '#161616',
-  border:'#272727',
-  text:  '#F2F2F2',
-  sub:   '#A8A8A8',
-  muted: '#5A5A5A',
-  lime:  '#C8E840',
-  red:   '#C05050',
-  redDim:'rgba(180,64,64,0.12)',
+  bg:    'var(--nexa-surface)',
+  card:  'var(--nexa-card)',
+  border:'var(--nexa-border)',
+  text:  'var(--nexa-text)',
+  sub:   'var(--nexa-text-sub)',
+  muted: 'var(--nexa-muted)',
+  lime:  'var(--nexa-text)',
+  red:   'var(--nexa-danger)',
+  redDim:'var(--nexa-danger-bg)',
 } as const;
 
 const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -99,8 +99,8 @@ export default function RetornoContent() {
         {/* Logo */}
         <div className="flex items-center gap-2.5 mb-10">
           <div className="flex h-9 w-9 items-center justify-center rounded-[8px]"
-            style={{ background: D.lime }}>
-            <span className="select-none text-[13px] font-black tracking-widest" style={{ color:'#000' }}>N</span>
+            style={{ background: 'var(--nexa-text)' }}>
+            <span className="select-none text-[13px] font-black tracking-widest" style={{ color:'#fff' }}>N</span>
           </div>
           <span className="select-none text-[15px] font-black tracking-[0.2em]" style={{ color: D.text }}>
             NEXA
@@ -123,8 +123,8 @@ export default function RetornoContent() {
         {vista === 'pagado' && datos && (
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center justify-center w-20 h-20 rounded-full mb-6"
-              style={{ background: 'rgba(200,232,64,0.12)' }}>
-              <CheckCircle2 size={46} strokeWidth={1.75} style={{ color: D.lime }} />
+              style={{ background: 'var(--nexa-success-bg)' }}>
+              <CheckCircle2 size={46} strokeWidth={1.75} style={{ color: 'var(--nexa-success)' }} />
             </div>
             <h2 className="text-[26px] font-black tracking-tight mb-1" style={{ color: D.text }}>
               ¡Listo, {datos.nombre}!
@@ -200,7 +200,7 @@ export default function RetornoContent() {
             </p>
             <Link href="/reservar"
               className="inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-[14px] font-black"
-              style={{ background: D.lime, color: '#000' }}>
+              style={{ background: 'var(--nexa-text)', color: '#fff' }}>
               Intentar nuevamente
             </Link>
           </div>
