@@ -157,7 +157,7 @@ function PasoClase({ clases, loading, selNombre, precioPrueba, precioNormal, onS
                   </span>
                 </div>
                 <p className="text-[16px] font-black" style={{ color: selNombre === 'prueba' ? '#fff' : D.text }}>
-                  Clase de prueba
+                  Primera clase
                 </p>
                 <p className="text-[12px] mt-0.5" style={{ color: selNombre === 'prueba' ? 'rgba(255,255,255,0.65)' : D.sub }}>
                   Tu primera clase en el estudio
@@ -416,7 +416,7 @@ function PasoDatos({ plan, esPrueba, abusoDetectado, sesion, datos, setDatos, on
       {abusoDetectado && (
         <div className="rounded-xl px-4 py-3 text-[13px] mb-4"
           style={{ background: D.redDim, border: `1px solid rgba(180,64,64,0.2)`, color: D.red }}>
-          Ya usaste tu clase de prueba. Se aplicará el precio regular.
+          Ya usaste tu primera clase. Se aplicará el precio regular.
         </div>
       )}
 

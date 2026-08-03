@@ -21,8 +21,8 @@ const SERVICIOS = [
 
 const PACKS = [
   {
-    nombre: 'Clase de Prueba',
-    precio: '$15.000',
+    nombre: 'Primera Clase',
+    precio: '$8.990',
     clases: 1,
     desc: 'Ven a conocernos. Sin compromiso.',
     features: ['1 clase grupal', 'Acceso a todos los tipos de clase', 'Sin matrícula'],
