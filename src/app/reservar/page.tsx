@@ -400,14 +400,14 @@ function PasoDatos({ plan, esPrueba, abusoDetectado, sesion, datos, setDatos, on
           <div className="flex items-center justify-between pt-2.5 mt-0.5" style={{ borderTop: `1px solid ${D.border}` }}>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: D.muted }}>Total a pagar</p>
-              {esPrueba && !abusoAviso && (
+              {esPrueba && !abusoDetectado && (
                 <span className="text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full"
                   style={{ background: D.text, color: '#fff' }}>
                   Precio primera clase
                 </span>
               )}
             </div>
-            <p className="text-[20px] font-black" style={{ color: D.text }}>{clp(precioMostrado)}</p>
+            <p className="text-[20px] font-black" style={{ color: D.text }}>{clp(plan.precio_clp)}</p>
           </div>
         </div>
       </div>
