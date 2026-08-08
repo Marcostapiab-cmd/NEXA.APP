@@ -19,30 +19,42 @@ function RetornoContent() {
 
     let intentos = 0;
     const MAX = 15;
+    let cancelled = false;
 
     async function checkEstado() {
-      const res  = await fetch(`/api/grupales-alumno/estado?token=${encodeURIComponent(token)}`);
-      const data = await res.json() as {
-        estado_pago?: string; clases_totales?: number;
-        grupales_packs?: { nombre: string }[] | null;
-      };
-      const ep = data.estado_pago;
-      if (ep === 'pagado') {
-        setPack(data.grupales_packs?.[0]?.nombre ?? 'Pack');
-        setClases(data.clases_totales ?? 0);
-        setEstado('pagado');
-        return;
+      if (cancelled) return;
+      try {
+        const res = await fetch(`/api/grupales-alumno/estado?token=${encodeURIComponent(token)}`);
+        if (!res.ok) {
+          if (!cancelled) setEstado('fallido');
+          return;
+        }
+        const data = await res.json() as {
+          estado_pago?: string; clases_totales?: number;
+          grupales_packs?: { nombre: string } | null;
+        };
+        if (cancelled) return;
+        const ep = data.estado_pago;
+        if (ep === 'pagado') {
+          setPack(data.grupales_packs?.nombre ?? 'Pack');
+          setClases(data.clases_totales ?? 0);
+          setEstado('pagado');
+          return;
+        }
+        if (ep === 'fallido' || ep === 'cancelado') {
+          setEstado('fallido');
+          return;
+        }
+        intentos++;
+        if (intentos >= MAX) { setEstado('pendiente'); return; }
+        setTimeout(checkEstado, 2000);
+      } catch {
+        if (!cancelled) setEstado('fallido');
       }
-      if (ep === 'fallido' || ep === 'cancelado') {
-        setEstado('fallido');
-        return;
-      }
-      intentos++;
-      if (intentos >= MAX) { setEstado('pendiente'); return; }
-      setTimeout(checkEstado, 2000);
     }
 
     checkEstado();
+    return () => { cancelled = true; };
   }, [token, router]);
 
   return (

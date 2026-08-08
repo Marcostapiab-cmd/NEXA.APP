@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, X, Plus, ClipboardCheck } from 'lucide-react
 import CheckinTab from './CheckinTab';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
+import { validarConflictoTipo } from '@/lib/reservas-validation';
 import {
   getHorarioConfig, getBloqueos, generateHours,
   DEFAULT_HORARIO_CONFIG,
@@ -75,6 +76,7 @@ interface PlanActivo {
   total_clases: number;
   end_date:     string;
   usado:        number;
+  modalidad?:   '1:1' | '2:1' | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -310,7 +312,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
     const today = new Date().toISOString().slice(0, 10);
     const { data: planesData } = await supabase
       .from('planes')
-      .select('id, nombre, total_clases, end_date')
+      .select('id, nombre, total_clases, end_date, modalidad')
       .eq('alumno_id', a.id)
       .gte('end_date', today)
       .order('end_date', { ascending: true })
@@ -322,7 +324,15 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
       return;
     }
 
-    const p = planesData[0] as { id: string; nombre: string; total_clases: number; end_date: string };
+    const p = planesData[0] as {
+      id: string; nombre: string; total_clases: number;
+      end_date: string; modalidad?: '1:1' | '2:1' | null;
+    };
+
+    // Auto-seleccionar tipo según modalidad del plan
+    if (p.modalidad === '1:1' || p.modalidad === '2:1') {
+      setTipo(p.modalidad);
+    }
 
     const { count } = await supabase
       .from('reservas')
@@ -330,52 +340,68 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
       .eq('plan_id', p.id)
       .in('estado', ESTADOS_QUE_QUEMAN);
 
-    setPlan({ ...p, usado: count ?? 0 });
+    setPlan({ ...p, modalidad: p.modalidad ?? null, usado: count ?? 0 });
     setCargandoPlan(false);
   }
 
   async function handleSave() {
     setError('');
 
-    if (walkIn) {
-      setSaving(true);
-      try {
+    if (!walkIn) {
+      if (!alumno) { setError('Selecciona un alumno'); return; }
+      if (plan === undefined) { setError('Espera, cargando plan...'); return; }
+    }
+
+    setSaving(true);
+    try {
+      // Validar exclusividad de horario para sesiones individuales
+      if (tipo !== 'Grupal') {
+        const { data: existentes } = await supabase
+          .from('reservas')
+          .select('tipo_clase')
+          .eq('fecha', fecha)
+          .eq('hora', hora)
+          .eq('coach_id', coachId || null)
+          .not('tipo_clase', 'ilike', '%grupal%')
+          .not('estado', 'in', '(cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)');
+
+        const resultado = validarConflictoTipo(tipo, existentes ?? []);
+        if (!resultado.ok) {
+          setError(resultado.error!);
+          return;
+        }
+      }
+
+      const tipoClase = tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal';
+
+      if (walkIn) {
         const { error: err } = await supabase.from('reservas').insert({
           fecha,
           hora,
           end_time:     addOneHour(hora),
           coach_id:     coachId || null,
-          tipo_clase:   tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
+          tipo_clase:   tipoClase,
           rut:          rutWalkIn.trim() || null,
           estado:       'confirmada',
           duracion_min: 60,
         });
         if (err) throw err;
-        onSaved(); onClose();
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Error al guardar');
-      } finally { setSaving(false); }
-      return;
-    }
+      } else {
+        const { error: err } = await supabase.from('reservas').insert({
+          fecha,
+          hora,
+          end_time:     addOneHour(hora),
+          coach_id:     coachId || null,
+          tipo_clase:   tipoClase,
+          alumno_id:    alumno!.id,
+          plan_id:      plan?.id ?? null,
+          rut:          alumno!.rut ?? null,
+          estado:       'confirmada',
+          duracion_min: 60,
+        });
+        if (err) throw err;
+      }
 
-    if (!alumno) { setError('Selecciona un alumno'); return; }
-    if (plan === undefined) { setError('Espera, cargando plan...'); return; }
-
-    setSaving(true);
-    try {
-      const { error: err } = await supabase.from('reservas').insert({
-        fecha,
-        hora,
-        end_time:     addOneHour(hora),
-        coach_id:     coachId || null,
-        tipo_clase:   tipo === '1:1' ? '1:1 Individual' : tipo === '2:1' ? '2:1 Duo' : 'Grupal',
-        alumno_id:    alumno.id,
-        plan_id:      plan?.id ?? null,
-        rut:          alumno.rut ?? null,
-        estado:       'confirmada',
-        duracion_min: 60,
-      });
-      if (err) throw err;
       onSaved(); onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
@@ -491,7 +517,15 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
               {alumno && !cargandoPlan && plan && (
                 <div className="mt-2 rounded-lg px-3 py-2.5"
                   style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--nexa-text)' }}>{plan.nombre}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] font-semibold" style={{ color: 'var(--nexa-text)' }}>{plan.nombre}</p>
+                    {plan.modalidad && (
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{ background: 'var(--nexa-accent)', color: '#fff' }}>
+                        {plan.modalidad}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>
                     {plan.usado}/{plan.total_clases} clases usadas · vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
                   </p>

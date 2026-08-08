@@ -10,6 +10,7 @@ export interface Plan {
   alumnoId: string;
   nombre: string;
   tipo: PlanTipo;
+  modalidad?: '1:1' | '2:1' | null;
   totalClases: number;
   usedClases: number;
   startDate: string;        // YYYY-MM-DD

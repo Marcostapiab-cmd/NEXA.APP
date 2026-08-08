@@ -43,6 +43,7 @@ export async function upsertPlanDB(plan: Plan): Promise<void> {
     alumno_id:      plan.alumnoId,
     nombre:         plan.nombre,
     tipo:           plan.tipo,
+    modalidad:      plan.modalidad ?? null,
     total_clases:   plan.totalClases,
     // used_clases se omite — siempre se calcula desde reservas, nunca se guarda
     start_date:     plan.startDate,

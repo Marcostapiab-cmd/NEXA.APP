@@ -16,14 +16,15 @@ const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-
 
 type FormData = Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>;
 
-const DEFAULT_FORM = (alumnoId?: string): FormData => ({
-  nombre:       'Plan Mensual',
-  tipo:         'mensual',
-  totalClases:  8,
-  usedClases:   0,
-  startDate:    todayStr(),
-  endDate:      addDays(todayStr(), 30),
-  adminNota:    '',
+const DEFAULT_FORM = (): FormData => ({
+  nombre:        'Plan Mensual',
+  tipo:          'mensual',
+  modalidad:     '1:1',
+  totalClases:   8,
+  usedClases:    0,
+  startDate:     todayStr(),
+  endDate:       addDays(todayStr(), 30),
+  adminNota:     '',
   extendedUntil: '',
 });
 
@@ -48,7 +49,7 @@ const CLASES_PRESET = [4, 8, 10, 12, 16, 20];
 export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, onSave, onClose }: Props) {
   const [f, setF] = useState<FormData>(initial
     ? { ...initial }
-    : DEFAULT_FORM(alumnoId)
+    : DEFAULT_FORM()
   );
   const [autoEnd, setAutoEnd] = useState(mode === 'create');
 
@@ -125,6 +126,26 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
                       }`}>
                       <p className="text-xs font-bold">{opt.label}</p>
                       <p className="mt-0.5 text-[10px] opacity-60">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modalidad */}
+              <div>
+                <label className={LC}>Tipo de sesión</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['1:1', '2:1'] as const).map(m => (
+                    <button key={m} type="button" onClick={() => set('modalidad', m)}
+                      className={`rounded-xl border py-3 text-center transition ${
+                        f.modalidad === m
+                          ? 'border-[#121212] bg-[#121212] text-white'
+                          : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B] hover:text-[#121212]'
+                      }`}>
+                      <p className="text-sm font-black">{m}</p>
+                      <p className="mt-0.5 text-[10px] opacity-70">
+                        {m === '1:1' ? 'Sesión privada' : 'Sesión compartida (2 alumnos)'}
+                      </p>
                     </button>
                   ))}
                 </div>
