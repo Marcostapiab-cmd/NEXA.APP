@@ -47,6 +47,10 @@ function computeHistorialPeso(sesionesArr: Sesion[], ejercicioNombre: string): {
     }).filter(p => p.peso > 0);
 }
 
+function fmtFechaCorta(fecha: string) {
+  return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }).replace('.', '');
+}
+
 // Simple SVG line chart
 function PesoChart({ puntos }: { puntos: { fecha: string; peso: number }[] }) {
   if (puntos.length < 2) return null;
@@ -133,6 +137,8 @@ export default function AlumnoPerfilPage() {
   const [asignando,    setAsignando]    = useState<{ reagendaId: string; fecha: string; hora: string } | null>(null);
   const [reagendaErr,  setReagendaErr]  = useState('');
   const [bloqueos,     setBloqueos]     = useState<HorarioBloqueo[]>([]);
+  const [reservaFiltro, setReservaFiltro] = useState<'proximas' | 'pasadas' | 'pendientes' | 'todas'>('proximas');
+  const [mostrarTodasReservas, setMostrarTodasReservas] = useState(false);
   const [planModal,      setPlanModal]      = useState<{ mode: 'edit'; plan: Plan } | null>(null);
   const [showInscripcion, setShowInscripcion] = useState(false);
 
@@ -424,6 +430,21 @@ export default function AlumnoPerfilPage() {
     ? new Date().getFullYear() - new Date(alumno.fechaNacimiento).getFullYear()
     : null;
 
+  const RESERVAS_LIMITE = 5;
+  const hoyStr = todayStr();
+  const reservasFiltradas = (() => {
+    const r = [...reservas];
+    if (reservaFiltro === 'proximas') return r.filter(x => x.fecha >= hoyStr).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    if (reservaFiltro === 'pasadas') return r.filter(x => x.fecha < hoyStr).sort((a, b) => b.fecha.localeCompare(a.fecha));
+    if (reservaFiltro === 'pendientes') return r.filter(x => x.estado === 'pendiente' || x.estado === 'confirmada').sort((a, b) => a.fecha.localeCompare(b.fecha));
+    return r.sort((a, b) => b.fecha.localeCompare(a.fecha));
+  })();
+  const reservasMostradas = mostrarTodasReservas ? reservasFiltradas : reservasFiltradas.slice(0, RESERVAS_LIMITE);
+  const asistenciasCount = reservas.filter(r => r.estado === 'presente').length;
+  const pendientesCount = reservas.filter(r => r.estado === 'pendiente' || r.estado === 'confirmada').length;
+  const totalValidos = reservas.filter(r => ['presente', 'no_show', 'cancelada_tarde'].includes(r.estado)).length;
+  const pctAsistencia = totalValidos > 0 ? Math.round(asistenciasCount / totalValidos * 100) : null;
+
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       {/* Back + header */}
@@ -506,39 +527,77 @@ export default function AlumnoPerfilPage() {
             {reservas.length === 0 ? (
               <p className="text-sm text-[#5E5E5E]">Sin reservas registradas.</p>
             ) : (
-              <div className="space-y-2">
-                {reservas.slice(0, 20).map(r => {
-                  const lbl = RESERVA_LABEL[r.estado];
-                  return (
-                    <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] px-3 py-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-medium text-[#121212]">{r.fecha}</span>
-                            {r.hora && <span className="text-xs text-[#5E5E5E]">{r.hora}</span>}
-                            {r.descripcion && <span className="truncate text-xs text-[#5E5E5E]">{r.descripcion}</span>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="hidden text-xs font-semibold sm:inline" style={{ color: lbl.color }}>{lbl.label}</span>
+              <>
+                {/* Summary chips */}
+                <div className="mb-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-[#E4E4E4] px-2 py-1.5 text-center">
+                    <p className="text-sm font-bold text-[#121212]">{asistenciasCount}</p>
+                    <p className="text-[10px] text-[#5E5E5E]">Asistencias</p>
+                  </div>
+                  <div className="rounded-lg bg-[#E4E4E4] px-2 py-1.5 text-center">
+                    <p className="text-sm font-bold text-[#121212]">{pendientesCount}</p>
+                    <p className="text-[10px] text-[#5E5E5E]">Pendientes</p>
+                  </div>
+                  <div className="rounded-lg bg-[#E4E4E4] px-2 py-1.5 text-center">
+                    <p className="text-sm font-bold text-[#121212]">{pctAsistencia !== null ? `${pctAsistencia}%` : '—'}</p>
+                    <p className="text-[10px] text-[#5E5E5E]">% Asistencia</p>
+                  </div>
+                </div>
+
+                {/* Filter pills */}
+                <div className="mb-3 flex gap-1 overflow-x-auto">
+                  {(['proximas', 'pasadas', 'pendientes', 'todas'] as const).map(f => (
+                    <button key={f}
+                      onClick={() => { setReservaFiltro(f); setMostrarTodasReservas(false); }}
+                      className="shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
+                      style={reservaFiltro === f
+                        ? { background: '#121212', borderColor: '#121212', color: '#FFF' }
+                        : { borderColor: '#CACACA', color: '#5E5E5E' }}>
+                      {f === 'proximas' ? 'Próximas' : f === 'pasadas' ? 'Pasadas' : f === 'pendientes' ? 'Pendientes' : 'Todas'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Compact row list */}
+                {reservasMostradas.length === 0 ? (
+                  <p className="text-sm text-[#5E5E5E]">Sin reservas en este filtro.</p>
+                ) : (
+                  <div className="divide-y divide-[#CACACA] rounded-[8px] border border-[#CACACA] bg-[#E4E4E4]">
+                    {reservasMostradas.map(r => {
+                      const lbl = RESERVA_LABEL[r.estado];
+                      return (
+                        <div key={r.id} className="flex items-center gap-2 px-3 py-1.5">
+                          <span className="w-[52px] shrink-0 text-xs font-medium text-[#121212]">{fmtFechaCorta(r.fecha)}</span>
+                          <span className="w-10 shrink-0 text-[11px] text-[#5E5E5E]">{r.hora ?? '—'}</span>
+                          <span className="min-w-0 flex-1 truncate text-[11px] text-[#5E5E5E]">{r.descripcion ?? ''}</span>
                           <select
                             value={r.estado}
                             onChange={e => handleChangeReservaEstado(r.id, e.target.value as Reserva['estado'])}
-                            className="rounded-md border border-[#CACACA] bg-[#F0F0F0] px-2 py-1 text-xs text-[#121212] outline-none">
+                            className="shrink-0 rounded-md border border-[#CACACA] bg-[#F0F0F0] py-0.5 pl-2 pr-1 text-[11px] font-semibold outline-none"
+                            style={{ color: lbl.color }}>
                             {(Object.entries(RESERVA_LABEL) as [Reserva['estado'], { label: string; color: string; quema: boolean }][]).map(([k, v]) => (
                               <option key={k} value={k}>{v.label}</option>
                             ))}
                           </select>
                           <button onClick={() => handleDeleteReserva(r.id)}
-                            className="rounded p-1 text-[#9B9B9B] transition hover:text-red-500">
-                            <Trash2 className="h-3.5 w-3.5" />
+                            className="shrink-0 rounded p-0.5 text-[#9B9B9B] transition hover:text-red-500">
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Expand toggle */}
+                {reservasFiltradas.length > RESERVAS_LIMITE && (
+                  <button
+                    onClick={() => setMostrarTodasReservas(p => !p)}
+                    className="mt-2 text-[11px] text-[#5E5E5E] underline transition hover:text-[#121212]">
+                    {mostrarTodasReservas ? 'Mostrar menos' : `Ver historial completo (${reservasFiltradas.length})`}
+                  </button>
+                )}
+              </>
             )}
           </div>
 
