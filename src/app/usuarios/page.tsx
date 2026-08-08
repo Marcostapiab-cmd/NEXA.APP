@@ -91,9 +91,11 @@ export default function UsuariosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json() as { coach?: unknown; error?: string };
-      if (!res.ok) throw new Error(json.error ?? 'Error al crear');
-      setFormOk(`Profesor "${form.nombre}" creado correctamente.`);
+      const json = await res.json().catch(() => ({ error: `HTTP ${res.status} — respuesta inválida` })) as { ok?: boolean; error?: string; step?: string };
+      if (!res.ok || json.error) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      setFormOk(`Usuario "${form.nombre}" creado correctamente.`);
       setForm(INITIAL_FORM);
       await fetchUsuarios();
       setTimeout(() => { setShowModal(false); setFormOk(''); }, 1800);
