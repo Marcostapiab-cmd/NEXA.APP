@@ -221,7 +221,7 @@ export default function DashboardPage() {
                         {new Date(r.fecha + 'T12:00:00').getDate()}
                       </span>
                       <span className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--nexa-muted)' }}>
-                        {MESES[new Date(r.fecha + 'T12:00:00').getMonth()]}
+                        {MESES_CORTO[new Date(r.fecha + 'T12:00:00').getMonth()]}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">

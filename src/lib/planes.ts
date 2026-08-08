@@ -5,12 +5,14 @@ export type PlanEstado  = 'activo' | 'por_vencer' | 'vencido' | 'sin_clases';
 export type ReservaEstado  = 'pendiente' | 'confirmada' | 'presente' | 'no_show' | 'cancelada_tiempo' | 'cancelada_tarde' | 'reagendada' | 'cancelada_nexa' | 'bloqueada';
 export type ReagendaEstado = 'pendiente' | 'completada' | 'vencida';
 
+export type PlanModalidad = '1:1' | '2:1';
+
 export interface Plan {
   id: string;
   alumnoId: string;
   nombre: string;
   tipo: PlanTipo;
-  modalidad?: '1:1' | '2:1' | null;
+  modalidad?: PlanModalidad | null;
   totalClases: number;
   usedClases: number;
   startDate: string;        // YYYY-MM-DD
