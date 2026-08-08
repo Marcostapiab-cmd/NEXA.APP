@@ -131,6 +131,7 @@ function addOneHour(hora: string): string {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
+// Clave incluye coachId para que cada coach tenga su propio slot por celda
 function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrupal: number): Map<string, Slot> {
   const map = new Map<string, Slot>();
   for (const r of reservas) {
@@ -138,7 +139,7 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrup
     if (!pos) continue;
     const coachId = r.coach_id ? String(r.coach_id) : null;
     if (coachFiltro !== 'all' && coachId !== coachFiltro) continue;
-    const key  = `${pos.fecha}|${pos.hora}`;
+    const key  = `${pos.fecha}|${pos.hora}|${coachId ?? ''}`;
     const tipo = parseTipo(r.tipo_clase, r.descripcion);
     if (!map.has(key)) {
       map.set(key, {
@@ -154,6 +155,13 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrup
     });
   }
   return map;
+}
+
+function getSlotsForCell(slotMap: Map<string, Slot>, fecha: string, hora: string): Slot[] {
+  const prefix = `${fecha}|${hora}|`;
+  const slots: Slot[] = [];
+  slotMap.forEach((slot, key) => { if (key.startsWith(prefix)) slots.push(slot); });
+  return slots;
 }
 
 // ─── Modal editar asistencia ──────────────────────────────────────────────────
@@ -598,12 +606,67 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
 
 // ─── Celda ────────────────────────────────────────────────────────────────────
 
-function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickSlot, onClickEmpty, isCerrado, bloqueado, motivoBloqueo }: {
-  slot:          Slot | null;
+function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
+  slot:        Slot;
+  coachColor:  string;
+  coachNombre: string;
+  onClickSlot: (s: Slot) => void;
+  isPast:      boolean;
+}) {
+  const cuposUsados = slot.alumnos.length;
+  const cuposFull   = cuposUsados >= slot.cuposTotal;
+  return (
+    <div
+      onClick={() => onClickSlot(slot)}
+      style={{
+        padding:      '4px 7px',
+        background:   coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
+        borderLeft:   `3px solid ${coachColor || 'var(--nexa-muted)'}`,
+        borderRadius: 2,
+        cursor:       'pointer',
+        opacity:      isPast ? 0.55 : 1,
+      }}
+    >
+      {slot.alumnos.slice(0, 2).map((a, i) => (
+        <div key={i} style={{
+          fontSize: 10, fontWeight: 600,
+          color: statusColor(a.status),
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          lineHeight: 1.35,
+        }}>
+          {a.nombre}
+        </div>
+      ))}
+      {slot.alumnos.length > 2 && (
+        <div style={{ fontSize: 9, color: 'var(--nexa-muted)', lineHeight: 1.3 }}>
+          +{slot.alumnos.length - 2} más
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+        <span style={{ fontSize: 9, color: 'var(--nexa-muted)', flexShrink: 0 }}>{slot.tipo}</span>
+        {coachNombre && (
+          <span style={{
+            fontSize: 9, color: coachColor ? coachColor + 'aa' : 'var(--nexa-muted)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+          }}>
+            · {coachNombre.split(' ')[0]}
+          </span>
+        )}
+        <span style={{
+          fontSize: 9, marginLeft: 'auto', flexShrink: 0,
+          color: cuposFull ? 'var(--nexa-danger)' : 'var(--nexa-muted)',
+        }}>
+          {cuposUsados}/{slot.cuposTotal}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isCerrado, bloqueado, motivoBloqueo }: {
+  slots:         Slot[];
+  coachById:     Map<string, { color: string; nombre: string }>;
   isPast:        boolean;
-  isToday:       boolean;
-  coachColor:    string;
-  coachNombre:   string;
   onClickSlot:   (s: Slot) => void;
   onClickEmpty:  () => void;
   isCerrado:     boolean;
@@ -612,9 +675,7 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
 }) {
   const [hover, setHover] = useState(false);
 
-  const bg = 'var(--nexa-bg)';
-
-  if (!slot) {
+  if (slots.length === 0) {
     if (isCerrado) {
       return (
         <div style={{
@@ -649,95 +710,48 @@ function HorarioCelda({ slot, isPast, isToday, coachColor, coachNombre, onClickS
     return (
       <div
         style={{
-          position:     'relative',
-          minHeight:    60,
-          borderRight:  '1px solid var(--nexa-border)',
+          position: 'relative', minHeight: 60,
+          borderRight: '1px solid var(--nexa-border)',
           borderBottom: '1px solid var(--nexa-border-sub)',
-          background:   hover && !isPast ? 'var(--nexa-card)' : bg,
-          opacity:      isPast ? 0.4 : 1,
-          cursor:       isPast ? 'default' : 'pointer',
-          transition:   'background 0.12s',
-          display:      'flex',
-          alignItems:   'center',
-          justifyContent: 'center',
+          background: hover && !isPast ? 'var(--nexa-card)' : 'var(--nexa-bg)',
+          opacity: isPast ? 0.4 : 1,
+          cursor: isPast ? 'default' : 'pointer',
+          transition: 'background 0.12s',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
         onMouseEnter={() => !isPast && setHover(true)}
         onMouseLeave={() => setHover(false)}
         onClick={() => !isPast && onClickEmpty()}
       >
-        {hover && !isPast && (
-          <Plus size={14} style={{ color: 'var(--nexa-faint)' }} />
-        )}
+        {hover && !isPast && <Plus size={14} style={{ color: 'var(--nexa-faint)' }} />}
       </div>
     );
   }
 
-  const cuposUsados = slot.alumnos.length;
-  const cuposFull   = cuposUsados >= slot.cuposTotal;
-
   return (
-    <div
-      style={{
-        position:     'relative',
-        minHeight:    60,
-        borderRight:  '1px solid var(--nexa-border)',
-        borderBottom: '1px solid var(--nexa-border-sub)',
-        background:   bg,
-        opacity:      isPast ? 0.5 : 1,
-        cursor:       'pointer',
-      }}
-      onClick={() => onClickSlot(slot)}
-    >
-      <div style={{
-        position:     'absolute',
-        inset:        3,
-        padding:      '4px 7px',
-        background:   coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
-        borderLeft:   `3px solid ${coachColor || 'var(--nexa-muted)'}`,
-        overflow:     'hidden',
-        borderRadius: 2,
-      }}>
-        {/* Alumnos */}
-        {slot.alumnos.slice(0, 2).map((a, i) => (
-          <div key={i} style={{
-            fontSize:     10,
-            fontWeight:   600,
-            color:        statusColor(a.status),
-            whiteSpace:   'nowrap',
-            overflow:     'hidden',
-            textOverflow: 'ellipsis',
-            lineHeight:   1.35,
-          }}>
-            {a.nombre}
-          </div>
-        ))}
-        {slot.alumnos.length > 2 && (
-          <div style={{ fontSize: 9, color: 'var(--nexa-muted)', lineHeight: 1.3 }}>
-            +{slot.alumnos.length - 2} más
-          </div>
-        )}
-
-        {/* Footer: tipo + coach + cupos */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
-          <span style={{ fontSize: 9, color: 'var(--nexa-muted)', flexShrink: 0 }}>
-            {slot.tipo}
-          </span>
-          {coachNombre && (
-            <span style={{
-              fontSize: 9, color: coachColor ? coachColor + 'aa' : 'var(--nexa-muted)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-            }}>
-              · {coachNombre.split(' ')[0]}
-            </span>
-          )}
-          <span style={{
-            fontSize: 9, marginLeft: 'auto', flexShrink: 0,
-            color: cuposFull ? 'var(--nexa-danger)' : 'var(--nexa-muted)',
-          }}>
-            {cuposUsados}/{slot.cuposTotal}
-          </span>
-        </div>
-      </div>
+    <div style={{
+      borderRight:  '1px solid var(--nexa-border)',
+      borderBottom: '1px solid var(--nexa-border-sub)',
+      background:   'var(--nexa-bg)',
+      display:      'flex',
+      flexDirection: 'column',
+      gap:          2,
+      padding:      3,
+      minHeight:    60,
+    }}>
+      {slots.map((slot, idx) => {
+        const coach = slot.coachId ? coachById.get(slot.coachId) : undefined;
+        return (
+          <SlotCard
+            key={idx}
+            slot={slot}
+            coachColor={coach?.color ?? ''}
+            coachNombre={coach?.nombre ?? ''}
+            onClickSlot={onClickSlot}
+            isPast={isPast}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -924,9 +938,14 @@ export default function HorarioPage() {
   });
   const showHours = [...configHoursSet, ...extraHours].sort();
 
-  // Conteo de clases por día (para el header)
+  // Conteo de horas únicas con clases por día (ignora dimensión coach en la clave)
   function clasesEnDia(ds: string): number {
-    return [...slotMap.keys()].filter(k => k.startsWith(ds)).length;
+    const horas = new Set<string>();
+    slotMap.forEach((_, key) => {
+      const [f, h] = key.split('|');
+      if (f === ds) horas.add(h);
+    });
+    return horas.size;
   }
 
   return (
@@ -1157,10 +1176,8 @@ export default function HorarioPage() {
                       {/* Celdas */}
                       {days.map((d, di) => {
                         const ds        = dateStr(d);
-                        const key       = `${ds}|${hora}`;
-                        const slot      = slotMap.get(key) ?? null;
+                        const slots     = getSlotsForCell(slotMap, ds, hora);
                         const isPast    = new Date(`${ds}T${hora}:00`) < now;
-                        const coach     = slot?.coachId ? coachById.get(slot.coachId) : undefined;
                         const diaConfig = horConfig.dias.find(x => x.dow === d.getDay());
                         const esCerrado = !diaConfig?.abierto ||
                           hora < (diaConfig?.apertura ?? '00:00') ||
@@ -1173,13 +1190,11 @@ export default function HorarioPage() {
                         return (
                           <HorarioCelda
                             key={`${hora}-${di}`}
-                            slot={slot}
+                            slots={slots}
+                            coachById={coachById}
                             isPast={isPast}
-                            isToday={ds === today}
-                            coachColor={coach?.color ?? ''}
-                            coachNombre={coach?.nombre ?? ''}
-                            isCerrado={!slot && esCerrado}
-                            bloqueado={!slot && !!bloqueo}
+                            isCerrado={slots.length === 0 && esCerrado}
+                            bloqueado={slots.length === 0 && !!bloqueo}
                             motivoBloqueo={bloqueo?.motivo}
                             onClickSlot={s => setEditSlot(s)}
                             onClickEmpty={() => {
@@ -1213,8 +1228,7 @@ export default function HorarioPage() {
                 const ds       = dateStr(d);
                 const isT      = ds === today;
                 const daySlots = showHours
-                  .map(hora => ({ hora, slot: slotMap.get(`${ds}|${hora}`) ?? null }))
-                  .filter(x => x.slot !== null);
+                  .flatMap(hora => getSlotsForCell(slotMap, ds, hora).map(slot => ({ hora, slot })));
                 return (
                   <div key={di} style={{
                     border: '1px solid var(--nexa-border)', borderRadius: 8,
@@ -1241,9 +1255,9 @@ export default function HorarioPage() {
                       </div>
                     ) : (
                       daySlots.map(({ hora, slot }) => {
-                        const coach = slot!.coachId ? coachById.get(slot!.coachId) : undefined;
+                        const coach = slot.coachId ? coachById.get(slot.coachId) : undefined;
                         return (
-                          <div key={hora} onClick={() => setEditSlot(slot!)}
+                          <div key={`${hora}-${slot.coachId ?? 'x'}`} onClick={() => setEditSlot(slot)}
                             style={{
                               display: 'flex', alignItems: 'flex-start', gap: 12,
                               padding: '10px 12px',
