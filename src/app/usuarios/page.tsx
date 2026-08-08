@@ -12,9 +12,9 @@ interface Usuario {
 }
 
 const ROL_LABEL: Record<string, string> = {
-  admin:          'Admin',
-  profesor:       'Profesor',
-  recepcionista:  'Recepcionista',
+  admin:         'Admin',
+  profesor:      'Profesor',
+  recepcionista: 'Host',
 };
 
 const ROL_COLOR: Record<string, string> = {
@@ -30,8 +30,8 @@ const ROL_TEXT: Record<string, string> = {
 };
 
 const INITIAL_FORM = {
-  nombre: '', email: '', password: '', especialidad: '',
-  tarifa_1a1: '', tarifa_2a1: '',
+  nombre: '', email: '', password: '', rol: 'profesor' as 'profesor' | 'recepcionista',
+  especialidad: '', tarifa_1a1: '', tarifa_2a1: '',
 };
 
 export default function UsuariosPage() {
@@ -46,6 +46,8 @@ export default function UsuariosPage() {
   const [saving,    setSaving]    = useState(false);
   const [formErr,   setFormErr]   = useState('');
   const [formOk,    setFormOk]    = useState('');
+
+  const esProfesor = form.rol === 'profesor';
 
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
@@ -77,9 +79,12 @@ export default function UsuariosPage() {
         nombre:     form.nombre.trim(),
         email:      form.email.trim(),
         password:   form.password,
-        especialidad: form.especialidad.trim() || undefined,
-        tarifa_1a1: form.tarifa_1a1 ? parseInt(form.tarifa_1a1) : undefined,
-        tarifa_2a1: form.tarifa_2a1 ? parseInt(form.tarifa_2a1) : undefined,
+        rol:        form.rol,
+        ...(form.rol === 'profesor' && {
+          especialidad: form.especialidad.trim() || undefined,
+          tarifa_1a1:   form.tarifa_1a1 ? parseInt(form.tarifa_1a1) : undefined,
+          tarifa_2a1:   form.tarifa_2a1 ? parseInt(form.tarifa_2a1) : undefined,
+        }),
       };
       const res  = await fetch('/api/admin/crear-profesor', {
         method: 'POST',
@@ -140,7 +145,7 @@ export default function UsuariosPage() {
               className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold transition"
               style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
               <Plus size={13} />
-              Nuevo profesor
+              Nuevo usuario
             </button>
           </div>
         </div>
@@ -216,7 +221,7 @@ export default function UsuariosPage() {
             <div className="flex items-center justify-between px-5 py-4"
               style={{ borderBottom: '1px solid var(--nexa-border)' }}>
               <h2 className="text-[13px] font-black tracking-[0.1em]" style={{ color: 'var(--nexa-text)' }}>
-                NUEVO PROFESOR
+                NUEVO USUARIO
               </h2>
               <button onClick={() => setShowModal(false)}
                 className="rounded-lg p-1.5 transition"
@@ -229,6 +234,23 @@ export default function UsuariosPage() {
 
             {/* Form */}
             <form onSubmit={handleCrear} className="px-5 py-5 space-y-4">
+
+              <Field label="Tipo de usuario *">
+                <div className="grid grid-cols-2 gap-2">
+                  {([['profesor', 'Profesor'], ['recepcionista', 'Host']] as const).map(([val, label]) => (
+                    <button key={val} type="button"
+                      onClick={() => setForm(f => ({ ...f, rol: val }))}
+                      className="rounded-xl px-3 py-2.5 text-[12px] font-bold transition"
+                      style={{
+                        background: form.rol === val ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
+                        border:     `1px solid ${form.rol === val ? 'var(--nexa-accent)' : 'var(--nexa-border)'}`,
+                        color:      form.rol === val ? '#FFFFFF' : 'var(--nexa-muted)',
+                      }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Field>
 
               <Field label="Nombre completo *">
                 <input type="text" required placeholder="Ej: Juan Pérez"
@@ -256,27 +278,34 @@ export default function UsuariosPage() {
                 </div>
               </Field>
 
-              <Field label="Especialidad">
-                <input type="text" placeholder="Ej: Funcional, HYROX, Fuerza"
-                  value={form.especialidad} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))}
-                  className="input-nexa" />
-              </Field>
+              {esProfesor && (
+                <>
+                  <Field label="Especialidad">
+                    <input type="text" placeholder="Ej: Funcional, HYROX, Fuerza"
+                      value={form.especialidad} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))}
+                      className="input-nexa" />
+                  </Field>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Tarifa 1:1 ($/sesión)">
-                  <input type="number" min={0} placeholder="0"
-                    value={form.tarifa_1a1} onChange={e => setForm(f => ({ ...f, tarifa_1a1: e.target.value }))}
-                    className="input-nexa" />
-                </Field>
-                <Field label="Tarifa 2:1 ($/sesión)">
-                  <input type="number" min={0} placeholder="0"
-                    value={form.tarifa_2a1} onChange={e => setForm(f => ({ ...f, tarifa_2a1: e.target.value }))}
-                    className="input-nexa" />
-                </Field>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Tarifa 1:1 ($/sesión)">
+                      <input type="number" min={0} placeholder="0"
+                        value={form.tarifa_1a1} onChange={e => setForm(f => ({ ...f, tarifa_1a1: e.target.value }))}
+                        className="input-nexa" />
+                    </Field>
+                    <Field label="Tarifa 2:1 ($/sesión)">
+                      <input type="number" min={0} placeholder="0"
+                        value={form.tarifa_2a1} onChange={e => setForm(f => ({ ...f, tarifa_2a1: e.target.value }))}
+                        className="input-nexa" />
+                    </Field>
+                  </div>
+                </>
+              )}
 
               <p className="text-[10px]" style={{ color: 'var(--nexa-faint)' }}>
-                El profesor recibirá acceso inmediato con esta contraseña. Rol fijo: <strong style={{ color: 'var(--nexa-muted)' }}>profesor</strong>.
+                El usuario recibirá acceso inmediato con esta contraseña. Rol:{' '}
+                <strong style={{ color: 'var(--nexa-muted)' }}>
+                  {form.rol === 'profesor' ? 'Profesor' : 'Host'}
+                </strong>.
               </p>
 
               {formErr && (
@@ -309,7 +338,7 @@ export default function UsuariosPage() {
                     color: '#FFFFFF',
                     opacity: saving ? 0.6 : 1,
                   }}>
-                  {saving ? 'Creando...' : 'Crear profesor'}
+                  {saving ? 'Creando...' : 'Crear usuario'}
                 </button>
               </div>
 

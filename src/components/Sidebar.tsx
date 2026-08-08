@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
-  Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
-  Grid3x3, Settings, LogOut,
+  Home, Calendar, Users, Dumbbell, TrendingUp,
+  Grid3x3, Settings, LogOut, CreditCard,
   ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -34,8 +34,17 @@ const SECTIONS_COMUN: Section[] = [
   {
     label: 'Personas',
     items: [
-      { href: '/alumnos',    label: 'Alumnos',    Icon: Users },
-      { href: '/profesores', label: 'Profesores', Icon: Users2 },
+      { href: '/alumnos', label: 'Alumnos', Icon: Users },
+    ],
+  },
+];
+
+const SECTIONS_HOST: Section[] = [
+  {
+    label: 'Principal',
+    items: [
+      { href: '/horario', label: 'Horario', Icon: Grid3x3 },
+      { href: '/pagos',   label: 'Pagos',   Icon: CreditCard },
     ],
   },
 ];
@@ -70,6 +79,11 @@ const MOBILE_ITEMS: NavItem[] = [
 const MOBILE_ITEMS_PROFESOR: NavItem[] = [
   { href: '/horario', label: 'Horario', Icon: Grid3x3 },
   { href: '/rutinas', label: 'Rutinas', Icon: Calendar },
+];
+
+const MOBILE_ITEMS_HOST: NavItem[] = [
+  { href: '/horario', label: 'Horario', Icon: Grid3x3 },
+  { href: '/pagos',   label: 'Pagos',   Icon: CreditCard },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
@@ -178,8 +192,12 @@ export default function Sidebar() {
     return null;
   }
 
-  const sections     = role === 'profesor' ? SECTIONS_PROFESOR : SECTIONS_COMUN;
-  const mobileItems  = role === 'profesor' ? MOBILE_ITEMS_PROFESOR : MOBILE_ITEMS;
+  const sections    = role === 'profesor'      ? SECTIONS_PROFESOR
+                    : role === 'recepcionista' ? SECTIONS_HOST
+                    : SECTIONS_COMUN;
+  const mobileItems = role === 'profesor'      ? MOBILE_ITEMS_PROFESOR
+                    : role === 'recepcionista' ? MOBILE_ITEMS_HOST
+                    : MOBILE_ITEMS;
 
   return (
     <>

@@ -113,6 +113,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/horario', request.url));
   }
 
+  // Recepcionista (host): solo puede ver horario y pagos
+  const HOST_ALLOWED = ['/horario', '/pagos'];
+  if (rol === 'recepcionista' && !HOST_ALLOWED.some(p => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/horario', request.url));
+  }
+
   return response;
 }
 
