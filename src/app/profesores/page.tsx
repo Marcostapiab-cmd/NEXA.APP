@@ -31,6 +31,8 @@ function extractMsg(e: unknown): string {
 interface Draft {
   id?:                    string;
   nombre:                 string;
+  email:                  string;
+  password:               string;
   especialidad:           string;
   tarifa_1a1:             string;
   tarifa_2a1:             string;
@@ -42,7 +44,7 @@ interface Draft {
 function emptyDraft(usedColors: string[]): Draft {
   const color = COACH_COLORS.find(c => !usedColors.includes(c)) ?? COACH_COLORS[0];
   return {
-    nombre: '', especialidad: '',
+    nombre: '', email: '', password: '', especialidad: '',
     tarifa_1a1: '', tarifa_2a1: '', tarifa_incompleta_2a1: '',
     color, activo: true,
   };
@@ -50,14 +52,16 @@ function emptyDraft(usedColors: string[]): Draft {
 
 function draftFromCoach(c: Coach): Draft {
   return {
-    id:                   c.id,
-    nombre:               c.nombre,
-    especialidad:         c.especialidad           ?? '',
-    tarifa_1a1:           c.tarifa_1a1            > 0 ? String(c.tarifa_1a1)            : '',
-    tarifa_2a1:           c.tarifa_2a1            > 0 ? String(c.tarifa_2a1)            : '',
+    id:                    c.id,
+    nombre:                c.nombre,
+    email:                 '',
+    password:              '',
+    especialidad:          c.especialidad           ?? '',
+    tarifa_1a1:            c.tarifa_1a1            > 0 ? String(c.tarifa_1a1)            : '',
+    tarifa_2a1:            c.tarifa_2a1            > 0 ? String(c.tarifa_2a1)            : '',
     tarifa_incompleta_2a1: c.tarifa_incompleta_2a1 > 0 ? String(c.tarifa_incompleta_2a1) : '',
-    color:                c.color                  ?? COACH_COLORS[0],
-    activo:               c.activo,
+    color:                 c.color                  ?? COACH_COLORS[0],
+    activo:                c.activo,
   };
 }
 
@@ -121,6 +125,34 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
               style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
             />
           </div>
+
+          {/* Cuenta (solo al crear) */}
+          {!isEdit && (
+            <div className="rounded-xl p-4 space-y-3"
+              style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--nexa-muted)' }}>Cuenta de acceso</p>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Email *</label>
+                <input type="email" value={draft.email}
+                  placeholder="profesor@nexaperformance.cl"
+                  onChange={e => onChange({ ...draft, email: e.target.value })}
+                  className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                  style={{ background: 'var(--nexa-black)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
+                  style={{ color: 'var(--nexa-muted)' }}>Contraseña * <span style={{ color: 'var(--nexa-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(mín. 8 caracteres)</span></label>
+                <input type="password" value={draft.password}
+                  onChange={e => onChange({ ...draft, password: e.target.value })}
+                  className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                  style={{ background: 'var(--nexa-black)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Especialidad */}
           <div>
@@ -195,9 +227,13 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
               style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-muted)', border: '1px solid var(--nexa-border)' }}>
               Cancelar
             </button>
-            <button onClick={onSave} disabled={saving || !draft.nombre.trim()}
+            <button onClick={onSave}
+              disabled={saving || !draft.nombre.trim() || (!isEdit && (!draft.email.trim() || draft.password.length < 8))}
               className="rounded-xl px-5 py-2.5 text-[12px] font-bold transition"
-              style={{ background: 'var(--nexa-accent)', color: '#FFFFFF', opacity: (saving || !draft.nombre.trim()) ? 0.5 : 1 }}>
+              style={{
+                background: 'var(--nexa-accent)', color: '#FFFFFF',
+                opacity: (saving || !draft.nombre.trim() || (!isEdit && (!draft.email.trim() || draft.password.length < 8))) ? 0.5 : 1,
+              }}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
@@ -338,16 +374,42 @@ export default function ProfesoresPage() {
     setSaving(true);
     setErr('');
     try {
-      const saved = await upsertCoachDB({
-        id:                    modal.id,
-        nombre:                modal.nombre.trim(),
-        especialidad:          modal.especialidad.trim() || undefined,
-        tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
-        tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
-        tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
-        color:                 modal.color || undefined,
-        activo:                modal.activo,
-      });
+      let saved: Coach;
+
+      if (!modal.id) {
+        // Crear: genera cuenta de auth + coaches entry vía API route
+        const res = await fetch('/api/admin/crear-profesor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email:                 modal.email.trim(),
+            password:              modal.password,
+            nombre:                modal.nombre.trim(),
+            especialidad:          modal.especialidad.trim() || undefined,
+            tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
+            tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
+            tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+            color:                 modal.color || undefined,
+            activo:                modal.activo,
+          }),
+        });
+        const json = await res.json() as { coach?: Coach; error?: string };
+        if (!res.ok || !json.coach) throw new Error(json.error ?? 'Error al crear el profesor');
+        saved = json.coach;
+      } else {
+        // Editar: solo actualiza datos de display en la tabla coaches
+        saved = await upsertCoachDB({
+          id:                    modal.id,
+          nombre:                modal.nombre.trim(),
+          especialidad:          modal.especialidad.trim() || undefined,
+          tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
+          tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
+          tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+          color:                 modal.color || undefined,
+          activo:                modal.activo,
+        });
+      }
+
       setCoaches(prev =>
         modal.id
           ? prev.map(c => c.id === modal.id ? saved : c)

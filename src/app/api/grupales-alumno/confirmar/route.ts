@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
     console.error('[confirmar] error:', msg);
-    // Flow espera 200 para no reintentar
-    return NextResponse.json({ error: msg }, { status: 200 });
+    // 500 → Flow reintenta en errores transitorios (DB caída, timeout, etc.)
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

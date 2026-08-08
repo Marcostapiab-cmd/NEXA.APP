@@ -5,8 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
-  Grid3x3, Settings, LogOut, CreditCard,
-  ChevronDown, ChevronRight, CalendarDays, BarChart2,
+  Grid3x3, Settings, LogOut,
+  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -44,8 +44,9 @@ const SECTION_ADMIN: Section = {
   label: 'Administración',
   items: [
     { href: '/metricas',       label: 'Métricas',        Icon: BarChart2    },
-    { href: '/grupales',      label: 'Clases grupales', Icon: CalendarDays },
-    { href: '/configuracion', label: 'Configuración',   Icon: Settings     },
+    { href: '/grupales',       label: 'Clases grupales', Icon: CalendarDays },
+    { href: '/usuarios',       label: 'Usuarios',        Icon: UserCog      },
+    { href: '/configuracion',  label: 'Configuración',   Icon: Settings     },
   ],
 };
 
