@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, AlertTriangle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { clp, MESES_CAP } from '@/lib/format';
 import { getAllCoachesDB, type Coach } from '@/lib/coaches-supabase';
 import {
   agruparClases,
@@ -19,9 +20,7 @@ function ultimoDia(year: number, month: number): string {
   const d = new Date(year, month + 1, 0);
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-function clp(n: number) { return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }); }
-function nombreMes(year: number, month: number) { return `${MESES[month]} ${year}`; }
+function nombreMes(year: number, month: number) { return `${MESES_CAP[month]} ${year}`; }
 function coachNombre(coaches: Coach[], id: string | null) {
   if (!id) return '—';
   return coaches.find(c => c.id === id)?.nombre ?? id.slice(0, 8) + '…';
@@ -41,7 +40,7 @@ function NumCell({ value, bold = false, dim = false }: { value: number; bold?: b
   );
 }
 
-export default function ProfesoresTab() {
+export default function LiquidacionesTab() {
   const now = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -74,7 +73,7 @@ export default function ProfesoresTab() {
       setFilas(filasCalculadas);
       setAdvertencias(adv);
     } catch (err) {
-      console.error('profesores-tab load error', err);
+      console.error('liquidaciones-tab load error', err);
     } finally {
       setLoading(false);
     }

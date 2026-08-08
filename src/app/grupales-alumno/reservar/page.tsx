@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { ArrowLeft, Calendar, Clock, Users, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { DIAS_CORTO, MESES_LARGO } from '@/lib/format';
 
 interface Sesion {
   clase_id:     string;
@@ -23,12 +24,9 @@ interface Compra {
   fecha_expira:     string;
 }
 
-const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-
 function formatFechaLarga(iso: string) {
   const d = new Date(iso + 'T12:00:00');
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+  return `${DIAS_CORTO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
 export default function ReservarPage() {

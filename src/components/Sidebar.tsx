@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
   Grid3x3, Settings, LogOut, CreditCard,
-  ChevronDown, ChevronRight, CalendarDays, Tag, BarChart2,
+  ChevronDown, ChevronRight, CalendarDays, BarChart2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -45,8 +45,6 @@ const SECTION_ADMIN: Section = {
   items: [
     { href: '/metricas',       label: 'Métricas',        Icon: BarChart2    },
     { href: '/grupales',      label: 'Clases grupales', Icon: CalendarDays },
-    // { href: '/planes', label: 'Planes', Icon: Tag }, // oculto — integrado en /grupales tab Planes
-    // { href: '/pagos', label: 'Pagos', Icon: CreditCard }, // oculto — pago integrado en /alumnos
     { href: '/configuracion', label: 'Configuración',   Icon: Settings     },
   ],
 };
@@ -74,7 +72,7 @@ const MOBILE_ITEMS_PROFESOR: NavItem[] = [
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/reservar'];
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/reservar', '/grupales-alumno'];
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href;

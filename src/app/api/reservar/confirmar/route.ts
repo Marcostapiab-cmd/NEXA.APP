@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { consultarPagoFlow } from '@/lib/flow';
 import { Resend } from 'resend';
+import { DIAS_LARGO, MESES_LARGO } from '@/lib/format';
 
 export const runtime = 'nodejs';
 
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
-               'septiembre','octubre','noviembre','diciembre'];
-
 function formatFecha(fecha: string) {
   const d = new Date(fecha + 'T12:00:00');
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+  return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
 interface Pedido {

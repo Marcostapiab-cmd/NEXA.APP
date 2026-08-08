@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { clp } from '@/lib/format';
 import { Users, DollarSign, TrendingUp, BarChart2, AlertTriangle } from 'lucide-react';
 import type { MetricasAlumnos, MetricasIngresos, MetricasGrupales } from '@/lib/metricas-supabase';
 import { getMetricasAlumnos, getMetricasIngresos, getMetricasGrupales } from '@/lib/metricas-supabase';
 
-function clp(n: number) {
-  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
-}
 
 function pct(part: number, total: number) {
   return total > 0 ? Math.round((part / total) * 100) : 0;

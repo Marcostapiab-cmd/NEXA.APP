@@ -157,7 +157,7 @@ AS $$
              OR (cg.hora >= hb.hora_inicio
                  AND cg.hora < COALESCE(hb.hora_fin, '23:59')))
     ) AS bloqueada,
-    COALESCE(TRIM(CONCAT(p.nombre, ' ', p.apellido)), '') AS coach_nombre
+    COALESCE(p.nombre, '') AS coach_nombre
   FROM generate_series(
     current_date,
     current_date + (p_dias - 1) * '1 day'::interval,
@@ -178,7 +178,7 @@ AS $$
    AND gr.estado   = 'reservada'
   LEFT JOIN public.perfiles p ON p.id = cg.coach_id
   GROUP BY cg.id, cg.nombre, cg.duracion_min, cg.hora, cg.dia_semana, cg.capacidad,
-           d.fecha, p.nombre, p.apellido
+           d.fecha, p.nombre
   ORDER BY d.fecha, cg.hora;
 $$;
 

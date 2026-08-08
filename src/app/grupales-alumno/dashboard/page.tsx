@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { ShoppingBag, Calendar, LogOut, Clock, CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
+import { MESES_CORTO } from '@/lib/format';
 
 interface Alumno { id: string; nombre: string; apellido: string; email: string }
 
@@ -25,11 +26,9 @@ interface Reserva {
   estado: string;
 }
 
-const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-
 function formatFecha(iso: string) {
   const d = new Date(iso + 'T12:00:00');
-  return `${d.getDate()} ${MESES[d.getMonth()]}`;
+  return `${d.getDate()} ${MESES_CORTO[d.getMonth()]}`;
 }
 
 function formatExpira(iso: string) {

@@ -65,18 +65,17 @@ export async function POST(req: NextRequest) {
     const fechaExpiraProvisional = new Date();
     fechaExpiraProvisional.setDate(fechaExpiraProvisional.getDate() + p.validez_dias);
 
-    // Crear compra pendiente
+    // Crear compra pendiente (clases_restantes es columna generada: clases_totales - clases_usadas)
     const { data: compra, error: compraErr } = await supabaseAdmin
       .from('grupales_compras')
       .insert({
-        alumno_id:        al.id,
+        alumno_id:      al.id,
         pack_id,
-        clases_totales:   p.num_clases,
-        clases_restantes: p.num_clases,
-        fecha_expira:     fechaExpiraProvisional.toISOString(),
-        estado_pago:      'pendiente',
-        commerce_order:   commerceOrder,
-        monto_clp:        p.precio_clp,
+        clases_totales: p.num_clases,
+        fecha_expira:   fechaExpiraProvisional.toISOString(),
+        estado_pago:    'pendiente',
+        commerce_order: commerceOrder,
+        monto_clp:      p.precio_clp,
       })
       .select('id')
       .single();

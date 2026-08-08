@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { clp, DIAS_LARGO, MESES_LARGO } from '@/lib/format';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -17,13 +18,9 @@ const D = {
   redDim:'var(--nexa-danger-bg)',
 } as const;
 
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
-               'septiembre','octubre','noviembre','diciembre'];
-
 function fechaLarga(f: string) {
   const d = new Date(f + 'T12:00:00');
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+  return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
 interface EstadoRes {
@@ -40,9 +37,7 @@ interface EstadoRes {
 
 type Vista = 'cargando' | 'pagado' | 'pendiente' | 'error';
 
-function clp(n: number) {
-  return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:0}).format(n);
-}
+
 
 export default function RetornoContent() {
   const params = useSearchParams();

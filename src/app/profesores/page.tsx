@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
+import LiquidacionesTab from './LiquidacionesTab';
 import {
   getAllCoachesDB, upsertCoachDB, deleteCoachDB,
   COACH_COLORS,
@@ -297,6 +298,7 @@ export default function ProfesoresPage() {
   const [modal,        setModal]        = useState<Draft | null>(null);
   const [saving,       setSaving]       = useState(false);
   const [err,          setErr]          = useState('');
+  const [tab,          setTab]          = useState<'profesores' | 'liquidaciones'>('profesores');
 
   const isAdmin = role === 'admin';
 
@@ -389,7 +391,7 @@ export default function ProfesoresPage() {
               {coaches.filter(c => c.activo).length} activos · {coaches.length} total
             </p>
           </div>
-          {isAdmin && (
+          {isAdmin && tab === 'profesores' && (
             <button onClick={openCreate}
               className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold"
               style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
@@ -399,36 +401,54 @@ export default function ProfesoresPage() {
           )}
         </div>
 
+        {/* Tabs */}
+        <div className="mb-6 flex gap-1 rounded-xl border p-1"
+          style={{ borderColor: 'var(--nexa-border)', background: 'var(--nexa-card)', width: 'fit-content' }}>
+          {(['profesores', 'liquidaciones'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className="rounded-lg px-5 py-2 text-[12px] font-semibold capitalize transition-all"
+              style={tab === t
+                ? { background: 'var(--nexa-text)', color: '#fff' }
+                : { color: 'var(--nexa-muted)' }}>
+              {t === 'profesores' ? 'Profesores' : 'Liquidaciones'}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'liquidaciones' && <LiquidacionesTab />}
+
         {/* Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-44 rounded-xl animate-pulse"
-                style={{ background: 'var(--nexa-card)' }} />
-            ))}
-          </div>
-        ) : coaches.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <p className="text-[14px]" style={{ color: 'var(--nexa-muted)' }}>
-              Sin profesores registrados.
-            </p>
-            {isAdmin && (
-              <button onClick={openCreate} className="text-[12px] font-semibold"
-                style={{ color: 'var(--nexa-accent)' }}>
-                + Agregar el primero
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {coaches.map(c => (
-              <CoachCard key={c.id} coach={c}
-                alumnosCount={alumnosCount.get(c.id) ?? 0}
-                isAdmin={isAdmin}
-                onClick={() => openEdit(c)}
-              />
-            ))}
-          </div>
+        {tab === 'profesores' && (
+          loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-44 rounded-xl animate-pulse"
+                  style={{ background: 'var(--nexa-card)' }} />
+              ))}
+            </div>
+          ) : coaches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <p className="text-[14px]" style={{ color: 'var(--nexa-muted)' }}>
+                Sin profesores registrados.
+              </p>
+              {isAdmin && (
+                <button onClick={openCreate} className="text-[12px] font-semibold"
+                  style={{ color: 'var(--nexa-accent)' }}>
+                  + Agregar el primero
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {coaches.map(c => (
+                <CoachCard key={c.id} coach={c}
+                  alumnosCount={alumnosCount.get(c.id) ?? 0}
+                  isAdmin={isAdmin}
+                  onClick={() => openEdit(c)}
+                />
+              ))}
+            </div>
+          )
         )}
       </div>
 

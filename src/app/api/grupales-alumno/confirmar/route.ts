@@ -60,24 +60,30 @@ export async function POST(req: NextRequest) {
       .eq('id', c.pack_id)
       .single();
 
-    const validez    = (pack as { validez_dias: number; num_clases: number } | null)?.validez_dias ?? 45;
-    const numClases  = (pack as { validez_dias: number; num_clases: number } | null)?.num_clases ?? 0;
-    const fechaExpira = new Date();
-    fechaExpira.setDate(fechaExpira.getDate() + validez);
+    if (!pack) {
+      // El pack fue eliminado después de la compra; detener sin marcar como pagado
+      // para resolución manual. Retornar 200 para que Flow no reintente.
+      console.error('[confirmar] pack eliminado — compra pendiente de resolución manual:', c.id, 'pack_id:', c.pack_id);
+      return NextResponse.json({ ok: false, error: 'Pack no encontrado — revisar manualmente' }, { status: 200 });
+    }
 
-    // Actualizar compra: marcar como pagada con fecha real de expiración
+    const p = pack as { validez_dias: number; num_clases: number };
+    const fechaExpira = new Date();
+    fechaExpira.setDate(fechaExpira.getDate() + p.validez_dias);
+
+    // Actualizar compra: marcar como pagada con fecha real de expiración.
+    // clases_restantes es columna generada (clases_totales - clases_usadas).
     await supabaseAdmin
       .from('grupales_compras')
       .update({
-        estado_pago:      'pagado',
-        fecha_expira:     fechaExpira.toISOString(),
-        clases_totales:   numClases,
-        clases_restantes: numClases,
-        clases_usadas:    0,
+        estado_pago:    'pagado',
+        fecha_expira:   fechaExpira.toISOString(),
+        clases_totales: p.num_clases,
+        clases_usadas:  0,
       })
       .eq('id', c.id);
 
-    console.log(`[confirmar] Pack cargado: ${numClases} clases para alumno ${c.alumno_id}`);
+    console.log(`[confirmar] Pack cargado: ${p.num_clases} clases para alumno ${c.alumno_id}`);
     return NextResponse.json({ ok: true, estado: 'pagado' });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';

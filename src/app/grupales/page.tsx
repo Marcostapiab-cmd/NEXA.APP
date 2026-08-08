@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw, UserCircle, CreditCard, Plus, Pencil, Trash2, Star, X, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { clp, DIAS_LARGO, MESES_LARGO, MESES_CORTO } from '@/lib/format';
 
 // ── Tipos para alumnos grupales ──────────────────────────────
 
@@ -28,7 +29,6 @@ interface GrupalesCompra {
   grupales_packs:   { nombre: string }[] | null;
 }
 
-const MESES_SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 function AlumnosGrupalesTab() {
   const [alumnos,  setAlumnos]  = useState<GrupalesAlumno[]>([]);
@@ -70,7 +70,7 @@ function AlumnosGrupalesTab() {
 
   function formatFecha(iso: string) {
     const d = new Date(iso);
-    return `${d.getDate()} ${MESES_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+    return `${d.getDate()} ${MESES_CORTO[d.getMonth()]} ${d.getFullYear()}`;
   }
 
   const alumnoSeleccionado = alumnos.find(a => a.id === selected);
@@ -262,12 +262,9 @@ const ESTADO_CFG: Record<string, { label: string; color: string; bg: string; Ico
   cancelada_nexa:   { label: 'Cancelada',  color: '#9B9B9B', bg: '#f9fafb', Icon: XCircle      },
 };
 
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-
 function formatFecha(fecha: string) {
   const d = new Date(fecha + 'T12:00:00');
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+  return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
 function CupoBar({ inscritos, capacidad }: { inscritos: number; capacidad: number }) {
@@ -307,9 +304,6 @@ const PLAN_VACIO: Omit<Plan, 'id'> = {
   num_clases: 1, validez_dias: 7, destacado: false, orden: 0, activo: true,
 };
 
-function clp(n: number) {
-  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(n);
-}
 
 function PlanInput({ label, value, onChange, type = 'text', placeholder }: {
   label: string; value: string | number; onChange: (v: string) => void;
@@ -384,7 +378,7 @@ function PlanesTab() {
     <>
       <div className="mb-5 flex items-center justify-between">
         <p className="text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
-          Paquetes que ven los alumnos en /reservar
+          Paquetes que ven los alumnos en el portal grupal
         </p>
         <div className="flex gap-2">
           <button onClick={cargar} className="rounded-lg p-2 transition"

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 
 const NO_SIDEBAR_PATHS = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/grupales-alumno'];
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/grupales-alumno', '/reservar'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Users, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { clp } from '@/lib/format';
 
 // ── Design tokens ──────────────────────────────────────────────
 const D = {
@@ -34,9 +35,6 @@ interface Datos { nombre: string; apellido: string; email: string; telefono: str
 const DIAS_L  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-function clp(n: number) {
-  return new Intl.NumberFormat('es-CL',{ style:'currency', currency:'CLP', minimumFractionDigits:0 }).format(n);
-}
 function fechaLarga(f: string) {
   const d = new Date(f + 'T12:00:00');
   return `${DIAS_L[d.getDay()]} ${d.getDate()} de ${MESES_L[d.getMonth()]}`;

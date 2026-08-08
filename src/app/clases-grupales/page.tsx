@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Check, Loader2 } from 'lucide-react';
+import { DIAS_CORTO, MESES_CORTO, MESES_LARGO } from '@/lib/format';
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -30,18 +31,14 @@ interface Sesion {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const MESES_LARGO = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-
 function fechaChip(iso: string) {
   const d = new Date(iso + 'T12:00:00');
-  return { dia: DIAS[d.getDay()], num: d.getDate(), mes: MESES[d.getMonth()] };
+  return { dia: DIAS_CORTO[d.getDay()], num: d.getDate(), mes: MESES_CORTO[d.getMonth()] };
 }
 
 function fechaLarga(iso: string) {
   const d = new Date(iso + 'T12:00:00');
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
+  return `${DIAS_CORTO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
 function formatPrecio(n: number) {
