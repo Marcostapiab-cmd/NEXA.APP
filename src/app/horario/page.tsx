@@ -161,6 +161,8 @@ function getSlotsForCell(slotMap: Map<string, Slot>, fecha: string, hora: string
   const prefix = `${fecha}|${hora}|`;
   const slots: Slot[] = [];
   slotMap.forEach((slot, key) => { if (key.startsWith(prefix)) slots.push(slot); });
+  // Si hay slots con coach real, ocultar los sin coach (son reservas huérfanas)
+  if (slots.some(s => s.coachId !== null)) return slots.filter(s => s.coachId !== null);
   return slots;
 }
 
@@ -613,20 +615,30 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
   onClickSlot: (s: Slot) => void;
   isPast:      boolean;
 }) {
-  const cuposUsados = slot.alumnos.length;
-  const cuposFull   = cuposUsados >= slot.cuposTotal;
+  const cuposUsados  = slot.alumnos.length;
+  const cuposFull    = cuposUsados >= slot.cuposTotal;
+  const hayConflicto = cuposUsados > slot.cuposTotal;
+
   return (
     <div
       onClick={() => onClickSlot(slot)}
       style={{
         padding:      '4px 7px',
-        background:   coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
-        borderLeft:   `3px solid ${coachColor || 'var(--nexa-muted)'}`,
+        background:   hayConflicto ? 'rgba(180,64,64,0.10)' : coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
+        borderLeft:   `3px solid ${hayConflicto ? '#B44040' : coachColor || 'var(--nexa-muted)'}`,
         borderRadius: 2,
         cursor:       'pointer',
         opacity:      isPast ? 0.55 : 1,
       }}
     >
+      {hayConflicto && (
+        <div style={{
+          fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
+          color: '#B44040', textTransform: 'uppercase', lineHeight: 1.3, marginBottom: 2,
+        }}>
+          ⚠ Conflicto horario
+        </div>
+      )}
       {slot.alumnos.slice(0, 2).map((a, i) => (
         <div key={i} style={{
           fontSize: 10, fontWeight: 600,
