@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 function validarRut(rut: string): boolean {
@@ -19,8 +19,11 @@ function validarRut(rut: string): boolean {
   return dv === dvStr;
 }
 
-export default function GrupalesRegistroPage() {
-  const router = useRouter();
+function RegistroContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl  = searchParams.get('redirect');
+
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', telefono: '', rut: '', password: '', confirm: '',
   });
@@ -69,11 +72,18 @@ export default function GrupalesRegistroPage() {
     });
     if (loginErr) {
       setError('Cuenta creada. Por favor inicia sesión.');
-      router.push('/grupales-alumno/login');
+      const loginHref = redirectUrl
+        ? `/grupales-alumno/login?redirect=${encodeURIComponent(redirectUrl)}`
+        : '/grupales-alumno/login';
+      router.push(loginHref);
       return;
     }
-    router.push('/grupales-alumno/dashboard');
+    router.push(redirectUrl ?? '/grupales-alumno/dashboard');
   }
+
+  const loginHref = redirectUrl
+    ? `/grupales-alumno/login?redirect=${encodeURIComponent(redirectUrl)}`
+    : '/grupales-alumno/login';
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10"
@@ -141,11 +151,15 @@ export default function GrupalesRegistroPage() {
 
         <p className="mt-6 text-center text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
           ¿Ya tienes cuenta?{' '}
-          <Link href="/grupales-alumno/login" className="font-semibold" style={{ color: 'var(--nexa-text)' }}>
+          <Link href={loginHref} className="font-semibold" style={{ color: 'var(--nexa-text)' }}>
             Ingresar
           </Link>
         </p>
       </div>
     </div>
   );
+}
+
+export default function GrupalesRegistroPage() {
+  return <Suspense><RegistroContent /></Suspense>;
 }

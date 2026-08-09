@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { ArrowLeft, Check, Loader2 } from 'lucide-react';
@@ -17,19 +17,36 @@ function formatPrecio(n: number) {
   return `$${n.toLocaleString('es-CL')}`;
 }
 
-export default function ComprarPage() {
-  const router    = useRouter();
-  const [packs,   setPacks]   = useState<Pack[]>([]);
+function toSlug(s: string) {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-');
+}
+
+function ComprarContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const packParam    = searchParams.get('pack');
+
+  const [packs,    setPacks]    = useState<Pack[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [email,   setEmail]   = useState('');
-  const [loading, setLoading] = useState(true);
-  const [paying,  setPaying]  = useState(false);
-  const [error,   setError]   = useState('');
+  const [email,    setEmail]    = useState('');
+  const [loading,  setLoading]  = useState(true);
+  const [paying,   setPaying]   = useState(false);
+  const [error,    setError]    = useState('');
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/grupales-alumno/login'); return; }
+      if (!user) {
+        const returnUrl = packParam
+          ? `/grupales-alumno/comprar?pack=${encodeURIComponent(packParam)}`
+          : '/grupales-alumno/comprar';
+        router.push(`/grupales-alumno/login?redirect=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
 
       const [{ data: al }, { data: pk }] = await Promise.all([
         supabase.from('grupales_alumnos').select('email').eq('user_id', user.id).single(),
@@ -37,12 +54,21 @@ export default function ComprarPage() {
       ]);
 
       setEmail((al as { email: string } | null)?.email ?? user.email ?? '');
-      setPacks((pk ?? []) as Pack[]);
-      if (pk && pk.length > 0) setSelected((pk[1] ?? pk[0]).id);
+      const fetchedPacks = (pk ?? []) as Pack[];
+      setPacks(fetchedPacks);
+
+      if (fetchedPacks.length > 0) {
+        // Pre-seleccionar por slug si vino desde la landing
+        const matchBySlug = packParam
+          ? fetchedPacks.find(p => toSlug(p.nombre) === packParam)
+          : null;
+        setSelected(matchBySlug?.id ?? (fetchedPacks[1] ?? fetchedPacks[0]).id);
+      }
+
       setLoading(false);
     }
     init();
-  }, [router]);
+  }, [router, packParam]);
 
   async function handlePagar() {
     if (!selected) return;
@@ -182,4 +208,8 @@ export default function ComprarPage() {
       </div>
     </div>
   );
+}
+
+export default function ComprarPage() {
+  return <Suspense><ComprarContent /></Suspense>;
 }

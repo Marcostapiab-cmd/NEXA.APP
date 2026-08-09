@@ -22,6 +22,7 @@ const SERVICIOS = [
 const PACKS = [
   {
     nombre: 'Primera Clase',
+    slug: 'primera-clase',
     precio: '$8.990',
     clases: 1,
     desc: 'Ven a conocernos. Sin compromiso.',
@@ -30,6 +31,7 @@ const PACKS = [
   },
   {
     nombre: 'Pack Mensual',
+    slug: 'pack-mensual',
     precio: '$95.900',
     clases: 12,
     desc: 'El más elegido. Tres clases por semana.',
@@ -38,6 +40,7 @@ const PACKS = [
   },
   {
     nombre: 'Pack Intensivo',
+    slug: 'pack-intensivo',
     precio: '$149.900',
     clases: 20,
     desc: 'Para quienes van en serio.',
@@ -173,14 +176,14 @@ export default function LandingPage() {
                 ))}
               </ul>
 
-              <Link href="/reservar" style={{
+              <Link href={`/grupales-alumno/comprar?pack=${plan.slug}`} style={{
                 display: 'block', textAlign: 'center', textDecoration: 'none',
                 fontSize: 14, fontWeight: 700,
                 color: plan.highlight ? 'var(--nexa-text)' : '#fff',
                 background: plan.highlight ? '#fff' : 'var(--nexa-text)',
                 padding: '13px 20px', borderRadius: 11,
               }}>
-                Reservar clase →
+                Comprar pack →
               </Link>
             </div>
           ))}

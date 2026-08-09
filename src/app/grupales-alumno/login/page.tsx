@@ -1,11 +1,14 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function GrupalesLoginPage() {
-  const router = useRouter();
+function LoginContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl  = searchParams.get('redirect');
+
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
@@ -27,8 +30,12 @@ export default function GrupalesLoginPage() {
       setLoading(false);
       return;
     }
-    router.push('/grupales-alumno/dashboard');
+    router.push(redirectUrl ?? '/grupales-alumno/dashboard');
   }
+
+  const registroHref = redirectUrl
+    ? `/grupales-alumno/registro?redirect=${encodeURIComponent(redirectUrl)}`
+    : '/grupales-alumno/registro';
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10"
@@ -88,7 +95,7 @@ export default function GrupalesLoginPage() {
 
         <p className="mt-6 text-center text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
           ¿No tienes cuenta?{' '}
-          <Link href="/grupales-alumno/registro"
+          <Link href={registroHref}
             className="font-semibold" style={{ color: 'var(--nexa-text)' }}>
             Regístrate
           </Link>
@@ -96,4 +103,8 @@ export default function GrupalesLoginPage() {
       </div>
     </div>
   );
+}
+
+export default function GrupalesLoginPage() {
+  return <Suspense><LoginContent /></Suspense>;
 }
