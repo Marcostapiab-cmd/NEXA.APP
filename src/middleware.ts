@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Profesor: solo puede ver horario, checkin y rutinas
-  const PROFESOR_ALLOWED = ['/horario', '/checkin', '/rutinas', '/clases-grupales'];
+  const PROFESOR_ALLOWED = ['/horario', '/checkin', '/rutinas', '/clases-grupales', '/weightroom', '/progreso'];
   if (rol === 'profesor' && !PROFESOR_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));
   }

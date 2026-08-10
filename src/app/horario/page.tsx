@@ -846,6 +846,7 @@ export default function HorarioPage() {
   const [bloqueos,    setBloqueos]    = useState<HorarioBloqueo[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [vista,       setVista]       = useState<'horario' | 'checkin'>('horario');
+  const [rol,         setRol]         = useState<string | null>(null);
   const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
   const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
   const [toast,       setToast]       = useState<string | null>(null);
@@ -911,6 +912,9 @@ export default function HorarioPage() {
   }, [weekOffset]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRol(data as string | null));
+  }, []);
 
   // Recargar cuando el usuario vuelve a esta pestaña (p.ej. después de check-in)
   useEffect(() => {
@@ -975,23 +979,25 @@ export default function HorarioPage() {
             </p>
           </div>
 
-          {/* Switcher Horario / Check-in */}
-          <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
-            <button
-              onClick={() => setVista('horario')}
-              className="rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
-              style={{ background: vista === 'horario' ? 'var(--nexa-text)' : 'transparent', color: vista === 'horario' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
-            >
-              Horario
-            </button>
-            <button
-              onClick={() => setVista('checkin')}
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
-              style={{ background: vista === 'checkin' ? 'var(--nexa-text)' : 'transparent', color: vista === 'checkin' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
-            >
-              <ClipboardCheck size={12} /> Check-in
-            </button>
-          </div>
+          {/* Switcher Horario / Check-in (solo admin y recepcionista) */}
+          {rol !== 'profesor' && (
+            <div className="flex gap-1 rounded-lg p-0.5" style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+              <button
+                onClick={() => setVista('horario')}
+                className="rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
+                style={{ background: vista === 'horario' ? 'var(--nexa-text)' : 'transparent', color: vista === 'horario' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
+              >
+                Horario
+              </button>
+              <button
+                onClick={() => setVista('checkin')}
+                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
+                style={{ background: vista === 'checkin' ? 'var(--nexa-text)' : 'transparent', color: vista === 'checkin' ? 'var(--nexa-bg)' : 'var(--nexa-muted)' }}
+              >
+                <ClipboardCheck size={12} /> Check-in
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 ml-auto">
             <button

@@ -64,7 +64,15 @@ const SECTIONS_PROFESOR: Section[] = [
     label: 'Principal',
     items: [
       { href: '/horario', label: 'Horario', Icon: Grid3x3 },
-      { href: '/rutinas', label: 'Rutinas', Icon: Calendar },
+    ],
+  },
+  {
+    label: 'Entrenamiento',
+    collapsible: true,
+    items: [
+      { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar },
+      { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell },
+      { href: '/progreso',   label: 'Progreso',   Icon: TrendingUp },
     ],
   },
 ];
@@ -192,7 +200,8 @@ export default function Sidebar() {
     return null;
   }
 
-  const sections    = role === 'profesor'      ? SECTIONS_PROFESOR
+  const sections    = role === null             ? []
+                    : role === 'profesor'      ? SECTIONS_PROFESOR
                     : role === 'recepcionista' ? SECTIONS_HOST
                     : SECTIONS_COMUN;
   const mobileItems = role === 'profesor'      ? MOBILE_ITEMS_PROFESOR
