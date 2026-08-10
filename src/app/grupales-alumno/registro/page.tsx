@@ -40,7 +40,7 @@ function RegistroContent() {
 
     if (!form.nombre.trim() || !form.apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     if (!form.email.trim()) return setError('Email es obligatorio.');
-    if (form.rut.trim() && !validarRut(form.rut)) return setError('RUT inválido. Usa el formato 12.345.678-9');
+    if (form.rut.trim() && !validarRut(form.rut)) return setError('RUT inválido (o déjalo en blanco, es opcional). Formato: 12.345.678-9');
     if (form.password.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.');
     if (form.password !== form.confirm) return setError('Las contraseñas no coinciden.');
 
@@ -127,8 +127,8 @@ function RegistroContent() {
               <input type="tel" value={form.telefono} onChange={set('telefono')} placeholder="+56 9 ..." className="nexa-input w-full" />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>RUT</label>
-              <input type="text" value={form.rut} onChange={set('rut')} placeholder="12.345.678-9" className="nexa-input w-full" />
+              <label className="mb-1 block text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>RUT <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+              <input type="text" value={form.rut} onChange={set('rut')} placeholder="Ej: 12.345.678-9" className="nexa-input w-full" />
             </div>
           </div>
 
