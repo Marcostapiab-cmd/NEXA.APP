@@ -18,19 +18,24 @@ function LoginContent() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err || !data.user) {
-      setError('Email o contraseña incorrectos.');
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err || !data.user) {
+        setError('Email o contraseña incorrectos.');
+        setLoading(false);
+        return;
+      }
+      if (data.user.user_metadata?.rol !== 'grupales') {
+        await supabase.auth.signOut();
+        setError('Esta cuenta no está habilitada para el portal de clases grupales.');
+        setLoading(false);
+        return;
+      }
+      router.push(redirectUrl ?? '/grupales-alumno/dashboard');
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
       setLoading(false);
-      return;
     }
-    if (data.user.user_metadata?.rol !== 'grupales') {
-      await supabase.auth.signOut();
-      setError('Esta cuenta no está habilitada para el portal de clases grupales.');
-      setLoading(false);
-      return;
-    }
-    router.push(redirectUrl ?? '/grupales-alumno/dashboard');
   }
 
   const registroHref = redirectUrl

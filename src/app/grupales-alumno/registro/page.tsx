@@ -40,45 +40,50 @@ function RegistroContent() {
 
     if (!form.nombre.trim() || !form.apellido.trim()) return setError('Nombre y apellido son obligatorios.');
     if (!form.email.trim()) return setError('Email es obligatorio.');
-    if (form.rut && !validarRut(form.rut)) return setError('RUT inválido. Ej: 12.345.678-9');
+    if (form.rut.trim() && !validarRut(form.rut)) return setError('RUT inválido. Usa el formato 12.345.678-9');
     if (form.password.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.');
     if (form.password !== form.confirm) return setError('Las contraseñas no coinciden.');
 
     setLoading(true);
-    const res = await fetch('/api/grupales-alumno/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nombre:   form.nombre.trim(),
-        apellido: form.apellido.trim(),
-        email:    form.email.trim().toLowerCase(),
-        telefono: form.telefono.trim() || null,
-        rut:      form.rut.trim()      || null,
-        password: form.password,
-      }),
-    });
-    const json = await res.json() as { error?: string };
-    if (!res.ok) {
-      setError(json.error ?? 'Error al crear la cuenta.');
-      setLoading(false);
-      return;
-    }
+    try {
+      const res = await fetch('/api/grupales-alumno/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre:   form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          email:    form.email.trim().toLowerCase(),
+          telefono: form.telefono.trim() || null,
+          rut:      form.rut.trim()      || null,
+          password: form.password,
+        }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) {
+        setError(json.error ?? 'Error al crear la cuenta.');
+        setLoading(false);
+        return;
+      }
 
-    // Login automático después del registro
-    const { supabase } = await import('@/lib/supabaseClient');
-    const { error: loginErr } = await supabase.auth.signInWithPassword({
-      email:    form.email.trim().toLowerCase(),
-      password: form.password,
-    });
-    if (loginErr) {
-      setError('Cuenta creada. Por favor inicia sesión.');
-      const loginHref = redirectUrl
-        ? `/grupales-alumno/login?redirect=${encodeURIComponent(redirectUrl)}`
-        : '/grupales-alumno/login';
-      router.push(loginHref);
-      return;
+      // Login automático después del registro
+      const { supabase } = await import('@/lib/supabaseClient');
+      const { error: loginErr } = await supabase.auth.signInWithPassword({
+        email:    form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+      if (loginErr) {
+        setError('Cuenta creada. Por favor inicia sesión.');
+        const loginHref = redirectUrl
+          ? `/grupales-alumno/login?redirect=${encodeURIComponent(redirectUrl)}`
+          : '/grupales-alumno/login';
+        router.push(loginHref);
+        return;
+      }
+      router.push(redirectUrl ?? '/grupales-alumno/dashboard');
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      setLoading(false);
     }
-    router.push(redirectUrl ?? '/grupales-alumno/dashboard');
   }
 
   const loginHref = redirectUrl
