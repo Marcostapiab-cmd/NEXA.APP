@@ -65,7 +65,9 @@ export async function middleware(request: NextRequest) {
   // Rutas protegidas del portal grupal
   if (pathname.startsWith('/grupales-alumno')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/grupales-alumno/login', request.url));
+      const loginUrl = new URL('/grupales-alumno/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search);
+      return NextResponse.redirect(loginUrl);
     }
     if (rol !== 'grupales') {
       // Otro tipo de usuario no tiene acceso
