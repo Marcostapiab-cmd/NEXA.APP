@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PUBLIC_OPEN = [
   '/clases-grupales', '/actualizar-contrasena', '/reservar', '/api/reservar',
   '/api/grupales-alumno', // Flow webhooks y registro necesitan acceso abierto
+  '/grupales-alumno/comprar', // Página de compra pública: la página maneja su propio auth
 ];
 
 // Rutas de auth grupales-alumno (redirigen si ya hay sesión)

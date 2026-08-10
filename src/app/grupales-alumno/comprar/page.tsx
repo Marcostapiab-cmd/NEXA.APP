@@ -40,10 +40,12 @@ function ComprarContent() {
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        const returnUrl = packParam
-          ? `/grupales-alumno/comprar?pack=${encodeURIComponent(packParam)}`
-          : '/grupales-alumno/comprar';
+      const returnUrl = packParam
+        ? `/grupales-alumno/comprar?pack=${encodeURIComponent(packParam)}`
+        : '/grupales-alumno/comprar';
+
+      // Sin sesión o con rol distinto a 'grupales' → ir a login del portal grupal
+      if (!user || user.user_metadata?.rol !== 'grupales') {
         router.push(`/grupales-alumno/login?redirect=${encodeURIComponent(returnUrl)}`);
         return;
       }
