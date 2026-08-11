@@ -44,8 +44,7 @@ const SECTIONS_HOST: Section[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', label: 'Inicio',  Icon: Home },
-      { href: '/horario',   label: 'Horario', Icon: Grid3x3 },
+      { href: '/horario', label: 'Horario', Icon: Grid3x3 },
     ],
   },
   {
@@ -98,10 +97,9 @@ const MOBILE_ITEMS_PROFESOR: NavItem[] = [
 ];
 
 const MOBILE_ITEMS_HOST: NavItem[] = [
-  { href: '/dashboard', label: 'Inicio',   Icon: Home },
-  { href: '/horario',   label: 'Horario',  Icon: Grid3x3 },
-  { href: '/alumnos',   label: 'Alumnos',  Icon: Users },
-  { href: '/grupales',  label: 'Grupales', Icon: CalendarDays },
+  { href: '/horario',  label: 'Horario',  Icon: Grid3x3 },
+  { href: '/alumnos',  label: 'Alumnos',  Icon: Users },
+  { href: '/grupales', label: 'Grupales', Icon: CalendarDays },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
