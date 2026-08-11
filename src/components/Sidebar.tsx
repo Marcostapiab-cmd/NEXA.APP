@@ -103,7 +103,7 @@ const MOBILE_ITEMS_HOST: NavItem[] = [
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/reservar', '/grupales-alumno'];
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/reservar', '/grupales-alumno'];
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href;

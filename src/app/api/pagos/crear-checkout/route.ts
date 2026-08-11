@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { crearPagoFlow } from '@/lib/flow';
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const supabaseAdmin = createClient(
@@ -8,6 +12,22 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
   try {
+    // Solo staff (admin/profesor/recepcionista) puede generar cobros manuales.
+    const cookieStore = await cookies();
+    const supabaseUser = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+    );
+    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
+    if (userErr || !user) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
+    const { data: myRole } = await supabaseUser.rpc('get_my_role');
+    if (!['admin', 'profesor', 'recepcionista'].includes(myRole as string)) {
+      return NextResponse.json({ error: 'Solo staff puede generar cobros.' }, { status: 403 });
+    }
+
     const body = await req.json() as {
       alumnoId:     string;
       alumnoNombre: string;
