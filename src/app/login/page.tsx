@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     setLoading(false);
     const rol = data.user?.user_metadata?.rol;
-    router.push(rol === 'alumno' ? '/mi-cuenta' : '/dashboard');
+    router.push(rol === 'alumno' ? '/portal' : '/dashboard');
   }
 
   return (

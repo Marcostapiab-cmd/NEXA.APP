@@ -88,7 +88,7 @@ export default function RegistroPage() {
     setLoading(false);
 
     if (loginData?.session) {
-      router.push('/mi-cuenta');
+      router.push('/portal');
     } else {
       // Si email confirmation está activado, mostrar aviso
       setSuccess(true);
