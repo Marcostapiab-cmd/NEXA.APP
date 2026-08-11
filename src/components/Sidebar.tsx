@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
-  Home, Calendar, Users, Dumbbell, TrendingUp,
+  Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
   Grid3x3, Settings, LogOut, CreditCard,
   ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog,
 } from 'lucide-react';
@@ -34,7 +34,8 @@ const SECTIONS_COMUN: Section[] = [
   {
     label: 'Personas',
     items: [
-      { href: '/alumnos', label: 'Alumnos', Icon: Users },
+      { href: '/alumnos',    label: 'Alumnos',    Icon: Users  },
+      { href: '/profesores', label: 'Profesores', Icon: Users2 },
     ],
   },
 ];
@@ -43,8 +44,15 @@ const SECTIONS_HOST: Section[] = [
   {
     label: 'Principal',
     items: [
-      { href: '/horario', label: 'Horario', Icon: Grid3x3 },
-      { href: '/pagos',   label: 'Pagos',   Icon: CreditCard },
+      { href: '/dashboard', label: 'Inicio',  Icon: Home },
+      { href: '/horario',   label: 'Horario', Icon: Grid3x3 },
+    ],
+  },
+  {
+    label: 'Personas',
+    items: [
+      { href: '/alumnos',    label: 'Alumnos',    Icon: Users  },
+      { href: '/profesores', label: 'Profesores', Icon: Users2 },
     ],
   },
 ];
@@ -70,9 +78,9 @@ const SECTIONS_PROFESOR: Section[] = [
     label: 'Entrenamiento',
     collapsible: true,
     items: [
-      { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar },
-      { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell },
-      { href: '/progreso',   label: 'Progreso',   Icon: TrendingUp },
+      { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar     },
+      { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell     },
+      { href: '/calendario', label: 'Calendario', Icon: CalendarDays },
     ],
   },
 ];
@@ -90,8 +98,10 @@ const MOBILE_ITEMS_PROFESOR: NavItem[] = [
 ];
 
 const MOBILE_ITEMS_HOST: NavItem[] = [
-  { href: '/horario', label: 'Horario', Icon: Grid3x3 },
-  { href: '/pagos',   label: 'Pagos',   Icon: CreditCard },
+  { href: '/dashboard', label: 'Inicio',   Icon: Home },
+  { href: '/horario',   label: 'Horario',  Icon: Grid3x3 },
+  { href: '/alumnos',   label: 'Alumnos',  Icon: Users },
+  { href: '/grupales',  label: 'Grupales', Icon: CalendarDays },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
@@ -193,7 +203,7 @@ export default function Sidebar() {
     if (loggingOut) return;
     setLoggingOut(true);
     await supabase.auth.signOut();
-    router.push('/login');
+    window.location.href = '/login';
   }
 
   if (NO_SIDEBAR_EXACT.has(pathname) || NO_SIDEBAR_PREFIXES.some(p => pathname.startsWith(p))) {
@@ -234,8 +244,8 @@ export default function Sidebar() {
             <SectionBlock key={s.label} section={s} pathname={pathname} />
           ))}
 
-          {/* Admin-only section */}
-          {role === 'admin' && (
+          {/* Admin y host ven la sección Administración */}
+          {(role === 'admin' || role === 'recepcionista') && (
             <SectionBlock section={SECTION_ADMIN} pathname={pathname} />
           )}
         </nav>

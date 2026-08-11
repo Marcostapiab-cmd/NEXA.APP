@@ -110,16 +110,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/clases-grupales', request.url));
   }
 
-  // Profesor: solo puede ver horario, checkin y rutinas
-  const PROFESOR_ALLOWED = ['/horario', '/checkin', '/rutinas', '/clases-grupales', '/weightroom', '/progreso'];
+  // Profesor: horario, entrenamiento (rutinas, weightroom, calendario). Sin check-in ni progreso.
+  const PROFESOR_ALLOWED = ['/horario', '/rutinas', '/weightroom', '/calendario'];
   if (rol === 'profesor' && !PROFESOR_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));
   }
 
-  // Recepcionista (host): solo puede ver horario y pagos
-  const HOST_ALLOWED = ['/horario', '/pagos'];
+  // Recepcionista (host): todo lo del admin excepto entrenamiento
+  const HOST_ALLOWED = [
+    '/dashboard', '/horario', '/alumnos', '/profesores',
+    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos',
+  ];
   if (rol === 'recepcionista' && !HOST_ALLOWED.some(p => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL('/horario', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return response;
