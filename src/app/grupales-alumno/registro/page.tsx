@@ -59,9 +59,12 @@ function RegistroContent() {
           password: form.password,
         }),
       });
-      const json = await res.json() as { error?: string };
+      const json = await res.json() as { error?: unknown };
       if (!res.ok) {
-        setError(json.error ?? 'Error al crear la cuenta.');
+        const msg = typeof json.error === 'string' && json.error
+          ? json.error
+          : `Error al crear la cuenta (${res.status}). Intenta de nuevo.`;
+        setError(msg);
         setLoading(false);
         return;
       }

@@ -48,10 +48,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (authErr || !authData.user) {
-      const msg = authErr?.message ?? 'Error al crear el usuario.';
-      const isdup = msg.toLowerCase().includes('already');
+      const raw = typeof authErr?.message === 'string' ? authErr.message : 'Error al crear el usuario.';
+      const isdup = /already|duplicate|registered|existe/i.test(raw);
       return NextResponse.json(
-        { error: isdup ? 'Ya existe una cuenta con ese email.' : msg },
+        { error: isdup ? 'Ya existe una cuenta con ese email.' : raw },
         { status: isdup ? 409 : 500 }
       );
     }
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, needsLogin: false });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Error desconocido';
+    const msg = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Error interno del servidor.');
     console.error('[registro] error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
