@@ -142,7 +142,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   onCalendarOpen: () => void;
   onSaved: () => void;
 }) {
-  const IC = 'w-full rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-[15px] text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#121212] tabular-nums font-medium';
+  const IC = 'w-full rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-base text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#121212] tabular-nums font-medium';
   const today = new Date().toISOString().slice(0, 10);
 
   const [activeBlock,    setActiveBlock]    = useState<DayBlock | null>(defaultBlock);
@@ -179,7 +179,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
     setEjercicios(b.exercises.map(ex => ({
       nombre: ex.name, grupo: '',
       series: Array.from({ length: ex.series }, () => ({
-        reps: ex.reps.replace(/[^0-9]/g, '') || '10',
+        reps: ex.reps.match(/^\d+/)?.[0] || '10',
         peso: ex.weight || '',
         completada: false,
       })),
@@ -391,9 +391,11 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
               const planEx   = activeBlock?.exercises[ejIdx];
               const videoUrl = getVideoUrlForExercise(planEx?.exerciseLibraryId, ej.nombre);
               const prevMax  = getMaxPeso(alumno.id, ej.nombre);
-              const maxHoy   = Math.max(...ej.series.filter(s => s.completada).map(s => parseFloat(s.peso) || 0));
-              const repsNum  = parseInt(ej.series[0]?.reps);
-              const rm       = maxHoy && repsNum ? calc1RM(maxHoy, repsNum) : null;
+              const maxHoy   = ej.series
+                .filter(s => s.completada)
+                .reduce((acc, s) => { const p = parseFloat(s.peso); return isNaN(p) ? acc : Math.max(acc, p); }, 0);
+              const repsNum  = parseInt(ej.series[0]?.reps ?? '');
+              const rm       = maxHoy > 0 && repsNum >= 1 ? calc1RM(maxHoy, repsNum) : null;
               const allDone  = ej.series.length > 0 && ej.series.every(s => s.completada);
 
               return (

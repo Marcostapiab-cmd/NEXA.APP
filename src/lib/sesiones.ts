@@ -70,7 +70,7 @@ export function getHistorialPeso(alumnoId: string, ejercicioNombre: string): Pun
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
   return sesiones.map(s => {
     const ej = s.ejercicios.find(e => e.nombre.toLowerCase() === ejercicioNombre.toLowerCase())!;
-    const maxP = Math.max(...ej.series.filter(s => s.completada).map(s => parseFloat(s.peso) || 0));
+    const maxP = ej.series.filter(s => s.completada).reduce((acc, s) => { const p = parseFloat(s.peso); return isNaN(p) ? acc : Math.max(acc, p); }, 0);
     return { fecha: s.fecha, peso: maxP };
   }).filter(p => p.peso > 0);
 }
