@@ -45,7 +45,9 @@ FROM auth.users
 WHERE email = 'profesor@ejemplo.cl';
 ```
 
-### Vista de alumno (futuro)
-El rol `alumno` existe en la tabla pero sin políticas todavía.
-Cuando se implemente el acceso para alumnos, agregar políticas
-que limiten cada tabla a `alumno_id = auth.uid()`.
+### Vista de alumno — ✅ Resuelto (verificado 2026-08-11)
+Las políticas RLS para el rol `alumno` ya están creadas y activas en producción
+(migraciones `010_alumno_bridge.sql` y `016_portal_alumno.sql`). Verificado
+directamente en Supabase → Database → Policies: `atletas_alumno_own`,
+`atletas_portal_self_read`, y las equivalentes en `reservas`, `planes`, `pagos`
+y `sesiones` limitan cada tabla al propio alumno autenticado.
