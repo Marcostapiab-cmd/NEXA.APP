@@ -11,6 +11,15 @@ interface Usuario {
   rol:    string;
 }
 
+function generarPasswordSegura(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  const random = new Uint32Array(12);
+  crypto.getRandomValues(random);
+  for (let i = 0; i < 12; i++) out += chars[random[i] % chars.length];
+  return out;
+}
+
 const ROL_LABEL: Record<string, string> = {
   admin:         'Admin',
   profesor:      'Profesor',
@@ -51,12 +60,12 @@ export default function UsuariosPage() {
   const [formOk,    setFormOk]    = useState('');
 
   // Modal editar
-  const [editUser,    setEditUser]    = useState<Usuario | null>(null);
-  const [editForm,    setEditForm]    = useState(INITIAL_EDIT);
-  const [showEditPwd, setShowEditPwd] = useState(false);
-  const [editSaving,  setEditSaving]  = useState(false);
-  const [editErr,     setEditErr]     = useState('');
-  const [editOk,      setEditOk]      = useState('');
+  const [editUser,        setEditUser]        = useState<Usuario | null>(null);
+  const [editForm,        setEditForm]        = useState(INITIAL_EDIT);
+  const [showEditPwd,     setShowEditPwd]     = useState(false);
+  const [editSaving,      setEditSaving]      = useState(false);
+  const [editErr,         setEditErr]         = useState('');
+  const [editOk,          setEditOk]          = useState('');
 
   const esProfesor = form.rol === 'profesor';
 
@@ -317,18 +326,29 @@ export default function UsuariosPage() {
               </Field>
 
               <Field label="Nueva contraseña (opcional)">
-                <div className="relative">
-                  <input type={showEditPwd ? 'text' : 'password'}
-                    placeholder="Dejar vacío para no cambiar"
-                    value={editForm.password}
-                    onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                    className="input-nexa pr-10" />
-                  <button type="button" onClick={() => setShowEditPwd(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: 'var(--nexa-muted)' }}>
-                    {showEditPwd ? <EyeOff size={13} /> : <Eye size={13} />}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input type={showEditPwd ? 'text' : 'password'}
+                      placeholder="Dejar vacío para no cambiar"
+                      value={editForm.password}
+                      onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                      className="input-nexa pr-10" />
+                    <button type="button" onClick={() => setShowEditPwd(p => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                      style={{ color: 'var(--nexa-muted)' }}>
+                      {showEditPwd ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
+                  <button type="button"
+                    onClick={() => { setEditForm(f => ({ ...f, password: generarPasswordSegura() })); setShowEditPwd(true); }}
+                    className="rounded-xl px-3 text-[11px] font-bold whitespace-nowrap transition"
+                    style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-muted)' }}>
+                    Generar
                   </button>
                 </div>
+                <p className="mt-1.5 text-[10px]" style={{ color: 'var(--nexa-faint)' }}>
+                  Genera una contraseña nueva y cópiala para pasársela — no queda guardada en ningún lado, solo se ve aquí una vez.
+                </p>
               </Field>
 
               <Field label="Cargo / Rol">

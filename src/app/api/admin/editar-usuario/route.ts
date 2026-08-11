@@ -47,7 +47,8 @@ export async function PUT(req: NextRequest) {
       if (authErr) return NextResponse.json({ error: authErr.message }, { status: 400 });
     }
 
-    // Actualizar perfil (nombre y/o rol)
+    // Actualizar perfil (nombre y/o rol). La contraseña se actualiza solo en
+    // Supabase Auth (arriba) — no se guarda copia en texto plano en la BD.
     const perfilUpdate: Record<string, string> = {};
     if (body.nombre?.trim()) perfilUpdate.nombre = body.nombre.trim();
     if (body.rol && ['admin', 'profesor', 'recepcionista'].includes(body.rol)) perfilUpdate.rol = body.rol;
