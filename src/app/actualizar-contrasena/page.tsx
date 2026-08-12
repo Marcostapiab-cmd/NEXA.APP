@@ -25,15 +25,20 @@ export default function ActualizarContrasenaPage() {
     }
 
     setLoading(true);
-    const { error: err } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      setLoading(false);
 
-    if (err) {
-      setError('No se pudo actualizar la contraseña. El link puede haber expirado.');
-      return;
+      if (err) {
+        setError('No se pudo actualizar la contraseña. El link puede haber expirado.');
+        return;
+      }
+
+      router.push('/login?reset=ok');
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      setLoading(false);
     }
-
-    router.push('/login?reset=ok');
   }
 
   return (

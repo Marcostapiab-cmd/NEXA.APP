@@ -15,18 +15,23 @@ export default function RecuperarContrasenaPage() {
     setLoading(true);
     setError('');
 
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/actualizar-contrasena`,
-    });
+    try {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/actualizar-contrasena`,
+      });
 
-    setLoading(false);
+      setLoading(false);
 
-    if (err) {
-      setError('No se pudo enviar el correo. Intentá de nuevo.');
-      return;
+      if (err) {
+        setError('No se pudo enviar el correo. Intentá de nuevo.');
+        return;
+      }
+
+      setSent(true);
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      setLoading(false);
     }
-
-    setSent(true);
   }
 
   if (sent) {

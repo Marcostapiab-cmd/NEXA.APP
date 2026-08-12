@@ -186,18 +186,31 @@ export default function ConfiguracionPage() {
   }
 
   async function handleDeleteBloqueo(id: string) {
-    await deleteBloqueo(id);
+    try {
+      await deleteBloqueo(id);
+    } catch {
+      alert('No se pudo eliminar el bloqueo. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setBloqueos(prev => prev.filter(b => b.id !== id));
   }
 
   async function handleToggleClase(id: string, activa: boolean) {
-    await supabase.from('clases_grupales').update({ activa: !activa }).eq('id', id);
+    const { error } = await supabase.from('clases_grupales').update({ activa: !activa }).eq('id', id);
+    if (error) {
+      alert('No se pudo actualizar la clase. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setClasesGrupales(prev => prev.map(c => c.id === id ? { ...c, activa: !activa } : c));
   }
 
   async function handleDeleteClase(id: string) {
     if (!window.confirm('¿Eliminar esta clase? Las reservas existentes no se borran.')) return;
-    await supabase.from('clases_grupales').delete().eq('id', id);
+    const { error } = await supabase.from('clases_grupales').delete().eq('id', id);
+    if (error) {
+      alert('No se pudo eliminar la clase. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setClasesGrupales(prev => prev.filter(c => c.id !== id));
   }
 
