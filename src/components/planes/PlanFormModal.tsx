@@ -33,7 +33,7 @@ interface Props {
   alumnoNombre: string;
   initial?: Plan;
   mode: 'create' | 'edit';
-  onSave: (data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) => void;
+  onSave: (data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -52,6 +52,7 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
     : DEFAULT_FORM()
   );
   const [autoEnd, setAutoEnd] = useState(mode === 'create');
+  const [saving, setSaving] = useState(false);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setF(prev => ({ ...prev, [key]: value }));
@@ -78,15 +79,20 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
     }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!f.nombre.trim() || !f.startDate || !f.endDate) return;
-    onSave({
-      ...f,
-      nombre: f.nombre.trim(),
-      extendedUntil: f.extendedUntil || undefined,
-      adminNota:    f.adminNota     || undefined,
-    });
+    if (!f.nombre.trim() || !f.startDate || !f.endDate || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        ...f,
+        nombre: f.nombre.trim(),
+        extendedUntil: f.extendedUntil || undefined,
+        adminNota:    f.adminNota     || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const isEdit = mode === 'edit';
@@ -258,10 +264,10 @@ export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, o
               className="flex-1 rounded-xl border border-[#C8C8C8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
               Cancelar
             </button>
-            <button type="submit" disabled={!!endWarning}
+            <button type="submit" disabled={!!endWarning || saving}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
               <Save className="h-4 w-4" />
-              {isEdit ? 'Guardar cambios' : 'Crear plan'}
+              {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear plan'}
             </button>
           </div>
         </form>

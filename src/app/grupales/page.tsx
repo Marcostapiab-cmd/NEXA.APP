@@ -351,27 +351,37 @@ function PlanesTab() {
   async function guardar() {
     if (!form.nombre.trim() || !form.precio_clp) return;
     setSaving(true);
-    const payload = {
-      nombre: form.nombre.trim(), descripcion: form.descripcion?.trim() || null,
-      precio_clp: Number(form.precio_clp), num_clases: Number(form.num_clases),
-      validez_dias: Number(form.validez_dias), destacado: form.destacado,
-      orden: Number(form.orden), activo: form.activo,
-    };
-    if (editando) {
-      await supabase.from('planes_grupales').update(payload).eq('id', editando.id);
-    } else {
-      await supabase.from('planes_grupales').insert(payload);
+    try {
+      const payload = {
+        nombre: form.nombre.trim(), descripcion: form.descripcion?.trim() || null,
+        precio_clp: Number(form.precio_clp), num_clases: Number(form.num_clases),
+        validez_dias: Number(form.validez_dias), destacado: form.destacado,
+        orden: Number(form.orden), activo: form.activo,
+      };
+      const { error } = editando
+        ? await supabase.from('planes_grupales').update(payload).eq('id', editando.id)
+        : await supabase.from('planes_grupales').insert(payload);
+      if (error) throw error;
+      setModal(false);
+      cargar();
+    } catch (e: unknown) {
+      alert(`Error al guardar el plan: ${e instanceof Error ? e.message : 'intenta de nuevo.'}`);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setModal(false);
-    cargar();
   }
 
   async function eliminar(id: string) {
     setDeleting(id);
-    await supabase.from('planes_grupales').update({ activo: false }).eq('id', id);
-    setDeleting(null);
-    cargar();
+    try {
+      const { error } = await supabase.from('planes_grupales').update({ activo: false }).eq('id', id);
+      if (error) throw error;
+      cargar();
+    } catch (e: unknown) {
+      alert(`Error al eliminar el plan: ${e instanceof Error ? e.message : 'intenta de nuevo.'}`);
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (

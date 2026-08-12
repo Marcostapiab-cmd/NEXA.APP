@@ -113,13 +113,25 @@ const LC = 'mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em] te
 
 function AlumnoModal({ initial, onSave, onClose }: {
   initial?: Alumno;
-  onSave: (a: Omit<Alumno, 'id'>) => void;
+  onSave: (a: Omit<Alumno, 'id'>) => void | Promise<void>;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Omit<Alumno, 'id'>>(initial ? { ...initial } : EMPTY());
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })); }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.nombre.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSave(form);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -145,7 +157,7 @@ function AlumnoModal({ initial, onSave, onClose }: {
         </div>
 
         <form
-          onSubmit={e => { e.preventDefault(); if (!form.nombre.trim()) return; onSave(form); }}
+          onSubmit={handleSubmit}
           className="space-y-4 p-6"
         >
           {/* Foto */}
@@ -223,10 +235,10 @@ function AlumnoModal({ initial, onSave, onClose }: {
               className="flex-1 rounded-lg border border-[#D8D8D8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#CACACA] hover:text-[#121212]">
               Cancelar
             </button>
-            <button type="submit"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#121212] py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A2A2A]">
+            <button type="submit" disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#121212] py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A2A2A] disabled:opacity-50">
               <Save className="h-4 w-4" />
-              {initial ? 'Guardar' : 'Agregar'}
+              {saving ? 'Guardando...' : initial ? 'Guardar' : 'Agregar'}
             </button>
           </div>
         </form>
