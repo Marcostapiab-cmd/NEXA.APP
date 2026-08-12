@@ -34,7 +34,8 @@ export default function LoginPage() {
 
       setLoading(false);
       const rol = data.user?.user_metadata?.rol;
-      router.push(rol === 'alumno' ? '/portal' : '/dashboard');
+      const destino = rol === 'alumno' ? '/mi-cuenta' : rol === 'profesor' ? '/horario' : '/dashboard';
+      router.push(destino);
     } catch {
       setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
       setLoading(false);

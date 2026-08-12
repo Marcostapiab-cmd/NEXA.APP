@@ -18,6 +18,11 @@ DECLARE
   v_count   int;
   v_has_1a1 boolean;
 BEGIN
+  -- Si la reserva se está cancelando, no validar conflicto
+  IF NEW.estado IN ('cancelada_tiempo','cancelada_tarde','cancelada_nexa','no_show') THEN
+    RETURN NEW;
+  END IF;
+
   -- Solo aplica a sesiones individuales (1:1 ó 2:1)
   IF NEW.tipo_clase IS NULL
      OR (NEW.tipo_clase NOT ILIKE '%1:1%'

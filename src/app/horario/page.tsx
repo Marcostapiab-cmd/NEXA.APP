@@ -782,16 +782,40 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
       borderTop:  '2px solid var(--nexa-border)',
     }}>
       {coaches.map((c, i) => {
-        const color   = c.color || COACH_COLORS[i % COACH_COLORS.length];
-        const clases  = reservas.filter(r => r.coach_id === c.id).length;
-        const tarifa1 = c.tarifa_1a1;
-        const tarifa2 = c.tarifa_2a1;
-        const pago    = reservas
-          .filter(r => r.coach_id === c.id)
-          .reduce((sum, r) => {
-            const t = (r.tipo_clase || '').includes('2:1') ? tarifa2 : tarifa1;
-            return sum + t;
-          }, 0);
+        const color = c.color || COACH_COLORS[i % COACH_COLORS.length];
+
+        // Agrupar las reservas del coach por sesión real (fecha+hora), no por
+        // fila: una clase 2:1 genera 2 filas (una por alumno) y antes se
+        // pagaba y contaba dos veces la misma sesión.
+        const sesiones = new Map<string, RawReserva[]>();
+        for (const r of reservas) {
+          if (r.coach_id !== c.id) continue;
+          const pos = getSlotPos(r);
+          if (!pos) continue;
+          const key = `${pos.fecha}|${pos.hora}`;
+          if (!sesiones.has(key)) sesiones.set(key, []);
+          sesiones.get(key)!.push(r);
+        }
+
+        let clases = 0;
+        let pago   = 0;
+        sesiones.forEach(filas => {
+          // Solo se paga por sesiones ya realizadas (presente / no-show /
+          // cancelada tarde = "queman" la clase). Pendientes, futuras o
+          // canceladas a tiempo no cuentan para el pago.
+          const realizadas = filas.filter(r => ESTADOS_QUE_QUEMAN.includes(String(r.estado)));
+          if (realizadas.length === 0) return;
+
+          clases += 1;
+          const esDuo = filas.some(r => (r.tipo_clase || '').includes('2:1'));
+          if (esDuo) {
+            // 2:1 con ambos alumnos presentes paga tarifa2; con solo uno,
+            // tarifa incompleta (nunca se paga dos veces la misma sesión).
+            pago += realizadas.length >= 2 ? c.tarifa_2a1 : c.tarifa_incompleta_2a1;
+          } else {
+            pago += c.tarifa_1a1;
+          }
+        });
 
         return (
           <div key={c.id} style={{

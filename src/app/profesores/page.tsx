@@ -39,6 +39,9 @@ interface Draft {
   tarifa_incompleta_2a1:  string;
   color:                  string;
   activo:                 boolean;
+  // Solo aplica al crear un profesor nuevo (no al editar uno existente)
+  email:                  string;
+  darAcceso:              boolean;
 }
 
 function emptyDraft(usedColors: string[]): Draft {
@@ -47,6 +50,7 @@ function emptyDraft(usedColors: string[]): Draft {
     nombre: '', email: '', password: '', especialidad: '',
     tarifa_1a1: '', tarifa_2a1: '', tarifa_incompleta_2a1: '',
     color, activo: true,
+    email: '', darAcceso: true,
   };
 }
 
@@ -62,21 +66,85 @@ function draftFromCoach(c: Coach): Draft {
     tarifa_incompleta_2a1: c.tarifa_incompleta_2a1 > 0 ? String(c.tarifa_incompleta_2a1) : '',
     color:                 c.color                  ?? COACH_COLORS[0],
     activo:                c.activo,
+    darAcceso:             false,
   };
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err }: {
-  draft:    Draft;
-  onChange: (d: Draft) => void;
-  onSave:   () => void;
-  onDelete: () => void;
-  onClose:  () => void;
-  saving:   boolean;
-  err:      string;
+function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err, inviteDone, inviteLink, inviteWarning }: {
+  draft:          Draft;
+  onChange:       (d: Draft) => void;
+  onSave:         () => void;
+  onDelete:       () => void;
+  onClose:        () => void;
+  saving:         boolean;
+  err:            string;
+  inviteDone?:    boolean;
+  inviteLink?:    string | null;
+  inviteWarning?: string;
 }) {
   const isEdit = !!draft.id;
+
+  // Tras crear con acceso, se muestra el link para fijar contraseña en vez
+  // del formulario — hay que copiarlo y mandárselo al profesor por el canal
+  // que prefieras (no se envía nada automáticamente desde acá).
+  if (inviteDone) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.75)' }}>
+        <div className="w-full max-w-md rounded-2xl overflow-hidden"
+          style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+          <div className="flex items-center justify-between px-5 py-4"
+            style={{ borderBottom: '1px solid var(--nexa-border)' }}>
+            <p className="text-[13px] font-bold" style={{ color: 'var(--nexa-text)' }}>
+              Cuenta creada · {draft.nombre}
+            </p>
+            <button onClick={onClose} style={{ color: 'var(--nexa-muted)' }}><X size={16} /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            {inviteLink ? (
+              <>
+                <p className="text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
+                  Copia este link y mándaselo a {draft.nombre} (WhatsApp, correo, como prefieras).
+                  Al abrirlo va a poder fijar su propia contraseña y entrar con su correo.
+                </p>
+                <div className="rounded-lg px-3 py-2.5 text-[11px] break-all"
+                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>
+                  {inviteLink}
+                </div>
+              </>
+            ) : (
+              <p className="text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
+                La cuenta de {draft.nombre} ya está creada.
+              </p>
+            )}
+            {inviteWarning && (
+              <div className="rounded-lg px-3 py-2.5 text-[11px]"
+                style={{ background: 'rgba(196,120,58,0.12)', border: '1px solid rgba(196,120,58,0.4)', color: '#C4783A' }}>
+                {inviteWarning}
+              </div>
+            )}
+            <div className="flex gap-2">
+              {inviteLink && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(inviteLink)}
+                  className="flex-1 rounded-xl py-2.5 text-[12px] font-bold"
+                  style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
+                  Copiar link
+                </button>
+              )}
+              <button onClick={onClose}
+                className="rounded-xl px-4 py-2.5 text-[12px] font-semibold"
+                style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-muted)', border: '1px solid var(--nexa-border)' }}>
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -126,31 +194,41 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
             />
           </div>
 
-          {/* Cuenta (solo al crear) */}
+          {/* Acceso a la app — solo al crear un profesor nuevo */}
           {!isEdit && (
-            <div className="rounded-xl p-4 space-y-3"
+            <div className="rounded-lg p-3 space-y-3"
               style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: 'var(--nexa-muted)' }}>Cuenta de acceso</p>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Email *</label>
-                <input type="email" value={draft.email}
-                  placeholder="profesor@nexaperformance.cl"
-                  onChange={e => onChange({ ...draft, email: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2.5 text-[13px]"
-                  style={{ background: 'var(--nexa-black)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
-                />
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--nexa-text)' }}>
+                  Dar acceso a la app
+                </span>
+                <button onClick={() => onChange({ ...draft, darAcceso: !draft.darAcceso })}
+                  className="relative inline-flex h-5 w-9 rounded-full transition-colors duration-200"
+                  style={{ background: draft.darAcceso ? 'var(--nexa-accent)' : 'var(--nexa-border)' }}>
+                  <span className="inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200"
+                    style={{ margin: 2, transform: draft.darAcceso ? 'translateX(16px)' : 'translateX(0)' }} />
+                </button>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Contraseña * <span style={{ color: 'var(--nexa-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(mín. 8 caracteres)</span></label>
-                <input type="password" value={draft.password}
-                  onChange={e => onChange({ ...draft, password: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2.5 text-[13px]"
-                  style={{ background: 'var(--nexa-black)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
-                />
-              </div>
+              {draft.darAcceso ? (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
+                    style={{ color: 'var(--nexa-muted)' }}>Correo del profesor *</label>
+                  <input type="email" value={draft.email}
+                    placeholder="profesor@ejemplo.cl"
+                    onChange={e => onChange({ ...draft, email: e.target.value })}
+                    className="w-full rounded-lg px-3 py-2.5 text-[13px]"
+                    style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                  />
+                  <p className="text-[10px] mt-1.5" style={{ color: 'var(--nexa-muted)' }}>
+                    Se crea su cuenta y te va a dar un link para que fije su contraseña.
+                    Solo va a poder ver su horario y sus rutinas.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px]" style={{ color: 'var(--nexa-muted)' }}>
+                  Se guarda solo la ficha (tarifas, color) sin cuenta de acceso. Puedes agregársela después.
+                </p>
+              )}
             </div>
           )}
 
@@ -228,13 +306,13 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
               Cancelar
             </button>
             <button onClick={onSave}
-              disabled={saving || !draft.nombre.trim() || (!isEdit && (!draft.email.trim() || draft.password.length < 8))}
+              disabled={saving || !draft.nombre.trim() || (!isEdit && draft.darAcceso && !draft.email.trim())}
               className="rounded-xl px-5 py-2.5 text-[12px] font-bold transition"
               style={{
                 background: 'var(--nexa-accent)', color: '#FFFFFF',
-                opacity: (saving || !draft.nombre.trim() || (!isEdit && (!draft.email.trim() || draft.password.length < 8))) ? 0.5 : 1,
+                opacity: (saving || !draft.nombre.trim() || (!isEdit && draft.darAcceso && !draft.email.trim())) ? 0.5 : 1,
               }}>
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Guardando...' : !isEdit && draft.darAcceso ? 'Crear cuenta' : 'Guardar'}
             </button>
           </div>
         </div>
@@ -335,8 +413,11 @@ export default function ProfesoresPage() {
   const [saving,       setSaving]       = useState(false);
   const [err,          setErr]          = useState('');
   const [tab,          setTab]          = useState<'profesores' | 'liquidaciones'>('profesores');
+  const [inviteDone,    setInviteDone]    = useState(false);
+  const [inviteLink,    setInviteLink]    = useState<string | null>(null);
+  const [inviteWarning, setInviteWarning] = useState<string>('');
 
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'host';
 
   useEffect(() => {
     async function load() {
@@ -362,17 +443,64 @@ export default function ProfesoresPage() {
     const usedColors = coaches.map(c => c.color).filter(Boolean) as string[];
     setModal(emptyDraft(usedColors));
     setErr('');
+    setInviteDone(false); setInviteLink(null); setInviteWarning('');
   }
 
   function openEdit(coach: Coach) {
     setModal(draftFromCoach(coach));
     setErr('');
+    setInviteDone(false); setInviteLink(null); setInviteWarning('');
   }
 
   async function handleSave() {
     if (!modal || !modal.nombre.trim()) return;
     setSaving(true);
     setErr('');
+
+    // Crear profesor nuevo CON acceso: pasa por el endpoint que crea la
+    // cuenta de login y la ficha de coach juntas (mismo id para ambas).
+    if (!modal.id && modal.darAcceso) {
+      if (!modal.email.trim()) { setErr('El correo es obligatorio para dar acceso.'); setSaving(false); return; }
+      try {
+        const res = await fetch('/api/profesores/invitar', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre:                modal.nombre.trim(),
+            email:                 modal.email.trim(),
+            especialidad:          modal.especialidad.trim() || undefined,
+            tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
+            tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
+            tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+            color:                 modal.color || undefined,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setErr(json.error || 'No se pudo crear la cuenta.'); return; }
+
+        const nuevoCoach: Coach = {
+          id:                     json.userId,
+          nombre:                 modal.nombre.trim(),
+          especialidad:           modal.especialidad.trim() || undefined,
+          tarifa_1a1:             parseFloat(modal.tarifa_1a1)            || 0,
+          tarifa_2a1:             parseFloat(modal.tarifa_2a1)            || 0,
+          tarifa_incompleta_2a1:  parseFloat(modal.tarifa_incompleta_2a1) || 0,
+          color:                  modal.color || undefined,
+          activo:                 true,
+        };
+        setCoaches(prev => [...prev, nuevoCoach].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        setInviteWarning(json.warning || '');
+        setInviteLink(json.setPasswordLink ?? null);
+        setInviteDone(true);
+      } catch (e: unknown) {
+        setErr(extractMsg(e));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // Crear sin acceso, o editar un profesor existente: comportamiento de siempre.
     try {
       let saved: Coach;
 
@@ -521,9 +649,15 @@ export default function ProfesoresPage() {
           onChange={setModal}
           onSave={handleSave}
           onDelete={handleDelete}
-          onClose={() => { setModal(null); setErr(''); }}
+          onClose={() => {
+            setModal(null); setErr('');
+            setInviteDone(false); setInviteLink(null); setInviteWarning('');
+          }}
           saving={saving}
           err={err}
+          inviteDone={inviteDone}
+          inviteLink={inviteLink}
+          inviteWarning={inviteWarning}
         />
       )}
     </main>

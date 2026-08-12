@@ -5,7 +5,7 @@ const SELECT_FIELDS = `
   id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado,
   rut, telefono,
   contacto_emergencia_nombre, contacto_emergencia_tel, contacto_emergencia_relacion,
-  objetivo, etapa, notas_profesor,
+  tipo_sesion, objetivo, etapa, notas_profesor,
   contrato_firmado, contrato_fecha_firma,
   estado_pago
 `.trim();
@@ -26,6 +26,7 @@ function toAlumno(r: Record<string, unknown>): Alumno {
     contactoEmergenciaNombre:   r.contacto_emergencia_nombre ? String(r.contacto_emergencia_nombre) : undefined,
     contactoEmergenciaTel:      r.contacto_emergencia_tel    ? String(r.contacto_emergencia_tel)    : undefined,
     contactoEmergenciaRelacion: r.contacto_emergencia_relacion ? String(r.contacto_emergencia_relacion) : undefined,
+    tipoSesion:      r.tipo_sesion   ? (String(r.tipo_sesion) as '1:1' | '2:1') : undefined,
     objetivo:        r.objetivo      ? String(r.objetivo)      : undefined,
     etapa:           r.etapa         ? String(r.etapa)         : undefined,
     notasProfesor:   r.notas_profesor ? String(r.notas_profesor) : undefined,
@@ -77,8 +78,9 @@ export async function createAlumno(a: Omit<Alumno, 'id'>): Promise<Alumno> {
       foto_url:         a.foto   || null,
       estado:           a.estado,
       activo:           a.estado !== 'archivado',
-      rut:              a.rut      || null,
-      telefono:         a.telefono || null,
+      rut:              a.rut        || null,
+      telefono:         a.telefono   || null,
+      tipo_sesion:      a.tipoSesion || null,
     })
     .select(SELECT_FIELDS)
     .single();
@@ -101,6 +103,7 @@ export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): 
   if (a.contactoEmergenciaNombre   !== undefined) payload.contacto_emergencia_nombre   = a.contactoEmergenciaNombre   || null;
   if (a.contactoEmergenciaTel      !== undefined) payload.contacto_emergencia_tel      = a.contactoEmergenciaTel      || null;
   if (a.contactoEmergenciaRelacion !== undefined) payload.contacto_emergencia_relacion = a.contactoEmergenciaRelacion || null;
+  if (a.tipoSesion       !== undefined) payload.tipo_sesion      = a.tipoSesion    || null;
   if (a.objetivo         !== undefined) payload.objetivo         = a.objetivo      || null;
   if (a.etapa            !== undefined) payload.etapa            = a.etapa         || null;
   if (a.notasProfesor    !== undefined) payload.notas_profesor   = a.notasProfesor || null;

@@ -244,7 +244,7 @@ export default function ConfiguracionPage() {
     );
   }
 
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'host') {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: 'var(--nexa-black)' }}>
         <Lock size={28} style={{ color: 'var(--nexa-muted)' }} />
