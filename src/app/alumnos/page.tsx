@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, Search, X, Save, Eye, Users, CreditCard, CheckCircle2, Clock, XCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Plus, Search, X, Save, Eye, Users, CreditCard, CheckCircle2, Clock, XCircle, RefreshCw, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { getAllPagosDB, type Pago } from '@/lib/pagos-supabase';
 import { getAlumnos, createAlumno, updateAlumno, deleteAlumno, updateEstadoPago } from '@/lib/alumnos';
 
@@ -441,7 +441,7 @@ export default function AlumnosPage() {
   const [modal, setModal] = useState<'new' | Alumno | null>(null);
   const [modalPago, setModalPago] = useState<Alumno | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   function syncLocal(updated: Alumno[]) {
     try {
@@ -457,7 +457,6 @@ export default function AlumnosPage() {
   }
 
   useEffect(() => {
-    setLoading(true);
     getAlumnos()
       .then(data => {
         const normalized = data.map(a => ({ ...a, estado: a.estado ?? 'activo' }));
@@ -530,7 +529,11 @@ export default function AlumnosPage() {
     else setSelected(new Set(filtrados.map(a => a.id)));
   }
   function toggleOne(id: string) {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
   }
 
   return (
@@ -788,6 +791,18 @@ function TableRow({ alumno, idx, checked, onCheck, onEdit, onDelete, onPago }: {
               onClick={onPago}
             />
           )}
+          <ActionBtn
+            icon={<Pencil className="h-3.5 w-3.5" />}
+            label="Editar alumno"
+            bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
+            onClick={onEdit}
+          />
+          <ActionBtn
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            label="Eliminar alumno"
+            bg="rgba(180,64,64,0.10)" color="#B44040" hoverBg="rgba(180,64,64,0.18)"
+            onClick={onDelete}
+          />
         </div>
       </td>
     </tr>
@@ -868,6 +883,18 @@ function MobileRow({ alumno, onEdit, onDelete, onPago }: {
             onClick={onPago}
           />
         )}
+        <ActionBtn
+          icon={<Pencil className="h-3.5 w-3.5" />}
+          label="Editar alumno"
+          bg="rgba(18,18,18,0.06)" color="#5E5E5E" hoverBg="rgba(18,18,18,0.10)"
+          onClick={onEdit}
+        />
+        <ActionBtn
+          icon={<Trash2 className="h-3.5 w-3.5" />}
+          label="Eliminar alumno"
+          bg="rgba(180,64,64,0.10)" color="#B44040" hoverBg="rgba(180,64,64,0.18)"
+          onClick={onDelete}
+        />
       </div>
     </div>
   );

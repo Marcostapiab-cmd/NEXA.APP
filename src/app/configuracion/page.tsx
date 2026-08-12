@@ -133,7 +133,6 @@ export default function ConfiguracionPage() {
       setLoading(false);
     }
     init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function updateDia(dow: number, patch: Partial<HorarioDiaConfig>) {

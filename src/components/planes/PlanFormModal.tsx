@@ -7,7 +7,6 @@ import {
   type PlanTipo,
   calcEndDate,
   todayStr,
-  PLAN_TIPO_LABEL,
   addDays,
 } from '@/lib/planes';
 
@@ -46,7 +45,7 @@ const TIPO_OPTIONS: { value: PlanTipo; label: string; desc: string; dias: number
 
 const CLASES_PRESET = [4, 8, 10, 12, 16, 20];
 
-export default function PlanFormModal({ alumnoId, alumnoNombre, initial, mode, onSave, onClose }: Props) {
+export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onClose }: Props) {
   const [f, setF] = useState<FormData>(initial
     ? { ...initial }
     : DEFAULT_FORM()

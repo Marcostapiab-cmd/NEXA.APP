@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getAlumnoById, updateAlumno, getAtletaSaludDB, upsertAtletaSaludDB } from '@/lib/alumnos';
-import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X as XIcon, CreditCard, ExternalLink, Loader2, Send, FileText, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, TrendingUp, ChevronDown, ChevronUp, Pencil, X as XIcon, CreditCard, ExternalLink, Loader2, Send, FileText, CheckCircle, Clock } from 'lucide-react';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 import type { Sesion } from '@/lib/sesiones';
 import { getSesionesAlumnoDB } from '@/lib/sesiones-supabase';
@@ -60,7 +60,6 @@ function PesoChart({ puntos }: { puntos: { fecha: string; peso: number }[] }) {
   const max = Math.max(...pesos) * 1.03;
   const xScale = (i: number) => PAD + (i / (puntos.length - 1)) * (W - PAD * 2);
   const yScale = (v: number) => H - PAD - ((v - min) / (max - min)) * (H - PAD * 2);
-  const path = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(i)},${yScale(p.peso)}`).join(' ');
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
       <polyline fill="none" stroke="#121212" strokeWidth="1.5" points={puntos.map((p, i) => `${xScale(i)},${yScale(p.peso)}`).join(' ')} />
@@ -202,17 +201,6 @@ export default function AlumnoPerfilPage() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [loadReservas]);
 
-  function saveAlumno(updated: AlumnoExtended) {
-    setAlumno(updated);
-    try {
-      const stored = localStorage.getItem('nexa_alumnos');
-      if (stored) {
-        const all: AlumnoExtended[] = JSON.parse(stored);
-        localStorage.setItem('nexa_alumnos', JSON.stringify(all.map(a => a.id === id ? updated : a)));
-      }
-    } catch {}
-  }
-
   function startEdit(section: string) {
     setEditSec(section);
     setEditBuf({ ...alumno });
@@ -260,7 +248,7 @@ export default function AlumnoPerfilPage() {
     setMediciones(prev => prev.filter(m => m.id !== mid));
   }
 
-  function handleInscripcionSaved(plan: Plan, reservasCount: number) {
+  function handleInscripcionSaved(plan: Plan) {
     setPlanes(prev => [plan, ...prev]);
     // Las reservas se recargan desde DB para tener los IDs reales generados por la DB
     getReservasAlumnoDB(id).then(setReservas).catch(() => {});
@@ -751,7 +739,7 @@ export default function AlumnoPerfilPage() {
                       </button>
                       {isExp && (
                         <div className="border-t border-[#CACACA] px-3 pb-3 pt-2">
-                          {s.notas && <p className="mb-2 text-xs text-[#5E5E5E] italic">"{s.notas}"</p>}
+                          {s.notas && <p className="mb-2 text-xs text-[#5E5E5E] italic">&quot;{s.notas}&quot;</p>}
                           <div className="space-y-2">
                             {s.ejercicios.map((ej, i) => {
                               const maxPeso = Math.max(...ej.series.filter(s=>s.completada).map(s=>parseFloat(s.peso)||0));
