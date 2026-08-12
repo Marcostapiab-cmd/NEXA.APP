@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Guardar flow_token en pedido
-    await supabaseAdmin
+    const { error: tokenUpdateErr } = await supabaseAdmin
       .from('pedidos_grupales')
       .update({
         flow_token:     flow.token,
@@ -131,6 +131,12 @@ export async function POST(req: NextRequest) {
         estado:         'procesando',
       })
       .eq('id', pedidoId);
+
+    if (tokenUpdateErr) {
+      // El link de pago ya se generó en Flow, así que dejamos que el alumno pague igual;
+      // pero si esto falla, la confirmación posterior no va a encontrar el pedido por flow_token.
+      console.error('[reservar/pagar] error guardando flow_token en pedido:', pedidoId, tokenUpdateErr);
+    }
 
     return NextResponse.json({ payUrl: flow.payUrl, pedidoId });
   } catch (err) {

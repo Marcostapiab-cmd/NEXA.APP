@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Guardar flow_token en compra
-    await supabaseAdmin
+    const { error: tokenUpdateErr } = await supabaseAdmin
       .from('grupales_compras')
       .update({
         referencia_flow: flow.token,
@@ -105,6 +105,12 @@ export async function POST(req: NextRequest) {
         estado_pago:     'pendiente',
       })
       .eq('id', compraId);
+
+    if (tokenUpdateErr) {
+      // El link de pago ya se generó en Flow, así que dejamos que el alumno pague igual;
+      // pero si esto falla, la confirmación posterior no va a encontrar la compra por referencia_flow.
+      console.error('[grupales/pagar] error guardando flow_token en compra:', compraId, tokenUpdateErr);
+    }
 
     return NextResponse.json({ payUrl: flow.payUrl, compraId });
   } catch (err) {
