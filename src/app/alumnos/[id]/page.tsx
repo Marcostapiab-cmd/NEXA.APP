@@ -269,7 +269,12 @@ export default function AlumnoPerfilPage() {
   async function handleSavePlan(data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) {
     if (!planModal) return;
     const plan: Plan = { ...planModal.plan, ...data };
-    await upsertPlanDB(plan).catch(() => {});
+    try {
+      await upsertPlanDB(plan);
+    } catch {
+      alert('No se pudo guardar el plan. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setPlanes(prev => {
       const idx = prev.findIndex(p => p.id === plan.id);
       if (idx >= 0) { const next = [...prev]; next[idx] = plan; return next; }
@@ -280,7 +285,12 @@ export default function AlumnoPerfilPage() {
 
   async function handleDeletePlan(planId: string) {
     if (!confirm('¿Eliminar este plan?')) return;
-    await deletePlanDB(planId).catch(() => {});
+    try {
+      await deletePlanDB(planId);
+    } catch {
+      alert('No se pudo eliminar el plan. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setPlanes(prev => prev.filter(p => p.id !== planId));
     setReservas(prev => prev.filter(r => r.planId !== planId));
   }
@@ -290,7 +300,11 @@ export default function AlumnoPerfilPage() {
     if (!reserva) return;
     const updated: Reserva = { ...reserva, estado: nuevoEstado };
     const { error: errUpd } = await upsertReservaDB(updated).then(() => ({ error: null })).catch(e => ({ error: e }));
-    if (errUpd) { console.error('Error guardando reserva:', errUpd); return; }
+    if (errUpd) {
+      console.error('Error guardando reserva:', errUpd);
+      alert('No se pudo actualizar la reserva. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setReservas(prev => prev.map(r => r.id === reservaId ? updated : r));
     const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
     if ((newCount ?? -1) >= 0) {
@@ -308,8 +322,12 @@ export default function AlumnoPerfilPage() {
             fechaLimite: getEffectiveEndDate(plan),
             estado: 'pendiente', creadaAt: new Date().toISOString(),
           };
-          await upsertReagendaDB(reagenda).catch(() => {});
-          setReagendas(prev => [reagenda, ...prev]);
+          try {
+            await upsertReagendaDB(reagenda);
+            setReagendas(prev => [reagenda, ...prev]);
+          } catch {
+            alert('La reserva se actualizó, pero no se pudo crear la reagenda automática. Créala manualmente.');
+          }
         }
       }
     }
@@ -338,11 +356,21 @@ export default function AlumnoPerfilPage() {
       fecha: nuevaFecha, hora, estado: 'pendiente',
       reagendaId: reagenda.id, creadaAt: new Date().toISOString(),
     };
-    await upsertReservaDB(nuevaReserva).catch(() => {});
+    try {
+      await upsertReservaDB(nuevaReserva);
+    } catch {
+      setReagendaErr('No se pudo crear la nueva reserva. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setReservas(prev => [nuevaReserva, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
     // Marcar reagenda como completada
     const reagendaCompletada: Reagenda = { ...reagenda, nuevaReservaId: nuevaReserva.id, estado: 'completada' };
-    await upsertReagendaDB(reagendaCompletada).catch(() => {});
+    try {
+      await upsertReagendaDB(reagendaCompletada);
+    } catch {
+      setReagendaErr('La nueva clase se agendó, pero no se pudo marcar la reagenda como completada.');
+      return;
+    }
     setReagendas(prev => prev.map(r => r.id === reagendaId ? reagendaCompletada : r));
     setAsignando(null);
   }
@@ -350,7 +378,12 @@ export default function AlumnoPerfilPage() {
   async function handleDeleteReserva(reservaId: string) {
     const reserva = reservas.find(r => r.id === reservaId);
     if (!reserva || !confirm('¿Eliminar esta reserva?')) return;
-    await deleteReservaDB(reservaId).catch(() => {});
+    try {
+      await deleteReservaDB(reservaId);
+    } catch {
+      alert('No se pudo eliminar la reserva. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setReservas(prev => prev.filter(r => r.id !== reservaId));
     const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
     if (newCount >= 0) {

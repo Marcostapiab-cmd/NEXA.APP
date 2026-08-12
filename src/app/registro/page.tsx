@@ -68,30 +68,35 @@ export default function RegistroPage() {
 
     setLoading(true);
 
-    const res = await fetch('/api/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password, rut }),
-    });
+    try {
+      const res = await fetch('/api/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password, rut }),
+      });
 
-    const json = await res.json() as { ok?: boolean; error?: string };
+      const json = await res.json() as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
-      setError(json.error ?? 'Error al crear la cuenta.');
+      if (!res.ok || !json.ok) {
+        setError(json.error ?? 'Error al crear la cuenta.');
+        setLoading(false);
+        return;
+      }
+
+      // Login automático después del registro
+      const { data: loginData } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+
       setLoading(false);
-      return;
-    }
 
-    // Login automático después del registro
-    const { data: loginData } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-
-    setLoading(false);
-
-    if (loginData?.session) {
-      router.push('/portal');
-    } else {
-      // Si email confirmation está activado, mostrar aviso
-      setSuccess(true);
+      if (loginData?.session) {
+        router.push('/portal');
+      } else {
+        // Si email confirmation está activado, mostrar aviso
+        setSuccess(true);
+      }
+    } catch {
+      setError('No se pudo conectar para crear la cuenta. Revisa tu conexión e intenta de nuevo.');
+      setLoading(false);
     }
   }
 

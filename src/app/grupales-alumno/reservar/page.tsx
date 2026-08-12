@@ -70,25 +70,30 @@ export default function ReservarPage() {
     setErrorMsg('');
     setExito(null);
 
-    const res = await fetch('/api/grupales-alumno/reservar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clase_id:    sesion.clase_id,
-        fecha:       sesion.fecha,
-        hora:        sesion.hora,
-        nombre_clase: sesion.nombre,
-        compra_id:   compra.id,
-      }),
-    });
-    const json = await res.json() as { error?: string };
-    setReservando(null);
-    if (!res.ok) {
-      setErrorMsg(json.error ?? 'Error al reservar. Intenta de nuevo.');
-      return;
+    try {
+      const res = await fetch('/api/grupales-alumno/reservar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clase_id:    sesion.clase_id,
+          fecha:       sesion.fecha,
+          hora:        sesion.hora,
+          nombre_clase: sesion.nombre,
+          compra_id:   compra.id,
+        }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) {
+        setErrorMsg(json.error ?? 'Error al reservar. Intenta de nuevo.');
+        return;
+      }
+      setExito(`${sesion.nombre} — ${formatFechaLarga(sesion.fecha)} a las ${sesion.hora}`);
+      cargar();
+    } catch {
+      setErrorMsg('No se pudo conectar para reservar. Revisa tu conexión e intenta de nuevo.');
+    } finally {
+      setReservando(null);
     }
-    setExito(`${sesion.nombre} — ${formatFechaLarga(sesion.fecha)} a las ${sesion.hora}`);
-    cargar();
   }
 
   // Agrupar sesiones por fecha

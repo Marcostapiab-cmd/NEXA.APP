@@ -23,17 +23,22 @@ export default function LoginPage() {
       return;
     }
 
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (err) {
-      setError('Correo o contraseña incorrectos');
+      if (err) {
+        setError('Correo o contraseña incorrectos');
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
-      return;
+      const rol = data.user?.user_metadata?.rol;
+      router.push(rol === 'alumno' ? '/portal' : '/dashboard');
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      setLoading(false);
     }
-
-    setLoading(false);
-    const rol = data.user?.user_metadata?.rol;
-    router.push(rol === 'alumno' ? '/portal' : '/dashboard');
   }
 
   return (

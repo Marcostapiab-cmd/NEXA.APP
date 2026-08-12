@@ -76,18 +76,23 @@ function ComprarContent() {
     if (!selected) return;
     setError('');
     setPaying(true);
-    const res = await fetch('/api/grupales-alumno/pagar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack_id: selected }),
-    });
-    const json = await res.json() as { payUrl?: string; error?: string };
-    if (!res.ok || !json.payUrl) {
-      setError(json.error ?? 'Error al crear el pago. Intenta de nuevo.');
+    try {
+      const res = await fetch('/api/grupales-alumno/pagar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pack_id: selected }),
+      });
+      const json = await res.json() as { payUrl?: string; error?: string };
+      if (!res.ok || !json.payUrl) {
+        setError(json.error ?? 'Error al crear el pago. Intenta de nuevo.');
+        setPaying(false);
+        return;
+      }
+      window.location.href = json.payUrl;
+    } catch {
+      setError('No se pudo conectar para procesar el pago. Revisa tu conexión e intenta de nuevo.');
       setPaying(false);
-      return;
     }
-    window.location.href = json.payUrl;
   }
 
   const packSeleccionado = packs.find(p => p.id === selected);

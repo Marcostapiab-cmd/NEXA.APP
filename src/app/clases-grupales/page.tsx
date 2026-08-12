@@ -155,29 +155,34 @@ export default function ClasesGrupalesPage() {
     setError('');
     setPaying(true);
 
-    const res = await fetch('/api/reservar/pagar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        planId:   planSel.id,
-        claseId:  sesionSel.clase_id,
-        fecha:    sesionSel.fecha,
-        hora:     sesionSel.hora,
-        nombre:   form.nombre.trim(),
-        apellido: form.apellido.trim(),
-        email:    form.email.trim(),
-        telefono: form.telefono.trim() || null,
-        rut:      form.rut.trim()      || null,
-      }),
-    });
+    try {
+      const res = await fetch('/api/reservar/pagar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId:   planSel.id,
+          claseId:  sesionSel.clase_id,
+          fecha:    sesionSel.fecha,
+          hora:     sesionSel.hora,
+          nombre:   form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          email:    form.email.trim(),
+          telefono: form.telefono.trim() || null,
+          rut:      form.rut.trim()      || null,
+        }),
+      });
 
-    const json = await res.json() as { payUrl?: string; error?: string };
-    if (!res.ok || !json.payUrl) {
-      setError(json.error ?? 'Error al procesar el pago. Intenta de nuevo.');
+      const json = await res.json() as { payUrl?: string; error?: string };
+      if (!res.ok || !json.payUrl) {
+        setError(json.error ?? 'Error al procesar el pago. Intenta de nuevo.');
+        setPaying(false);
+        return;
+      }
+      window.location.href = json.payUrl;
+    } catch {
+      setError('No se pudo conectar para procesar el pago. Revisa tu conexión e intenta de nuevo.');
       setPaying(false);
-      return;
     }
-    window.location.href = json.payUrl;
   }
 
   if (cargando) {

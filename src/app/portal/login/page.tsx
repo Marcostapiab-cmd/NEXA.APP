@@ -16,15 +16,20 @@ export default function PortalLoginPage() {
     setLoading(true);
     setError('');
 
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (err) {
-      setError('Correo o contraseña incorrectos.');
+      if (err) {
+        setError('Correo o contraseña incorrectos.');
+        setLoading(false);
+        return;
+      }
+
+      router.push('/portal');
+    } catch {
+      setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
       setLoading(false);
-      return;
     }
-
-    router.push('/portal');
   }
 
   return (
