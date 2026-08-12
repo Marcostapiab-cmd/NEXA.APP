@@ -119,7 +119,25 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState('');
+  const [deleting,      setDeleting]      = useState(false);
+  const [deleteError,   setDeleteError]   = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleDeleteClick() {
+    if (!onDelete || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await onDelete();
+      // Si onDelete tuvo éxito, normalmente cierra este modal (setEditando(null) en el padre).
+      // Si en cambio el usuario canceló una confirmación interna (ej. "¿en uso en rutinas?"),
+      // el modal sigue abierto — hay que liberar el botón para que no quede pegado.
+      setDeleting(false);
+    } catch {
+      setDeleteError('No se pudo eliminar. Verifica tu conexión e intenta de nuevo.');
+      setDeleting(false);
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -285,23 +303,27 @@ function EditModal({ ejercicio, onSave, onDelete, onClose }: {
 
             {onDelete && (
               confirmDelete ? (
-                <div className="flex items-center gap-2 rounded-xl border border-[#B44040]/20 bg-[#FAEAEA] p-3">
-                  <p className="flex-1 text-xs text-[#B44040]">
-                    {ejercicio.esPropio
-                      ? '¿Eliminar este ejercicio?'
-                      : 'Se ocultará de tu biblioteca. Podrás recuperarlo después.'}
-                  </p>
-                  <button type="button" onClick={() => setConfirmDelete(false)}
-                    className="text-xs text-[#777777] transition hover:text-[#121212]">
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete()}
-                    className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-red-500"
-                  >
-                    Sí, eliminar
-                  </button>
+                <div className="flex flex-col gap-2 rounded-xl border border-[#B44040]/20 bg-[#FAEAEA] p-3">
+                  <div className="flex items-center gap-2">
+                    <p className="flex-1 text-xs text-[#B44040]">
+                      {ejercicio.esPropio
+                        ? '¿Eliminar este ejercicio?'
+                        : 'Se ocultará de tu biblioteca. Podrás recuperarlo después.'}
+                    </p>
+                    <button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting}
+                      className="text-xs text-[#777777] transition hover:text-[#121212] disabled:opacity-60">
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteClick}
+                      disabled={deleting}
+                      className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-60"
+                    >
+                      {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                    </button>
+                  </div>
+                  {deleteError && <p className="text-xs text-[#B44040]">{deleteError}</p>}
                 </div>
               ) : (
                 <button type="button" onClick={() => setConfirmDelete(true)}
