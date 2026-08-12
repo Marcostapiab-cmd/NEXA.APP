@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
 
     // Actualizar atletas con RUT (el trigger ya creó la fila)
     // Reintentar hasta 3 veces si la fila aún no existe (propagación del trigger)
+    let rutGuardado = false;
     for (let i = 0; i < 3; i++) {
       const { data: atletaRow } = await admin
         .from('atletas')
@@ -106,9 +107,14 @@ export async function POST(req: NextRequest) {
 
       if (atletaRow) {
         await admin.from('atletas').update({ rut: rutNormalizado }).eq('perfil_id', userId);
+        rutGuardado = true;
         break;
       }
       await new Promise(r => setTimeout(r, 300));
+    }
+    if (!rutGuardado) {
+      // La cuenta sí se creó; solo falta el RUT en la fila de atletas (se puede completar manualmente).
+      console.error('[registro] no se pudo guardar el RUT — fila de atleta no apareció a tiempo:', userId);
     }
 
     return NextResponse.json({ ok: true });
