@@ -1266,7 +1266,12 @@ export default function RutinasPage() {
       end_date:   r.endDate   ?? '',
       sessions:   (r.sessions ?? {}) as Record<string, unknown>,
       blocks:     [],
-    }).catch(() => {});
+    }).catch(() => {
+      // El cambio queda guardado localmente, pero si esto falla el resto
+      // del equipo (otro dispositivo/usuario) nunca lo va a ver. Antes
+      // este error se ignoraba en silencio.
+      alert('No se pudo guardar la rutina en el servidor. El cambio quedó solo en este dispositivo — revisa tu conexión e inténtalo de nuevo.');
+    });
   }
 
   function handleSelectAlumno(alumno: Alumno) {

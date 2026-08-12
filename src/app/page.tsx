@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, CheckCircle, Users, Dumbbell, Calendar } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { clp } from '@/lib/format';
 
 const SERVICIOS = [
   {
@@ -19,37 +21,26 @@ const SERVICIOS = [
   },
 ];
 
-const PACKS = [
-  {
-    nombre: 'Primera Clase',
-    slug: 'primera-clase',
-    precio: '$8.990',
-    clases: 1,
-    desc: 'Ven a conocernos. Sin compromiso.',
-    features: ['1 clase grupal', 'Acceso a todos los tipos de clase', 'Sin matrícula'],
-    highlight: false,
-  },
-  {
-    nombre: 'Pack Mensual',
-    slug: 'pack-mensual',
-    precio: '$95.900',
-    clases: 12,
-    desc: 'El más elegido. Tres clases por semana.',
-    features: ['12 clases grupales', 'Vigencia 60 días', 'Reserva en línea', 'Acceso a horario completo'],
-    highlight: true,
-  },
-  {
-    nombre: 'Pack Intensivo',
-    slug: 'pack-intensivo',
-    precio: '$149.900',
-    clases: 20,
-    desc: 'Para quienes van en serio.',
-    features: ['20 clases grupales', 'Vigencia 90 días', 'Prioridad en reservas', 'Seguimiento de progreso'],
-    highlight: false,
-  },
-];
+interface PlanGrupal {
+  id:           string;
+  nombre:       string;
+  descripcion:  string | null;
+  precio_clp:   number;
+  num_clases:   number;
+  validez_dias: number;
+  destacado:    boolean;
+}
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('planes_grupales')
+    .select('id, nombre, descripcion, precio_clp, num_clases, validez_dias, destacado')
+    .eq('activo', true)
+    .order('orden');
+
+  const packs: PlanGrupal[] = (data ?? []) as PlanGrupal[];
+
   return (
     <div style={{ background: 'var(--nexa-bg)', color: 'var(--nexa-text)', fontFamily: 'var(--font-inter, Inter, sans-serif)' }}>
 
@@ -140,54 +131,76 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>
-          {PACKS.map(plan => (
-            <div key={plan.nombre} style={{
-              background: plan.highlight ? 'var(--nexa-text)' : 'var(--nexa-card)',
-              border: `1px solid ${plan.highlight ? 'transparent' : 'var(--nexa-border)'}`,
-              borderRadius: 20,
-              padding: 28,
-              position: 'relative',
-            }}>
-              {plan.highlight && (
-                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--nexa-bg)', border: '1px solid var(--nexa-border)', borderRadius: 100, padding: '4px 14px', fontSize: 10, fontWeight: 800, color: 'var(--nexa-text)', whiteSpace: 'nowrap', letterSpacing: '0.1em' }}>
-                  MÁS ELEGIDO
+        {packs.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--nexa-muted)', fontSize: 14 }}>
+            Sin planes disponibles por el momento.
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, alignItems: 'start' }}>
+            {packs.map(plan => {
+              const isMasElegido = plan.nombre === 'Pack Mensual';
+              return (
+                <div key={plan.id} style={{
+                  background: isMasElegido ? 'var(--nexa-text)' : 'var(--nexa-card)',
+                  border: `1px solid ${isMasElegido ? 'transparent' : 'var(--nexa-border)'}`,
+                  borderRadius: 20,
+                  padding: 28,
+                  position: 'relative',
+                }}>
+                  {isMasElegido && (
+                    <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--nexa-bg)', border: '1px solid var(--nexa-border)', borderRadius: 100, padding: '4px 14px', fontSize: 10, fontWeight: 800, color: 'var(--nexa-text)', whiteSpace: 'nowrap', letterSpacing: '0.1em' }}>
+                      MÁS ELEGIDO
+                    </div>
+                  )}
+                  {plan.destacado && !isMasElegido && (
+                    <div style={{ marginBottom: 8 }}>
+                      <span style={{ display: 'inline-block', background: 'var(--nexa-text)', color: '#fff', borderRadius: 100, padding: '3px 10px', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em' }}>
+                        POPULAR
+                      </span>
+                    </div>
+                  )}
+                  <p style={{ fontSize: 12, fontWeight: 700, color: isMasElegido ? 'rgba(255,255,255,0.5)' : 'var(--nexa-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    {plan.num_clases} {plan.num_clases === 1 ? 'clase' : 'clases'}
+                  </p>
+                  <p style={{ fontSize: 18, fontWeight: 900, color: isMasElegido ? '#fff' : 'var(--nexa-text)', margin: '0 0 4px' }}>
+                    {plan.nombre}
+                  </p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: isMasElegido ? '#fff' : 'var(--nexa-text)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+                    {clp(plan.precio_clp)}
+                  </p>
+                  <p style={{ fontSize: 13, color: isMasElegido ? 'rgba(255,255,255,0.6)' : 'var(--nexa-muted)', margin: '0 0 22px', lineHeight: 1.5 }}>
+                    {plan.descripcion}
+                  </p>
+
+                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: isMasElegido ? 'rgba(255,255,255,0.8)' : 'var(--nexa-text-sub)' }}>
+                      <CheckCircle size={13} color={isMasElegido ? 'rgba(255,255,255,0.7)' : 'var(--nexa-text)'} style={{ flexShrink: 0 }} />
+                      {plan.num_clases} {plan.num_clases === 1 ? 'clase grupal' : 'clases grupales'}
+                    </li>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: isMasElegido ? 'rgba(255,255,255,0.8)' : 'var(--nexa-text-sub)' }}>
+                      <CheckCircle size={13} color={isMasElegido ? 'rgba(255,255,255,0.7)' : 'var(--nexa-text)'} style={{ flexShrink: 0 }} />
+                      Vigencia {plan.validez_dias} días
+                    </li>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: isMasElegido ? 'rgba(255,255,255,0.8)' : 'var(--nexa-text-sub)' }}>
+                      <CheckCircle size={13} color={isMasElegido ? 'rgba(255,255,255,0.7)' : 'var(--nexa-text)'} style={{ flexShrink: 0 }} />
+                      Reserva en línea
+                    </li>
+                  </ul>
+
+                  <Link href="/reservar" style={{
+                    display: 'block', textAlign: 'center', textDecoration: 'none',
+                    fontSize: 14, fontWeight: 700,
+                    color: isMasElegido ? 'var(--nexa-text)' : '#fff',
+                    background: isMasElegido ? '#fff' : 'var(--nexa-text)',
+                    padding: '13px 20px', borderRadius: 11,
+                  }}>
+                    Reservar clase →
+                  </Link>
                 </div>
-              )}
-              <p style={{ fontSize: 12, fontWeight: 700, color: plan.highlight ? 'rgba(255,255,255,0.5)' : 'var(--nexa-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                {plan.clases} {plan.clases === 1 ? 'clase' : 'clases'}
-              </p>
-              <p style={{ fontSize: 18, fontWeight: 900, color: plan.highlight ? '#fff' : 'var(--nexa-text)', margin: '0 0 4px' }}>
-                {plan.nombre}
-              </p>
-              <p style={{ fontSize: 32, fontWeight: 900, color: plan.highlight ? '#fff' : 'var(--nexa-text)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-                {plan.precio}
-              </p>
-              <p style={{ fontSize: 13, color: plan.highlight ? 'rgba(255,255,255,0.6)' : 'var(--nexa-muted)', margin: '0 0 22px', lineHeight: 1.5 }}>
-                {plan.desc}
-              </p>
-
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {plan.features.map(f => (
-                  <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: plan.highlight ? 'rgba(255,255,255,0.8)' : 'var(--nexa-text-sub)' }}>
-                    <CheckCircle size={13} color={plan.highlight ? 'rgba(255,255,255,0.7)' : 'var(--nexa-text)'} style={{ flexShrink: 0 }} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Link href={`/grupales-alumno/comprar?pack=${plan.slug}`} style={{
-                display: 'block', textAlign: 'center', textDecoration: 'none',
-                fontSize: 14, fontWeight: 700,
-                color: plan.highlight ? 'var(--nexa-text)' : '#fff',
-                background: plan.highlight ? '#fff' : 'var(--nexa-text)',
-                padding: '13px 20px', borderRadius: 11,
-              }}>
-                Comprar pack →
-              </Link>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ── CTA final ── */}

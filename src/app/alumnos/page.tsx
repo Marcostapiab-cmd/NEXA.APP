@@ -26,6 +26,7 @@ export interface Alumno {
   contactoEmergenciaTel?: string;
   contactoEmergenciaRelacion?: string;
   // Entrenamiento
+  tipoSesion?: '1:1' | '2:1';
   objetivo?: string;
   etapa?: string;
   notasProfesor?: string;
@@ -212,6 +213,23 @@ function AlumnoModal({ initial, onSave, onClose }: {
                 <option value="pendiente">Pendiente</option>
                 <option value="archivado">Archivado</option>
               </select>
+            </div>
+          </div>
+
+          {/* Tipo de sesión */}
+          <div>
+            <label className={LC}>Tipo de sesión</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['1:1', '2:1'] as const).map(t => (
+                <button key={t} type="button" onClick={() => set('tipoSesion', form.tipoSesion === t ? '' : t)}
+                  className={`rounded-lg border py-2.5 text-sm font-bold transition ${
+                    form.tipoSesion === t
+                      ? 'border-[#121212] bg-[#121212] text-white'
+                      : 'border-[#D8D8D8] text-[#5E5E5E] hover:border-[#CACACA] hover:text-[#121212]'
+                  }`}>
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
 
