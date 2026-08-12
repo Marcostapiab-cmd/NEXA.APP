@@ -238,8 +238,8 @@ export default function CheckinTab() {
         ((resData ?? []) as Record<string, unknown>[]).map(r => r.plan_id as string).filter(Boolean)
       )];
 
-      let planMeta     = new Map<string, { total: number; fechaFin: string | null }>();
-      let planUsadoMap = new Map<string, number>();
+      const planMeta     = new Map<string, { total: number; fechaFin: string | null }>();
+      const planUsadoMap = new Map<string, number>();
 
       if (planIds.length > 0) {
         const [{ data: planesData }, { data: reservasTodas }] = await Promise.all([
@@ -253,7 +253,7 @@ export default function CheckinTab() {
       }
 
       const ruts = ((resData ?? []) as Record<string, unknown>[]).filter(r => r.rut && !r.atletas).map(r => String(r.rut));
-      let rutMap = new Map<string, string>();
+      const rutMap = new Map<string, string>();
       if (ruts.length > 0) {
         const { data: ad } = await supabase.from('atletas').select('rut, nombre, apellido').in('rut', ruts);
         ((ad ?? []) as { rut: string; nombre: string; apellido?: string }[])

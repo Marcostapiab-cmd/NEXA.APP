@@ -572,7 +572,7 @@ export default function BibliotecaPage() {
       {busqueda && (
         <p className="mb-3 text-[11px] text-[#888888]">
           {filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''} para{' '}
-          <span className="text-[#5E5E5E]">"{busqueda}"</span>
+          <span className="text-[#5E5E5E]">&quot;{busqueda}&quot;</span>
         </p>
       )}
 

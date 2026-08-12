@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import {
   Trash2, Plus, ChevronLeft, ChevronRight,
@@ -217,14 +218,14 @@ function ExerciseSearch({ onAdd, onCancel }: {
               <button onClick={createNew}
                 className="flex w-full items-center gap-2 border-t border-[#E0E0E0] px-3 py-2.5 text-left transition hover:bg-[#EBEBEB]">
                 <Plus className="h-3.5 w-3.5 text-[#121212]" />
-                <span className="text-sm text-[#121212]">Crear "{q.trim()}"</span>
+                <span className="text-sm text-[#121212]">Crear &quot;{q.trim()}&quot;</span>
               </button>
             )}
           </div>
         )}
 
         {q.trim().length >= 2 && suggestions.length === 0 && !canCreate && (
-          <p className="mt-2 text-xs text-[#9B9B9B]">Sin resultados para "{q}"</p>
+          <p className="mt-2 text-xs text-[#9B9B9B]">Sin resultados para &quot;{q}&quot;</p>
         )}
 
         <button onClick={onCancel}
@@ -1159,10 +1160,10 @@ function AlumnoSelectorScreen({ alumnos, routines, planes, onSelect }: {
           <Users className="h-10 w-10 text-[#E0E0E0]" />
           <p className="mt-4 text-sm font-semibold text-[#9B9B9B]">Sin alumnos registrados</p>
           <p className="mt-1 text-xs text-[#B0B0B0]">Agrega alumnos primero para crear sus calendarios de entrenamiento</p>
-          <a href="/alumnos" className="mt-4 text-xs text-[#121212] transition hover:underline">Ir a Alumnos →</a>
+          <Link href="/alumnos" className="mt-4 text-xs text-[#121212] transition hover:underline">Ir a Alumnos →</Link>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[#9B9B9B]">Sin resultados para "{q}"</p>
+        <p className="py-8 text-center text-sm text-[#9B9B9B]">Sin resultados para &quot;{q}&quot;</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(alumno => {

@@ -316,7 +316,7 @@ export default function VoiceWorkoutLogger({ onConfirm, trigger }: Props) {
                       Ejemplo de dictado
                     </p>
                     <p className="text-sm leading-relaxed text-[#5E5E5E] italic">
-                      "Press banca, primera serie 4 repeticiones con 30 kilos, segunda serie 7 repeticiones con 30 kilos, tercera serie 6 repeticiones con 27 kilos"
+                      &quot;Press banca, primera serie 4 repeticiones con 30 kilos, segunda serie 7 repeticiones con 30 kilos, tercera serie 6 repeticiones con 27 kilos&quot;
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-[#888888]">
                       {['Primera/Segunda/Tercera serie', 'N repeticiones', 'con N kilos', 'RIR N', 'RPE N'].map(t => (

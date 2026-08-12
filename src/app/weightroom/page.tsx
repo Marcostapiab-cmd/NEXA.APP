@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Plus, Minus, CheckSquare, Mic, Trophy, CalendarDays, Search, Check, StickyNote, RefreshCw } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
@@ -699,7 +700,7 @@ export default function WeightroomPage() {
                 {alumnos.length === 0 ? (
                   <div className="px-4 py-3 text-[13px] text-[#9B9B9B]">
                     Sin alumnos —{' '}
-                    <a href="/alumnos" className="text-[#121212] underline">agregar</a>
+                    <Link href="/alumnos" className="text-[#121212] underline">agregar</Link>
                   </div>
                 ) : filtered.length === 0 ? (
                   <div className="px-4 py-3 text-[13px] text-[#9B9B9B]">Sin resultados</div>

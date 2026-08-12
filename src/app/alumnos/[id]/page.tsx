@@ -244,7 +244,12 @@ export default function AlumnoPerfilPage() {
   }
 
   async function deleteMedicion(mid: string) {
-    await deleteMedicionDB(mid).catch(() => {});
+    try {
+      await deleteMedicionDB(mid);
+    } catch {
+      alert('No se pudo eliminar la medición. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     setMediciones(prev => prev.filter(m => m.id !== mid));
   }
 
