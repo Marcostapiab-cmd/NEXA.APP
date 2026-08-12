@@ -85,21 +85,26 @@ const SECTIONS_PROFESOR: Section[] = [
 ];
 
 const MOBILE_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Inicio',    Icon: Home },
-  { href: '/horario',   label: 'Horario',   Icon: Grid3x3 },
-  { href: '/alumnos',   label: 'Alumnos',   Icon: Users },
-  { href: '/rutinas',   label: 'Rutinas',   Icon: Calendar },
+  { href: '/dashboard',  label: 'Inicio',      Icon: Home },
+  { href: '/horario',    label: 'Horario',     Icon: Grid3x3 },
+  { href: '/alumnos',    label: 'Alumnos',     Icon: Users },
+  { href: '/profesores', label: 'Profesores',  Icon: Users2 },
+  { href: '/rutinas',    label: 'Rutinas',     Icon: Calendar },
+  { href: '/weightroom', label: 'Weightroom',  Icon: Dumbbell },
+  { href: '/configuracion', label: 'Config',   Icon: Settings },
 ];
 
 const MOBILE_ITEMS_PROFESOR: NavItem[] = [
-  { href: '/horario', label: 'Horario', Icon: Grid3x3 },
-  { href: '/rutinas', label: 'Rutinas', Icon: Calendar },
+  { href: '/horario',    label: 'Horario',    Icon: Grid3x3 },
+  { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar },
+  { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell },
 ];
 
 const MOBILE_ITEMS_HOST: NavItem[] = [
-  { href: '/horario',  label: 'Horario',  Icon: Grid3x3 },
-  { href: '/alumnos',  label: 'Alumnos',  Icon: Users },
-  { href: '/grupales', label: 'Grupales', Icon: CalendarDays },
+  { href: '/horario',    label: 'Horario',    Icon: Grid3x3 },
+  { href: '/alumnos',    label: 'Alumnos',    Icon: Users },
+  { href: '/profesores', label: 'Profesores', Icon: Users2 },
+  { href: '/grupales',   label: 'Grupales',   Icon: CalendarDays },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
@@ -279,20 +284,32 @@ export default function Sidebar() {
       {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden"
         style={{ background: 'var(--nexa-bg)', borderTop: '1px solid var(--nexa-border)' }}>
-        <ul className="flex h-16 items-center">
+        <ul className="flex h-16 items-center overflow-x-auto"
+          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
           {mobileItems.map(({ href, label, Icon }) => {
             const active = isActive(pathname, href);
             return (
-              <li key={href} className="flex flex-1 items-center justify-center">
+              <li key={href} className="flex shrink-0 items-center justify-center" style={{ minWidth: '72px' }}>
                 <Link href={href}
-                  className="flex h-full flex-col items-center justify-center gap-1 transition-colors duration-150"
+                  className="flex h-16 w-full flex-col items-center justify-center gap-1 px-1 transition-colors duration-150"
                   style={{ color: active ? 'var(--nexa-text)' : 'var(--nexa-faint)' }}>
                   <Icon size={18} strokeWidth={active ? 2.25 : 1.5} />
-                  <span className="text-[10px] font-semibold tracking-wide">{label}</span>
+                  <span className="text-[10px] font-semibold tracking-wide text-center leading-tight">{label}</span>
                 </Link>
               </li>
             );
           })}
+          {/* Logout */}
+          <li className="flex shrink-0 items-center justify-center" style={{ minWidth: '72px' }}>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex h-16 w-full flex-col items-center justify-center gap-1 px-1 transition-colors duration-150 disabled:opacity-40"
+              style={{ color: 'var(--nexa-faint)' }}>
+              <LogOut size={18} strokeWidth={1.5} className={loggingOut ? 'animate-pulse' : ''} />
+              <span className="text-[10px] font-semibold tracking-wide">Salir</span>
+            </button>
+          </li>
         </ul>
       </nav>
     </>

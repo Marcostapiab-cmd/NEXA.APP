@@ -7,6 +7,16 @@ function formatFecha(fecha: string) {
   return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
+// Evita que un nombre/clase con caracteres HTML rompa o inyecte código en el correo.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ ok: false, error: 'RESEND_API_KEY no configurado' }, { status: 500 });
@@ -27,8 +37,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
   }
 
-  const fechaLegible = formatFecha(fecha);
-  const fromEmail    = process.env.RESEND_FROM_EMAIL ?? 'NEXA <noreply@nexafitness.cl>';
+  const fechaLegible  = formatFecha(fecha);
+  const nombreSeguro  = escapeHtml(nombre);
+  const claseSegura   = escapeHtml(clase);
+  const horaSegura    = escapeHtml(hora);
+  const fromEmail     = process.env.RESEND_FROM_EMAIL ?? 'NEXA <noreply@nexafitness.cl>';
 
   const html = `
 <!DOCTYPE html>
@@ -65,7 +78,7 @@ export async function POST(req: NextRequest) {
                     ¡Reserva confirmada!
                   </h1>
                   <p style="margin:6px 0 0;font-size:14px;color:#16a34a;">
-                    Hola ${nombre}, tu lugar está apartado.
+                    Hola ${nombreSeguro}, tu lugar está apartado.
                   </p>
                 </td>
               </tr>
@@ -80,7 +93,7 @@ export async function POST(req: NextRequest) {
                     <tr>
                       <td style="padding:20px 24px;border-bottom:1px solid #e8e8e8;">
                         <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#9b9b9b;">Clase</p>
-                        <p style="margin:0;font-size:18px;font-weight:900;color:#121212;">${clase}</p>
+                        <p style="margin:0;font-size:18px;font-weight:900;color:#121212;">${claseSegura}</p>
                       </td>
                     </tr>
                     <tr>
@@ -92,7 +105,7 @@ export async function POST(req: NextRequest) {
                     <tr>
                       <td style="padding:20px 24px;border-bottom:1px solid #e8e8e8;">
                         <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#9b9b9b;">Hora</p>
-                        <p style="margin:0;font-size:15px;font-weight:700;color:#121212;">${hora}</p>
+                        <p style="margin:0;font-size:15px;font-weight:700;color:#121212;">${horaSegura}</p>
                       </td>
                     </tr>
                     <tr>
@@ -106,7 +119,7 @@ export async function POST(req: NextRequest) {
 
                   <p style="margin:24px 0 0;font-size:13px;color:#5e5e5e;line-height:1.6;text-align:center;">
                     Si necesitas cancelar, contáctanos con al menos 2 horas de anticipación.<br>
-                    ¡Te esperamos, ${nombre}!
+                    ¡Te esperamos, ${nombreSeguro}!
                   </p>
                 </td>
               </tr>
