@@ -156,6 +156,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   const [renameIdx,      setRenameIdx]      = useState<number | null>(null);
   const [renameSearch,   setRenameSearch]   = useState('');
   const [ejLibrary,      setEjLibrary]      = useState<EjBiblioteca[]>([]);
+  const [saving,         setSaving]         = useState(false);
   const lastTsRef = useRef<number>(0);
 
   useEffect(() => { setEjLibrary(getAllEjercicios()); }, []);
@@ -277,7 +278,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   }
 
   async function handleSave() {
-    if (!routine || !activeBlock) return;
+    if (!routine || !activeBlock || saving) return;
     const sesion: Sesion = {
       id: crypto.randomUUID(),
       alumnoId: alumno.id,
@@ -290,7 +291,15 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       ejercicios,
     };
     saveSesion(sesion); // localStorage (backup local)
-    saveSesionDB(sesion).catch(() => {}); // Supabase (no bloquea si falla)
+    setSaving(true);
+    try {
+      await saveSesionDB(sesion);
+    } catch {
+      alert('No se pudo guardar la sesión en el servidor. Verifica tu conexión e intenta de nuevo — quedó guardada localmente mientras tanto.');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
     setIsRecording(false);
     setNotas('');
     onSaved();
@@ -535,9 +544,9 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                 className="w-full resize-none rounded-xl border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#121212]" />
             </div>
 
-            <button onClick={handleSave}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110">
-              <Save className="h-4 w-4" /> Guardar sesión
+            <button onClick={handleSave} disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-60">
+              <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar sesión'}
             </button>
           </div>
         </div>
