@@ -229,7 +229,7 @@ export default function Sidebar() {
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
         {/* Logo */}
-        <Link href="/dashboard" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
+        <Link href="/" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
             style={{ background: 'var(--nexa-text)' }}>
