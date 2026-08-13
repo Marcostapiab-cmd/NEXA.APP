@@ -366,7 +366,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       {/* ── Content ── */}
       {isRecording ? (
         /* ── Inline recorder ── */
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           {/* Fecha */}
           <div className="flex items-center gap-3 border-b border-[#D8D8D8] px-4 py-2.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9B9B9B]">Fecha</span>
@@ -772,7 +772,7 @@ export default function WeightroomPage() {
       </div>
 
       {/* ── Cards area ── */}
-      <div className="overflow-hidden h-[calc(100vh-57px-64px)] lg:h-[calc(100vh-57px)]">
+      <div className="overflow-hidden h-[calc(100vh-113px)] lg:h-[calc(100vh-57px)]">
         {visibles.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E8E8E8] bg-[#F0F0F0]">
