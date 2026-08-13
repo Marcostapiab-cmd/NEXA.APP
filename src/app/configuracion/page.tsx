@@ -344,7 +344,7 @@ export default function ConfiguracionPage() {
 
         {/* ─ Cupos y bloques ─ */}
         <Card title="Cupos y bloques">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <NumInput
               label="Capacidad grupal"
               sub="Máx. alumnos por clase grupal"
@@ -371,7 +371,7 @@ export default function ConfiguracionPage() {
 
         {/* ─ Reglas de cancelación ─ */}
         <Card title="Reglas de cancelación">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TimeInput
               label="Corte AM (día anterior)"
               sub="Hora tope del día ANTERIOR para cancelar clase de mañana. Ej: si es 21:00, debes cancelar antes de las 21h del día prev."

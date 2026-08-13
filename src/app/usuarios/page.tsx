@@ -227,11 +227,12 @@ export default function UsuariosPage() {
         <div className="rounded-xl overflow-hidden"
           style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
 
+          <div className="overflow-x-auto">
           {/* Header tabla */}
-          <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 px-5 py-3"
+          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] gap-4 px-5 py-3 min-w-[280px]"
             style={{ borderBottom: '1px solid var(--nexa-border)' }}>
             {['Nombre', 'Email', 'Rol', ''].map((h, i) => (
-              <p key={i} className="text-[10px] font-black uppercase tracking-[0.12em]"
+              <p key={i} className={`text-[10px] font-black uppercase tracking-[0.12em] ${i === 1 ? 'hidden sm:block' : ''}`}
                 style={{ color: 'var(--nexa-muted)' }}>{h}</p>
             ))}
           </div>
@@ -250,12 +251,12 @@ export default function UsuariosPage() {
             <ul>
               {usuarios.map((u, i) => (
                 <li key={u.id}
-                  className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center px-5 py-3.5"
+                  className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] gap-4 items-center px-5 py-3.5"
                   style={{ borderTop: i > 0 ? '1px solid var(--nexa-border)' : undefined }}>
                   <span className="text-[13px] font-semibold truncate" style={{ color: 'var(--nexa-text)' }}>
                     {u.nombre || '—'}
                   </span>
-                  <span className="text-[12px] truncate" style={{ color: 'var(--nexa-muted)' }}>
+                  <span className="hidden sm:block text-[12px] truncate" style={{ color: 'var(--nexa-muted)' }}>
                     {u.email}
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md whitespace-nowrap"
@@ -277,6 +278,7 @@ export default function UsuariosPage() {
               ))}
             </ul>
           )}
+          </div>
         </div>
 
       </div>

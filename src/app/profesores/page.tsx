@@ -245,7 +245,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider mb-2"
               style={{ color: 'var(--nexa-muted)' }}>Tarifas</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {([
                 { label: '1:1',         key: 'tarifa_1a1'            },
                 { label: '2:1',         key: 'tarifa_2a1'            },

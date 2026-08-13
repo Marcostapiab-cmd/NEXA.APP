@@ -159,7 +159,8 @@ function AlumnoModal({ initial, onSave, onClose }: {
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 p-6"
+          className="space-y-4 p-6 overflow-y-auto"
+          style={{ maxHeight: 'calc(90vh - 64px)' }}
         >
           {/* Foto */}
           <div className="flex items-center gap-4">
@@ -366,7 +367,7 @@ function PagosTab() {
 
   return (
     <>
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: 'Recaudado',  value: `$${totalPagado.toLocaleString('es-CL')}`, sub: 'CLP confirmado' },
           { label: 'Pagados',    value: String(pagadoCount),    sub: 'cobros exitosos' },

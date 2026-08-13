@@ -621,7 +621,7 @@ export default function GrupalesPage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--nexa-surface)' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b px-6 py-4"
+      <div className="sticky top-14 lg:top-0 z-10 flex items-center justify-between border-b px-4 sm:px-6 py-4"
         style={{ background: 'var(--nexa-bg)', borderColor: 'var(--nexa-border)' }}>
         <div>
           <h1 className="text-[18px] font-black tracking-tight" style={{ color: 'var(--nexa-text)' }}>
@@ -642,7 +642,7 @@ export default function GrupalesPage() {
       <div className="flex border-b" style={{ background: 'var(--nexa-bg)', borderColor: 'var(--nexa-border)' }}>
         {([['sesiones', 'Sesiones'], ['alumnos', 'Alumnos grupales'], ['planes', 'Planes']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
-            className="px-6 py-2.5 text-[12px] font-semibold transition"
+            className="px-3 sm:px-6 py-2.5 text-[12px] font-semibold transition"
             style={{
               color:        tab === key ? 'var(--nexa-text)'  : 'var(--nexa-muted)',
               borderBottom: tab === key ? '2px solid var(--nexa-text)' : '2px solid transparent',
@@ -653,7 +653,7 @@ export default function GrupalesPage() {
         ))}
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 py-5">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-5">
 
         {/* ── Tab Alumnos grupales ──────────────────── */}
         {tab === 'alumnos' && <AlumnosGrupalesTab />}

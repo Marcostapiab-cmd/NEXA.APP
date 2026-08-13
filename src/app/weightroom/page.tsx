@@ -772,7 +772,7 @@ export default function WeightroomPage() {
       </div>
 
       {/* ── Cards area ── */}
-      <div className="overflow-hidden h-[calc(100vh-113px)] lg:h-[calc(100vh-57px)]">
+      <div className="overflow-hidden h-[calc(100vh-177px)] lg:h-[calc(100vh-57px)]">
         {visibles.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E8E8E8] bg-[#F0F0F0]">
@@ -781,10 +781,15 @@ export default function WeightroomPage() {
             <p className="text-[13px] text-[#9B9B9B]">Selecciona un atleta arriba para ver su entrenamiento</p>
           </div>
         ) : (
-          <div
-            className="grid h-full"
-            style={{ gridTemplateColumns: `repeat(${visibles.length}, 1fr)` }}
-          >
+          <div className="h-full overflow-x-auto">
+            <div
+              className="h-full"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${visibles.length}, minmax(320px, 1fr))`,
+                minWidth: visibles.length > 1 ? `${visibles.length * 320}px` : undefined,
+              }}
+            >
             {visibles.map((a, idx) => {
               const routine = getAlumnoRoutine(a.id);
               const defaultBlock = routine ? getActiveBlock(routine) : null;
@@ -804,6 +809,7 @@ export default function WeightroomPage() {
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>
