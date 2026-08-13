@@ -39,7 +39,6 @@ interface Draft {
   tarifa_incompleta_2a1:  string;
   color:                  string;
   activo:                 boolean;
-  // darAcceso solo aplica al crear un profesor nuevo (no al editar uno existente)
   darAcceso:              boolean;
 }
 
@@ -48,8 +47,7 @@ function emptyDraft(usedColors: string[]): Draft {
   return {
     nombre: '', email: '', password: '', especialidad: '',
     tarifa_1a1: '', tarifa_2a1: '', tarifa_incompleta_2a1: '',
-    color, activo: true,
-    darAcceso: true,
+    color, activo: true, darAcceso: false,
   };
 }
 
