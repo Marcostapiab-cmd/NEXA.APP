@@ -618,9 +618,9 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
     <div
       onClick={() => onClickSlot(slot)}
       style={{
-        padding:      '4px 7px',
+        padding:      '3px 4px',
         background:   hayConflicto ? 'rgba(180,64,64,0.10)' : coachColor ? coachColor + '18' : 'var(--nexa-card-alt)',
-        borderLeft:   `3px solid ${hayConflicto ? '#B44040' : coachColor || 'var(--nexa-muted)'}`,
+        borderLeft:   `2px solid ${hayConflicto ? '#B44040' : coachColor || 'var(--nexa-muted)'}`,
         borderRadius: 2,
         cursor:       'pointer',
         opacity:      isPast ? 0.55 : 1,
@@ -686,7 +686,7 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isC
     if (isCerrado) {
       return (
         <div style={{
-          minHeight: 60,
+          minHeight: 52,
           borderRight: '1px solid var(--nexa-border)',
           borderBottom: '1px solid var(--nexa-border-sub)',
           background: 'var(--nexa-surface)',
@@ -717,7 +717,7 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isC
     return (
       <div
         style={{
-          position: 'relative', minHeight: 60,
+          position: 'relative', minHeight: 52,
           borderRight: '1px solid var(--nexa-border)',
           borderBottom: '1px solid var(--nexa-border-sub)',
           background: hover && !isPast ? 'var(--nexa-card)' : 'var(--nexa-bg)',
@@ -744,7 +744,7 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isC
       flexDirection: 'column',
       gap:          2,
       padding:      3,
-      minHeight:    60,
+      minHeight:    52,
     }}>
       {slots.map((slot, idx) => {
         const coach = slot.coachId ? coachById.get(slot.coachId) : undefined;
@@ -1084,17 +1084,17 @@ export default function HorarioPage() {
         {loading ? (
           /* Skeleton */
           <div style={{ border: '1px solid var(--nexa-border)', borderTop: 'none' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '56px repeat(6, 1fr)', minWidth: 700 }}>
-              <div style={{ height: 40, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '36px repeat(6, 1fr)', minWidth: 340 }}>
+              <div style={{ height: 36, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
               {DAY_LABELS.map(d => (
-                <div key={d} style={{ height: 40, background: 'var(--nexa-card)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
+                <div key={d} style={{ height: 36, background: 'var(--nexa-card)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border)' }} />
               ))}
               {['06:00','07:00','08:00','09:00','10:00','11:00'].map(h => (
                 <Fragment key={h}>
-                  <div style={{ height: 60, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border-sub)' }} />
+                  <div style={{ height: 52, background: 'var(--nexa-card-alt)', borderRight: '1px solid var(--nexa-border)', borderBottom: '1px solid var(--nexa-border-sub)' }} />
                   {[0,1,2,3,4,5].map(i => (
                     <div key={i} style={{
-                      height: 60, borderRight: '1px solid var(--nexa-border)',
+                      height: 52, borderRight: '1px solid var(--nexa-border)',
                       borderBottom: '1px solid var(--nexa-border-sub)',
                       background: 'var(--nexa-bg)',
                     }} />
@@ -1105,33 +1105,33 @@ export default function HorarioPage() {
           </div>
         ) : (
           <>
-            {/* Grid desktop — sticky headers + scroll */}
-            <div className="hidden lg:block">
+            {/* Grid — siempre visible, compacto en mobile */}
+            <div>
               <div
                 ref={gridRef}
                 style={{
                   overflowX:  'auto',
                   overflowY:  'auto',
-                  maxHeight:  'calc(100vh - 220px)',
+                  maxHeight:  'calc(100vh - 180px)',
                   border:     '1px solid var(--nexa-border)',
                   borderTop:  'none',
                 }}
               >
                 <div style={{
                   display:             'grid',
-                  gridTemplateColumns: '56px repeat(6, 1fr)',
-                  minWidth:            700,
+                  gridTemplateColumns: '36px repeat(6, 1fr)',
+                  minWidth:            340,
                 }}>
                   {/* Corner sticky */}
                   <div style={{
                     position:     'sticky', top: 0, left: 0, zIndex: 4,
-                    height:       40, background: 'var(--nexa-card-alt)',
+                    height:       36, background: 'var(--nexa-card-alt)',
                     borderRight:  '1px solid var(--nexa-border)',
                     borderBottom: '1px solid var(--nexa-border)',
                     display:      'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 8, color: 'var(--nexa-muted)', letterSpacing: '0.1em',
+                    fontSize: 7, color: 'var(--nexa-muted)', letterSpacing: '0.05em',
                   }}>
-                    HORAS
+                    HR
                   </div>
 
                   {/* Day headers sticky */}
@@ -1144,15 +1144,15 @@ export default function HorarioPage() {
                     return (
                       <div key={i} style={{
                         position:     'sticky', top: 0, zIndex: 3,
-                        height:       40,
+                        height:       36,
                         background:   esCerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
                         borderRight:  '1px solid var(--nexa-border)',
                         borderBottom: '1px solid var(--nexa-border)',
                         display:      'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                           <span style={{
-                            fontSize: 9, letterSpacing: '0.1em', fontWeight: 500,
+                            fontSize: 8, letterSpacing: '0.06em', fontWeight: 600,
                             color: esCerrado ? 'var(--nexa-faint)' : 'var(--nexa-muted)',
                           }}>
                             {DAY_LABELS[i]}
@@ -1160,15 +1160,15 @@ export default function HorarioPage() {
                           {isT ? (
                             <span style={{
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              width: 22, height: 22, borderRadius: '50%',
+                              width: 18, height: 18, borderRadius: '50%',
                               background: 'var(--nexa-text)', color: 'var(--nexa-bg)',
-                              fontSize: 11, fontWeight: 800,
+                              fontSize: 10, fontWeight: 800,
                             }}>
                               {d.getDate()}
                             </span>
                           ) : (
                             <span style={{
-                              fontSize: 11, fontWeight: 400,
+                              fontSize: 10, fontWeight: 400,
                               color: esCerrado ? 'var(--nexa-muted)' : 'var(--nexa-text-sub)',
                             }}>
                               {d.getDate()}
@@ -1176,18 +1176,13 @@ export default function HorarioPage() {
                           )}
                           {nClases > 0 && (
                             <span style={{
-                              fontSize: 8, fontWeight: 700,
+                              fontSize: 7, fontWeight: 700,
                               background: 'var(--nexa-success-bg)',
                               color: 'var(--nexa-success)',
                               borderRadius: 3,
-                              padding: '1px 4px',
+                              padding: '0px 3px',
                             }}>
                               {nClases}
-                            </span>
-                          )}
-                          {esCerrado && !isT && nClases === 0 && (
-                            <span style={{ fontSize: 7, fontWeight: 700, color: 'var(--nexa-faint)', letterSpacing: '0.1em' }}>
-                              CERRADO
                             </span>
                           )}
                         </div>
@@ -1204,10 +1199,11 @@ export default function HorarioPage() {
                         background:   'var(--nexa-card-alt)',
                         borderRight:  '1px solid var(--nexa-border)',
                         borderBottom: '1px solid var(--nexa-border-sub)',
-                        display:      'flex', alignItems: 'center', justifyContent: 'flex-end',
-                        padding:      '0 8px', fontSize: 9, color: 'var(--nexa-muted)', minHeight: 60,
+                        display:      'flex', alignItems: 'center', justifyContent: 'center',
+                        padding:      '0 2px', fontSize: 8, color: 'var(--nexa-muted)', minHeight: 52,
+                        textAlign:    'center',
                       }}>
-                        {hora}
+                        {hora.slice(0, 5)}
                       </div>
 
                       {/* Celdas */}
@@ -1259,79 +1255,6 @@ export default function HorarioPage() {
               <ResumenBar coaches={coaches} reservas={reservas} />
             </div>
 
-            {/* Lista móvil */}
-            <div className="lg:hidden space-y-3 pt-4">
-              {days.map((d, di) => {
-                const ds       = dateStr(d);
-                const isT      = ds === today;
-                const daySlots = showHours
-                  .flatMap(hora => getSlotsForCell(slotMap, ds, hora).map(slot => ({ hora, slot })));
-                return (
-                  <div key={di} style={{
-                    border: '1px solid var(--nexa-border)', borderRadius: 8,
-                    overflow: 'hidden', background: 'var(--nexa-card)',
-                  }}>
-                    <div style={{
-                      padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                      borderBottom: '1px solid var(--nexa-border)',
-                      background: isT ? 'rgba(201,169,110,0.06)' : 'transparent',
-                    }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                        color: isT ? 'var(--nexa-accent)' : 'var(--nexa-text)',
-                      }}>
-                        {DAY_LABELS[di]} {d.getDate()}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>
-                        {daySlots.length > 0 ? `${daySlots.length} clase${daySlots.length !== 1 ? 's' : ''}` : 'Sin clases'}
-                      </span>
-                    </div>
-                    {daySlots.length === 0 ? (
-                      <div style={{ padding: 12, fontSize: 11, color: 'var(--nexa-muted)', textAlign: 'center' }}>
-                        —
-                      </div>
-                    ) : (
-                      daySlots.map(({ hora, slot }) => {
-                        const coach = slot.coachId ? coachById.get(slot.coachId) : undefined;
-                        return (
-                          <div key={`${hora}-${slot.coachId ?? 'x'}`} onClick={() => setEditSlot(slot)}
-                            style={{
-                              display: 'flex', alignItems: 'flex-start', gap: 12,
-                              padding: '10px 12px',
-                              borderBottom: '1px solid var(--nexa-border-sub)',
-                              cursor: 'pointer',
-                              borderLeft: `3px solid ${coach?.color ?? 'var(--nexa-muted)'}`,
-                            }}>
-                            <span style={{ fontSize: 11, color: 'var(--nexa-text-sub)', minWidth: 40, paddingTop: 1 }}>{hora}</span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', gap: 6, marginBottom: 2, alignItems: 'center' }}>
-                                <span style={{ fontSize: 10, color: 'var(--nexa-muted)' }}>{slot!.tipo}</span>
-                                {coach && (
-                                  <span style={{ fontSize: 10, color: coach.color + 'aa' }}>
-                                    · {coach.nombre.split(' ')[0]}
-                                  </span>
-                                )}
-                                <span style={{
-                                  fontSize: 10, marginLeft: 'auto',
-                                  color: slot!.alumnos.length >= slot!.cuposTotal ? 'var(--nexa-danger)' : 'var(--nexa-muted)',
-                                }}>
-                                  {slot!.alumnos.length}/{slot!.cuposTotal}
-                                </span>
-                              </div>
-                              {slot!.alumnos.map((a, ai) => (
-                                <div key={ai} style={{ fontSize: 11, fontWeight: 600, color: statusColor(a.status) }}>
-                                  {a.nombre}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           </>
         )}
 
