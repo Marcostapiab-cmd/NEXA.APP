@@ -603,8 +603,12 @@ export default function GrupalesPage() {
 
   async function cambiarEstado(id: number, nuevoEstado: string) {
     setUpdating(id);
-    await supabase.from('reservas').update({ estado: nuevoEstado }).eq('id', id);
+    const { error } = await supabase.from('reservas').update({ estado: nuevoEstado }).eq('id', id);
     setUpdating(null);
+    if (error) {
+      alert('No se pudo actualizar el estado del alumno. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     cargar();
   }
 
