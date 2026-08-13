@@ -229,7 +229,7 @@ export default function Sidebar() {
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
         {/* Logo */}
-        <Link href="/grupales" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
+        <Link href="/clases-grupales" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
             style={{ background: 'var(--nexa-text)' }}>
@@ -284,7 +284,7 @@ export default function Sidebar() {
       {/* ── Mobile top header ─────────────────────────────────────────────── */}
       <header className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center px-4 lg:hidden"
         style={{ background: 'var(--nexa-bg)', borderBottom: '1px solid var(--nexa-border)' }}>
-        <Link href="/grupales" className="flex items-center gap-2.5">
+        <Link href="/clases-grupales" className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
             style={{ background: 'var(--nexa-text)' }}>
             <span className="select-none text-[11px] font-black tracking-wider" style={{ color: '#FFFFFF' }}>N</span>
