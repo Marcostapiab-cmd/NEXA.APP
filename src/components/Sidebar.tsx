@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
-  Grid3x3, Settings, LogOut, CreditCard,
-  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog,
+  Grid3x3, Settings, LogOut,
+  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog, Menu, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -82,29 +82,6 @@ const SECTIONS_PROFESOR: Section[] = [
       { href: '/calendario', label: 'Calendario', Icon: CalendarDays },
     ],
   },
-];
-
-const MOBILE_ITEMS: NavItem[] = [
-  { href: '/dashboard',  label: 'Inicio',      Icon: Home },
-  { href: '/horario',    label: 'Horario',     Icon: Grid3x3 },
-  { href: '/alumnos',    label: 'Alumnos',     Icon: Users },
-  { href: '/profesores', label: 'Profesores',  Icon: Users2 },
-  { href: '/rutinas',    label: 'Rutinas',     Icon: Calendar },
-  { href: '/weightroom', label: 'Weightroom',  Icon: Dumbbell },
-  { href: '/configuracion', label: 'Config',   Icon: Settings },
-];
-
-const MOBILE_ITEMS_PROFESOR: NavItem[] = [
-  { href: '/horario',    label: 'Horario',    Icon: Grid3x3 },
-  { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar },
-  { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell },
-];
-
-const MOBILE_ITEMS_HOST: NavItem[] = [
-  { href: '/horario',    label: 'Horario',    Icon: Grid3x3 },
-  { href: '/alumnos',    label: 'Alumnos',    Icon: Users },
-  { href: '/profesores', label: 'Profesores', Icon: Users2 },
-  { href: '/grupales',   label: 'Grupales',   Icon: CalendarDays },
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
@@ -190,17 +167,34 @@ function SectionBlock({ section, pathname }: { section: Section; pathname: strin
   );
 }
 
+function NexaLogo() {
+  return (
+    <>
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
+        style={{ background: 'var(--nexa-text)' }}>
+        <span className="select-none text-[11px] font-black tracking-wider" style={{ color: '#FFFFFF' }}>N</span>
+      </div>
+      <span className="select-none text-[13px] font-black tracking-[0.14em]"
+        style={{ color: 'var(--nexa-text)' }}>
+        NEXA
+      </span>
+    </>
+  );
+}
+
 export default function Sidebar() {
-  const pathname   = usePathname();
-  const router     = useRouter();
-  const [role,       setRole]      = useState<string | null>(null);
-  const [email,      setEmail]     = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const pathname = usePathname();
+  const [role,         setRole]        = useState<string | null>(null);
+  const [email,        setEmail]       = useState<string | null>(null);
+  const [loggingOut,   setLoggingOut]  = useState(false);
+  const [drawerOpen,   setDrawerOpen]  = useState(false);
 
   useEffect(() => {
     supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRole(data as string | null));
     supabase.auth.getUser().then(res => setEmail(res.data.user?.email ?? null));
   }, []);
+
+  useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -213,13 +207,49 @@ export default function Sidebar() {
     return null;
   }
 
-  const sections    = role === null             ? []
-                    : role === 'profesor'      ? SECTIONS_PROFESOR
-                    : role === 'recepcionista' ? SECTIONS_HOST
-                    : SECTIONS_COMUN;
-  const mobileItems = role === 'profesor'      ? MOBILE_ITEMS_PROFESOR
-                    : role === 'recepcionista' ? MOBILE_ITEMS_HOST
-                    : MOBILE_ITEMS;
+  const sections = role === null             ? []
+                 : role === 'profesor'      ? SECTIONS_PROFESOR
+                 : role === 'recepcionista' ? SECTIONS_HOST
+                 : SECTIONS_COMUN;
+
+  const sidebarContent = (
+    <>
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {sections.map(s => (
+          <SectionBlock key={s.label} section={s} pathname={pathname} />
+        ))}
+        {(role === 'admin' || role === 'recepcionista') && (
+          <SectionBlock section={SECTION_ADMIN} pathname={pathname} />
+        )}
+      </nav>
+
+      <div className="shrink-0 px-3 py-3" style={{ borderTop: '1px solid var(--nexa-border)' }}>
+        <div className="flex items-center gap-2.5 rounded-[8px] px-2 py-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black"
+            style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}>
+            {email ? email[0].toUpperCase() : '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>
+              {email ?? '—'}
+            </p>
+            {role && (
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--nexa-faint)' }}>
+                {role}
+              </p>
+            )}
+          </div>
+          <button onClick={handleLogout} disabled={loggingOut} title="Cerrar sesión"
+            className="shrink-0 rounded-[6px] p-1.5 transition-colors disabled:opacity-40"
+            style={{ color: 'var(--nexa-muted)' }}
+            onMouseEnter={e => { if (!loggingOut) e.currentTarget.style.color = 'var(--nexa-text)'; }}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--nexa-muted)')}>
+            <LogOut size={13} strokeWidth={2} className={loggingOut ? 'animate-pulse' : ''} />
+          </button>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -228,105 +258,56 @@ export default function Sidebar() {
         className="fixed left-0 top-0 z-30 hidden h-screen w-[220px] flex-col lg:flex"
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
-        {/* Logo */}
         <Link href="/clases-grupales" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
-            style={{ background: 'var(--nexa-text)' }}>
-            <span className="select-none text-[11px] font-black tracking-wider" style={{ color: '#FFFFFF' }}>N</span>
-          </div>
-          <span className="select-none text-[13px] font-black tracking-[0.14em]"
-            style={{ color: 'var(--nexa-text)' }}>
-            NEXA
-          </span>
+          <NexaLogo />
         </Link>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {sections.map(s => (
-            <SectionBlock key={s.label} section={s} pathname={pathname} />
-          ))}
-
-          {/* Admin y host ven la sección Administración */}
-          {(role === 'admin' || role === 'recepcionista') && (
-            <SectionBlock section={SECTION_ADMIN} pathname={pathname} />
-          )}
-        </nav>
-
-        {/* Footer */}
-        <div className="shrink-0 px-3 py-3" style={{ borderTop: '1px solid var(--nexa-border)' }}>
-          <div className="flex items-center gap-2.5 rounded-[8px] px-2 py-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black"
-              style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}>
-              {email ? email[0].toUpperCase() : '?'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>
-                {email ?? '—'}
-              </p>
-              {role && (
-                <p className="text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--nexa-faint)' }}>
-                  {role}
-                </p>
-              )}
-            </div>
-            <button onClick={handleLogout} disabled={loggingOut} title="Cerrar sesión"
-              className="shrink-0 rounded-[6px] p-1.5 transition-colors disabled:opacity-40"
-              style={{ color: 'var(--nexa-muted)' }}
-              onMouseEnter={e => { if (!loggingOut) e.currentTarget.style.color = 'var(--nexa-text)'; }}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--nexa-muted)')}>
-              <LogOut size={13} strokeWidth={2} className={loggingOut ? 'animate-pulse' : ''} />
-            </button>
-          </div>
-        </div>
+        {sidebarContent}
       </aside>
 
       {/* ── Mobile top header ─────────────────────────────────────────────── */}
-      <header className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center px-4 lg:hidden"
+      <header className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center justify-between px-4 lg:hidden"
         style={{ background: 'var(--nexa-bg)', borderBottom: '1px solid var(--nexa-border)' }}>
         <Link href="/clases-grupales" className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
-            style={{ background: 'var(--nexa-text)' }}>
-            <span className="select-none text-[11px] font-black tracking-wider" style={{ color: '#FFFFFF' }}>N</span>
-          </div>
-          <span className="select-none text-[13px] font-black tracking-[0.14em]"
-            style={{ color: 'var(--nexa-text)' }}>
-            NEXA
-          </span>
+          <NexaLogo />
         </Link>
+        <button
+          onClick={() => setDrawerOpen(o => !o)}
+          className="flex h-9 w-9 items-center justify-center rounded-[8px] transition-colors"
+          style={{ color: 'var(--nexa-muted)' }}
+          aria-label="Menú">
+          {drawerOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={1.75} />}
+        </button>
       </header>
 
-      {/* ── Mobile bottom navigation ──────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden"
-        style={{ background: 'var(--nexa-bg)', borderTop: '1px solid var(--nexa-border)' }}>
-        <ul className="flex h-16 items-center overflow-x-auto"
-          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-          {mobileItems.map(({ href, label, Icon }) => {
-            const active = isActive(pathname, href);
-            return (
-              <li key={href} className="flex shrink-0 items-center justify-center" style={{ minWidth: '72px' }}>
-                <Link href={href}
-                  className="flex h-16 w-full flex-col items-center justify-center gap-1 px-1 transition-colors duration-150"
-                  style={{ color: active ? 'var(--nexa-text)' : 'var(--nexa-faint)' }}>
-                  <Icon size={18} strokeWidth={active ? 2.25 : 1.5} />
-                  <span className="text-[10px] font-semibold tracking-wide text-center leading-tight">{label}</span>
-                </Link>
-              </li>
-            );
-          })}
-          {/* Logout */}
-          <li className="flex shrink-0 items-center justify-center" style={{ minWidth: '72px' }}>
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex h-16 w-full flex-col items-center justify-center gap-1 px-1 transition-colors duration-150 disabled:opacity-40"
-              style={{ color: 'var(--nexa-faint)' }}>
-              <LogOut size={18} strokeWidth={1.5} className={loggingOut ? 'animate-pulse' : ''} />
-              <span className="text-[10px] font-semibold tracking-wide">Salir</span>
-            </button>
-          </li>
-        </ul>
-      </nav>
+      {/* ── Mobile drawer backdrop ────────────────────────────────────────── */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile drawer ────────────────────────────────────────────────── */}
+      <div
+        className={`fixed left-0 top-0 z-50 flex h-screen w-[220px] flex-col lg:hidden transition-transform duration-200 ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
+      >
+        <div className="flex h-14 shrink-0 items-center justify-between px-4"
+          style={{ borderBottom: '1px solid var(--nexa-border)' }}>
+          <Link href="/clases-grupales" className="flex items-center gap-2.5" onClick={() => setDrawerOpen(false)}>
+            <NexaLogo />
+          </Link>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-[8px]"
+            style={{ color: 'var(--nexa-muted)' }}>
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
+        {sidebarContent}
+      </div>
     </>
   );
 }
