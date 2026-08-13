@@ -487,12 +487,12 @@ export default function UsuariosPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Tarifa 1:1 ($/sesión)">
-                      <input type="number" min={0} placeholder="0"
+                      <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0"
                         value={form.tarifa_1a1} onChange={e => setForm(f => ({ ...f, tarifa_1a1: e.target.value }))}
                         className="input-nexa" />
                     </Field>
                     <Field label="Tarifa 2:1 ($/sesión)">
-                      <input type="number" min={0} placeholder="0"
+                      <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0"
                         value={form.tarifa_2a1} onChange={e => setForm(f => ({ ...f, tarifa_2a1: e.target.value }))}
                         className="input-nexa" />
                     </Field>

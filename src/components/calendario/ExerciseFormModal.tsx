@@ -182,7 +182,7 @@ export default function ExerciseFormModal({ initial, mode, onSubmit, onClose }: 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LC}>Series *</label>
-                <input type="number" min={1} max={20} value={f.series}
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.series}
                   onChange={e => set('series', parseInt(e.target.value) || 1)}
                   className={IC + (errors.series ? ' border-[#B44040]/30' : '')} />
                 {errors.series && <p className="mt-1 text-xs text-[#B44040]">{errors.series}</p>}

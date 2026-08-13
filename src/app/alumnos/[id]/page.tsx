@@ -1280,9 +1280,9 @@ export default function AlumnoPerfilPage() {
               <div>
                 <label className={LC}>Monto (CLP)</label>
                 <input
-                  type="number"
-                  min="1000"
-                  step="1000"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className={IC}
                   placeholder="Ej: 50000"
                   value={pagoForm.monto}

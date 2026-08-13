@@ -309,11 +309,14 @@ function PlanInput({ label, value, onChange, type = 'text', placeholder }: {
   label: string; value: string | number; onChange: (v: string) => void;
   type?: string; placeholder?: string;
 }) {
+  const isNumeric = type === 'number';
   return (
     <div className="space-y-1.5">
       <label className="block text-[11px] font-semibold uppercase tracking-[0.1em]"
         style={{ color: 'var(--nexa-muted)' }}>{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)}
+      <input type="text" inputMode={isNumeric ? 'numeric' : undefined}
+        pattern={isNumeric ? '[0-9]*' : undefined}
+        value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none transition"
         style={{ background: 'var(--nexa-surface)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }} />

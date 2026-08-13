@@ -258,7 +258,7 @@ function ExerciseSearch({ onAdd, onCancel }: {
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className={LC}>Series</label>
-            <input type="number" min="1" value={form.series}
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.series}
               onChange={e => setForm(f => ({ ...f, series: parseInt(e.target.value) || 1 }))}
               className={IC} />
           </div>

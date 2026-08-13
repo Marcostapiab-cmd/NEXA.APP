@@ -40,7 +40,7 @@ function NumInput({ label, sub, value, onChange, min, max }: {
       <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
         style={{ color: 'var(--nexa-muted)' }}>{label}</label>
       <p className="text-[10px] mb-1.5" style={{ color: 'var(--nexa-faint)' }}>{sub}</p>
-      <input type="number" value={value} min={min} max={max}
+      <input type="text" inputMode="numeric" pattern="[0-9]*" value={value} min={min} max={max}
         onChange={e => onChange(parseInt(e.target.value) || min)}
         className="w-full rounded-lg px-3 py-2 text-[13px]"
         style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
@@ -604,7 +604,7 @@ export default function ConfiguracionPage() {
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
                   style={{ color: 'var(--nexa-muted)' }}>Cupo máx.</label>
-                <input type="number" value={newClase.capacidad} min={1} max={100}
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={newClase.capacidad}
                   onChange={e => setNewClase(n => ({ ...n, capacidad: parseInt(e.target.value) || 12 }))}
                   className="w-full rounded-lg px-3 py-2 text-[12px]"
                   style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}

@@ -86,19 +86,19 @@ function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
                   <tr key={i} className="bg-[#F8F8F8]">
                     <td className="px-2 py-2 font-mono text-[#888888]">{s.setNumber}</td>
                     <td className="px-2 py-2">
-                      <input type="number" value={s.reps ?? ''} onChange={e => setSerie(i, 'reps', e.target.value ? parseInt(e.target.value) : null)}
+                      <input type="text" inputMode="numeric" pattern="[0-9]*" value={s.reps ?? ''} onChange={e => setSerie(i, 'reps', e.target.value ? parseInt(e.target.value) : null)}
                         placeholder="—" className={IC + ' w-14'} />
                     </td>
                     <td className="px-2 py-2">
-                      <input type="number" step="0.5" value={s.weight ?? ''} onChange={e => setSerie(i, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
+                      <input type="text" inputMode="decimal" value={s.weight ?? ''} onChange={e => setSerie(i, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
                         placeholder="—" className={IC + ' w-16'} />
                     </td>
                     <td className="px-2 py-2">
-                      <input type="number" step="0.5" min="0" max="5" value={s.rir ?? ''} onChange={e => setSerie(i, 'rir', e.target.value ? parseFloat(e.target.value) : null)}
+                      <input type="text" inputMode="decimal" value={s.rir ?? ''} onChange={e => setSerie(i, 'rir', e.target.value ? parseFloat(e.target.value) : null)}
                         placeholder="—" className={IC + ' w-12'} />
                     </td>
                     <td className="px-2 py-2">
-                      <input type="number" step="0.5" min="1" max="10" value={s.rpe ?? ''} onChange={e => setSerie(i, 'rpe', e.target.value ? parseFloat(e.target.value) : null)}
+                      <input type="text" inputMode="decimal" value={s.rpe ?? ''} onChange={e => setSerie(i, 'rpe', e.target.value ? parseFloat(e.target.value) : null)}
                         placeholder="—" className={IC + ' w-12'} />
                     </td>
                     <td className="px-2 py-2">

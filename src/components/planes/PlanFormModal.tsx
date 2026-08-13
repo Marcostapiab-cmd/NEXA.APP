@@ -178,7 +178,7 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
                     </button>
                   ))}
                 </div>
-                <input type="number" min={1} max={200} value={f.totalClases}
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.totalClases}
                   onChange={e => set('totalClases', parseInt(e.target.value) || 1)}
                   className={IC} />
               </div>
@@ -187,7 +187,7 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
               {isEdit && (
                 <div>
                   <label className={LC}>Clases utilizadas</label>
-                  <input type="number" min={0} max={f.totalClases} value={f.usedClases}
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.usedClases}
                     onChange={e => set('usedClases', Math.min(f.totalClases, parseInt(e.target.value) || 0))}
                     className={IC} />
                   <p className="mt-1 text-[11px] text-[#888888]">

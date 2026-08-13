@@ -130,9 +130,9 @@ function PreviewRow({
         {/* Sets × Reps */}
         <div className="flex shrink-0 items-center gap-1">
           <input
-            type="number"
-            min="1"
-            max="20"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={row.sets}
             onChange={e => onUpdate({ sets: Math.max(1, parseInt(e.target.value) || 1) })}
             className="w-9 rounded-lg border border-[#E0E0E0] bg-[#F8F8F8] py-1 text-center text-sm text-[#121212] outline-none focus:border-[#9B9B9B] tabular-nums"

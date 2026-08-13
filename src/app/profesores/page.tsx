@@ -255,7 +255,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
                   <label className="block text-[10px] mb-1" style={{ color: 'var(--nexa-muted)' }}>
                     {label}
                   </label>
-                  <input type="number" min="0" value={draft[key] as string} placeholder="0"
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={draft[key] as string} placeholder="0"
                     onChange={e => onChange({ ...draft, [key]: e.target.value })}
                     className="w-full rounded-lg px-2.5 py-2 text-[12px]"
                     style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}

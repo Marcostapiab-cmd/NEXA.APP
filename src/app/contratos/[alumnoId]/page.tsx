@@ -400,7 +400,7 @@ export default function ContratoPage() {
             </Field>
 
             <Field label="Clases por semana">
-              <input type="number" min={1} max={14}
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
                 value={extra.clasesSemana || ''}
                 onChange={e => setExtra(x => ({ ...x, clasesSemana: Number(e.target.value) }))}
                 placeholder="3"
