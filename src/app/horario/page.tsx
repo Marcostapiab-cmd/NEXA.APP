@@ -18,15 +18,10 @@ const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 const ESTADOS_QUE_QUEMAN  = ['presente', 'no_show', 'cancelada_tarde'];
 
 const ESTADOS_ASISTENCIA = [
-  { value: 'pendiente',        label: 'Pendiente',      color: '#9B9B9B' },
-  { value: 'confirmada',       label: 'Confirmada',     color: '#5E5E5E' },
-  { value: 'presente',         label: 'Presente',       color: '#2E7D55' },
-  { value: 'no_show',          label: 'No-show',        color: '#B44040' },
-  { value: 'cancelada_tiempo', label: 'Canc. a tiempo', color: '#5B9BD5' },
-  { value: 'cancelada_tarde',  label: 'Canc. tarde',    color: '#C4783A' },
-  { value: 'reagendada',       label: 'Reagendada',     color: '#9B9BD5' },
-  { value: 'cancelada_nexa',   label: 'Canc. NEXA',     color: '#777777' },
-  { value: 'bloqueada',        label: 'Bloqueada',      color: '#555555' },
+  { value: 'presente',   label: 'Presente',        color: '#2E7D55' },
+  { value: 'no_show',    label: 'No se presentó',  color: '#B44040' },
+  { value: 'pendiente',  label: 'Pendiente',        color: '#9B9B9B' },
+  { value: 'reagendada', label: 'Reagenda',         color: '#9B9BD5' },
 ];
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -232,7 +227,7 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
               <p className="text-[12px] font-semibold mb-2" style={{ color: 'var(--nexa-text)' }}>
                 {a.nombre}
               </p>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {ESTADOS_ASISTENCIA.map(e => {
                   const active = a.status === e.value;
                   return (
