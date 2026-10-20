@@ -11,26 +11,19 @@ function formatFecha(fecha: string) {
   return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
 }
 
-interface Pedido {
-  id:         string;
-  plan_id:    string;
-  clase_id:   string;
-  fecha:      string;
-  hora:       string;
-  nombre:     string;
-  apellido:   string;
-  email:      string | null;
-  telefono:   string | null;
-  rut:        string | null;
-  monto_clp:  number;
-  estado:     string;
-  flow_order: number | null;
-  planes_grupales: { nombre: string } | null;
-  clases_grupales: { nombre: string; hora: string } | null;
-}
-
-interface Atleta {
-  id: string;
+interface ConfirmarResult {
+  ok:            boolean;
+  ya_procesado:  boolean;
+  atleta_id:     string | null;
+  reserva_id:    number | null;
+  pedido_id:     string | null;
+  nombre:        string | null;
+  apellido:      string | null;
+  email:         string | null;
+  fecha:         string | null;
+  hora:          string | null;
+  clase_nombre:  string | null;
+  plan_nombre:   string | null;
 }
 
 // Flow llama a esta URL (POST con form-data) cuando se confirma el pago
@@ -63,125 +56,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, status: pago.status });
     }
 
-    // Buscar pedido por flow_token
-    const { data: pedidoData, error: pedidoErr } = await supabaseAdmin
-      .from('pedidos_grupales')
-      .select('*, planes_grupales(nombre), clases_grupales(nombre, hora)')
-      .eq('flow_token', token)
+    // Toda la lógica de negocio (buscar/crear atleta, buscar/crear
+    // reserva, marcar el pedido pagado) corre en una sola transacción de
+    // Postgres con la fila del pedido bloqueada (SELECT ... FOR UPDATE
+    // dentro de confirmar_pedido_grupal_pago, migración 032). Si Flow
+    // reintenta la entrega del webhook, la segunda llamada espera a que
+    // termine la primera y encuentra el pedido ya pagado — sin duplicar
+    // atletas ni reservas.
+    const { data, error } = await supabaseAdmin
+      .rpc('confirmar_pedido_grupal_pago', { p_flow_token: token })
       .single();
 
-    if (pedidoErr || !pedidoData) {
+    if (error || !data) {
+      console.error('[confirmar] rpc error:', error);
+      return NextResponse.json({ ok: false, error: 'error_confirmando' }, { status: 500 });
+    }
+
+    const result = data as ConfirmarResult;
+
+    if (!result.ok) {
       console.error('[confirmar] pedido no encontrado para token', token);
       return NextResponse.json({ ok: true }); // responder 200 a Flow de todas formas
     }
 
-    const pedido = pedidoData as Pedido;
-
-    // Idempotencia: si ya está pagado, no crear de nuevo
-    if (pedido.estado === 'pagado') {
+    // Ya se había procesado antes (idempotencia) — no reenviar el correo
+    if (result.ya_procesado) {
       return NextResponse.json({ ok: true });
     }
 
-    // Buscar o crear atleta
-    let atletaId: string | null = null;
-
-    if (pedido.email || pedido.telefono) {
-      const orConditions: string[] = [];
-      if (pedido.email)    orConditions.push(`email.eq.${pedido.email}`);
-      if (pedido.telefono) orConditions.push(`telefono.eq.${pedido.telefono}`);
-
-      const { data: atletaExistente } = await supabaseAdmin
-        .from('atletas')
-        .select('id')
-        .or(orConditions.join(','))
-        .limit(1)
-        .maybeSingle();
-
-      atletaId = (atletaExistente as Atleta | null)?.id ?? null;
-    }
-
-    if (!atletaId) {
-      const { data: nuevoAtleta, error: atletaErr } = await supabaseAdmin
-        .from('atletas')
-        .insert({
-          nombre:    pedido.nombre,
-          apellido:  pedido.apellido,
-          email:     pedido.email    || null,
-          telefono:  pedido.telefono || null,
-          rut:       pedido.rut      || null,
-          activo:    true,
-        })
-        .select('id')
-        .single();
-
-      if (atletaErr || !nuevoAtleta) {
-        console.error('[confirmar] error creando atleta:', atletaErr);
-        return NextResponse.json({ ok: false, error: 'error_atleta' }, { status: 500 });
-      }
-      atletaId = (nuevoAtleta as Atleta).id;
-    }
-
-    // Clase info
-    const claseNombre = pedido.clases_grupales?.nombre ?? 'Clase grupal';
-    const claseHora   = pedido.clases_grupales?.hora   ?? pedido.hora;
-
-    // Crear reserva (evitar duplicado)
-    const { data: reservaExistente } = await supabaseAdmin
-      .from('reservas')
-      .select('id')
-      .eq('alumno_id', atletaId)
-      .eq('fecha', pedido.fecha)
-      .eq('hora', claseHora)
-      .not('estado', 'in', '(cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)')
-      .maybeSingle();
-
-    let reservaId: number | null = null;
-
-    if (!reservaExistente) {
-      const { data: nuevaReserva, error: reservaErr } = await supabaseAdmin
-        .from('reservas')
-        .insert({
-          alumno_id:  atletaId,
-          plan_id:    null,
-          fecha:      pedido.fecha,
-          hora:       claseHora,
-          tipo_clase: 'Grupal',
-          estado:     'pendiente',
-          descripcion: claseNombre,
-        })
-        .select('id')
-        .single();
-
-      if (reservaErr || !nuevaReserva) {
-        console.error('[confirmar] error creando reserva:', reservaErr);
-        return NextResponse.json({ ok: false, error: 'error_reserva' }, { status: 500 });
-      }
-      reservaId = (nuevaReserva as { id: number }).id;
-    } else {
-      reservaId = (reservaExistente as { id: number }).id;
-    }
-
-    // Marcar pedido como pagado
-    await supabaseAdmin
-      .from('pedidos_grupales')
-      .update({
-        estado:        'pagado',
-        atleta_id:     atletaId,
-        reserva_id:    reservaId,
-        confirmado_at: new Date().toISOString(),
-      })
-      .eq('id', pedido.id);
-
     // Enviar email de confirmación
-    if (pedido.email && process.env.RESEND_API_KEY) {
+    if (result.email && process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'NEXA <noreply@nexafitness.cl>';
-      const fechaLegible = formatFecha(pedido.fecha);
-      const planNombre   = pedido.planes_grupales?.nombre ?? 'Pack de prueba';
+      const fechaLegible = formatFecha(result.fecha!);
+      const claseNombre  = result.clase_nombre ?? 'Clase grupal';
+      const claseHora    = result.hora ?? '';
+      const planNombre   = result.plan_nombre ?? 'Pack de prueba';
+      const nombreAlumno = result.nombre ?? '';
 
       await resend.emails.send({
         from:    fromEmail,
-        to:      [pedido.email],
+        to:      [result.email],
         subject: `¡Reserva confirmada! ${claseNombre} — ${fechaLegible}`,
         html: `
 <!DOCTYPE html>
@@ -201,7 +116,7 @@ export async function POST(req: NextRequest) {
             <tr><td style="padding:28px 32px;background:#f0fdf4;border-bottom:1px solid #dcfce7;text-align:center;">
               <div style="font-size:40px;margin-bottom:8px;">✅</div>
               <h1 style="margin:0;font-size:22px;font-weight:900;color:#15803d;">¡Reserva confirmada!</h1>
-              <p style="margin:6px 0 0;font-size:14px;color:#16a34a;">Hola ${pedido.nombre}, tu lugar está apartado.</p>
+              <p style="margin:6px 0 0;font-size:14px;color:#16a34a;">Hola ${nombreAlumno}, tu lugar está apartado.</p>
             </td></tr>
             <tr><td style="padding:28px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border-radius:14px;border:1px solid #e8e8e8;overflow:hidden;">
@@ -222,7 +137,7 @@ export async function POST(req: NextRequest) {
                 </td></tr>
               </table>
               <p style="margin:20px 0 0;font-size:13px;color:#5e5e5e;line-height:1.6;text-align:center;">
-                Si necesitas cancelar, contáctanos con anticipación.<br>¡Te esperamos, ${pedido.nombre}!
+                Si necesitas cancelar, contáctanos con anticipación.<br>¡Te esperamos, ${nombreAlumno}!
               </p>
             </td></tr>
           </table>

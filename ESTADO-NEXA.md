@@ -1,6 +1,6 @@
 # Estado de conexión a Supabase — NEXA
 
-Última actualización: 2026-07-21
+Última actualización: 2026-08-13
 
 ---
 
@@ -24,11 +24,17 @@
 ### Sesiones de entrenamiento (Weightroom)
 - **Qué guarda:** cada sesión registrada — qué atleta, qué día, qué ejercicios hizo, series, repeticiones, peso
 - **Tabla en Supabase:** `sesiones`
-- **Operaciones:** guardar (lectura pendiente de conectar)
+- **Operaciones:** guardar y leer (dashboard y progreso ya leen desde `getSesionesDB()`; localStorage
+  queda solo como respaldo si falla la conexión, y marca los datos como "stale" en pantalla)
 
 ### Calendario
 - **Qué hace:** muestra las rutinas en el calendario mensual
 - **Estado:** lee desde Supabase (tabla `rutinas`) con fallback al navegador si la tabla está vacía
+
+### Dashboard / Progreso
+- **Qué muestra:** resumen general (alumnos activos, sesiones recientes, alertas) e historial de progreso
+- **Estado:** consultan Supabase primero (`getAlumnos()`, `getSesionesDB()`); si la consulta falla,
+  usan la última copia en localStorage como respaldo y avisan en pantalla que los datos pueden estar desactualizados
 
 ---
 
@@ -38,6 +44,9 @@
 - **Operaciones:** crear/editar/eliminar plan, crear reservas únicas o recurrentes (días de semana), cambiar estado de asistencia con recálculo automático de clases usadas
 - **Lógica de negocio:** presente/no_show/cancelada_tarde queman clase; cancelada_nexa/bloqueada NO queman
 - **UI:** integrado en el perfil del alumno `/alumnos/[id]`
+- **Check-in en tiempo real:** la pantalla de check-in (`/horario`) se suscribe a cambios en `reservas`
+  del día vía Supabase Realtime — si otro dispositivo marca presente/no-show, se refleja solo, sin
+  necesidad de apretar "Actualizar" (migración `032_confirmar_pedido_atomico_y_realtime.sql`)
 
 ## ❌ Secciones que todavía faltan conectar
 
@@ -46,15 +55,29 @@
 - **Guardado actual:** navegador (`nexa_reagendas`)
 - **Tabla en Supabase:** existe (`reagendas`) pero sin UI conectada todavía
 
-### Dashboard
-- **Qué muestra:** resumen general (alumnos activos, sesiones recientes, alertas)
-- **Estado:** lee desde localStorage — cuando Planes y Reservas estén en Supabase, hay que actualizar las consultas
-
-### Progreso
-- **Qué muestra:** historial de peso por ejercicio, mediciones corporales del atleta
-- **Estado:** historial de peso ya lee desde `sesiones` (localStorage); mediciones corporales están solo en el navegador
+### Progreso — mediciones corporales
+- **Estado:** el historial de peso por ejercicio ya lee desde `sesiones` (Supabase); las mediciones
+  corporales (peso corporal, %grasa, etc.) siguen solo en el navegador
 
 ---
+
+## Rendimiento y consistencia (revisión 2026-08-13)
+
+- **Índices:** se agregaron índices explícitos en `reservas` (fecha, alumno_id, plan_id, y compuestos
+  para el horario/check-in), `atletas` (email, telefono, rut) y `sesiones`/`planes`/`pedidos_grupales`.
+  Postgres no indexa automáticamente las llaves foráneas, así que sin esto las consultas se iban a poner
+  lentas a medida que se acumule historial de reservas. Ver `031_indexes_rendimiento.sql`.
+- **Webhook de pago (Flow):** `confirmar_pedido_grupal_pago` mueve toda la lógica de "buscar/crear
+  atleta → buscar/crear reserva → marcar pagado" a una sola función de Postgres con
+  `SELECT ... FOR UPDATE`, igual que ya hacía `reservar_clase_grupal` para los cupos. Antes, un reintento
+  del webhook (frecuente en pasarelas de pago) podía crear un atleta o una reserva duplicada. Ver
+  `032_confirmar_pedido_atomico_y_realtime.sql`.
+
+**Importante — estas dos migraciones nuevas (031 y 032) están en el repo pero no se aplican solas:**
+hay que correr `supabase db push` (o pegarlas en el SQL Editor del proyecto en Supabase) para que los
+índices y la función existan en la base de datos real. El código de `confirmar/route.ts` ya asume que
+`confirmar_pedido_grupal_pago` existe, así que hay que aplicar `032` antes de recibir el próximo pago
+real por Flow — o ese webhook fallará.
 
 ## Notas
 

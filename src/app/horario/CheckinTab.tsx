@@ -308,6 +308,33 @@ export default function CheckinTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Realtime: si otro dispositivo (recepción, coach, dueño con el celular)
+  // marca presente / no-show / cancela una reserva de hoy, esta pantalla
+  // se actualiza sola en vez de quedar con datos obsoletos hasta que
+  // alguien apriete "Actualizar". Requiere que `reservas` esté agregada
+  // a la publicación de Supabase Realtime (ver migración 032).
+  useEffect(() => {
+    let debounceId: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (debounceId) clearTimeout(debounceId);
+      debounceId = setTimeout(load, 300);
+    };
+
+    const channel = supabase
+      .channel(`checkin-reservas-${today}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reservas', filter: `fecha=eq.${today}` },
+        scheduleReload
+      )
+      .subscribe();
+
+    return () => {
+      if (debounceId) clearTimeout(debounceId);
+      supabase.removeChannel(channel);
+    };
+  }, [today, load]);
+
   async function mark(row: CheckinRow, nuevoEstado: 'presente' | 'no_show') {
     setBusy(prev => new Set(prev).add(row.reservaId));
     try {
