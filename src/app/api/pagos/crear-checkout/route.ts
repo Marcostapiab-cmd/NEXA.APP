@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
     }
     const { data: myRole } = await supabaseUser.rpc('get_my_role');
-    if (!['admin', 'profesor', 'recepcionista'].includes(myRole as string)) {
+    if (!['admin', 'host', 'profesor', 'recepcionista'].includes(myRole as string)) {
       return NextResponse.json({ error: 'Solo staff puede generar cobros.' }, { status: 403 });
     }
 

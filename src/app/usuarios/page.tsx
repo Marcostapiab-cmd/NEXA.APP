@@ -22,24 +22,27 @@ function generarPasswordSegura(): string {
 
 const ROL_LABEL: Record<string, string> = {
   admin:         'Admin',
+  host:          'Host',
   profesor:      'Profesor',
-  recepcionista: 'Host',
+  recepcionista: 'Recepcionista',
 };
 
 const ROL_COLOR: Record<string, string> = {
   admin:         'rgba(99,102,241,0.18)',
+  host:          'rgba(234,179,8,0.15)',
   profesor:      'rgba(34,197,94,0.15)',
-  recepcionista: 'rgba(234,179,8,0.15)',
+  recepcionista: 'rgba(201,169,110,0.15)',
 };
 
 const ROL_TEXT: Record<string, string> = {
   admin:         '#818CF8',
+  host:          '#FCD34D',
   profesor:      '#4ADE80',
-  recepcionista: '#FCD34D',
+  recepcionista: '#C9A96E',
 };
 
 const INITIAL_FORM = {
-  nombre: '', email: '', password: '', rol: 'profesor' as 'profesor' | 'recepcionista',
+  nombre: '', email: '', password: '', rol: 'profesor' as 'profesor' | 'recepcionista' | 'host',
   especialidad: '', tarifa_1a1: '', tarifa_2a1: '',
 };
 
@@ -169,7 +172,7 @@ export default function UsuariosPage() {
     }
   }
 
-  if (role !== null && role !== 'admin') {
+  if (role !== null && role !== 'admin' && role !== 'host') {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-3"
         style={{ background: 'var(--nexa-black)' }}>
@@ -354,8 +357,8 @@ export default function UsuariosPage() {
               </Field>
 
               <Field label="Cargo / Rol">
-                <div className="grid grid-cols-3 gap-2">
-                  {(['admin', 'profesor', 'recepcionista'] as const).map(val => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['admin', 'host', 'profesor', 'recepcionista'] as const).map(val => (
                     <button key={val} type="button"
                       onClick={() => setEditForm(f => ({ ...f, rol: val }))}
                       className="rounded-xl px-3 py-2.5 text-[11px] font-bold transition"
@@ -437,8 +440,8 @@ export default function UsuariosPage() {
             <form onSubmit={handleCrear} className="px-5 py-5 space-y-4">
 
               <Field label="Tipo de usuario *">
-                <div className="grid grid-cols-2 gap-2">
-                  {([['profesor', 'Profesor'], ['recepcionista', 'Host']] as const).map(([val, label]) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {([['profesor', 'Profesor'], ['recepcionista', 'Recep.'], ['host', 'Host']] as const).map(([val, label]) => (
                     <button key={val} type="button"
                       onClick={() => setForm(f => ({ ...f, rol: val }))}
                       className="rounded-xl px-3 py-2.5 text-[12px] font-bold transition"

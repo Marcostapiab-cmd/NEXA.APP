@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'No autorizado.' }, { status: 403 });
 
     const { data: role } = await supabaseUser.rpc('get_my_role');
-    if (role !== 'admin') return NextResponse.json({ error: 'Solo administradores.' }, { status: 403 });
+    if (role !== 'admin' && role !== 'host') return NextResponse.json({ error: 'Solo administradores.' }, { status: 403 });
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest) {
     const { data: perfiles, error: perfilesErr } = await supabaseAdmin
       .from('perfiles')
       .select('id, rol, nombre')
-      .in('rol', ['admin', 'profesor', 'recepcionista'])
+      .in('rol', ['admin', 'host', 'profesor', 'recepcionista'])
       .order('rol')
       .order('nombre');
 

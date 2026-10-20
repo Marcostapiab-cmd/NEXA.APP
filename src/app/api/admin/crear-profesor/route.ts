@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
     };
 
     const { email, password, nombre } = body;
-    const rol = (body.rol === 'recepcionista' ? 'recepcionista' : 'profesor') as 'profesor' | 'recepcionista';
+    const rolesValidos = ['profesor', 'recepcionista', 'host'] as const;
+    type RolValido = typeof rolesValidos[number];
+    const rol: RolValido = rolesValidos.includes(body.rol as RolValido) ? (body.rol as RolValido) : 'profesor';
 
     if (!email?.trim() || !password || !nombre?.trim()) {
       return NextResponse.json({ error: 'Email, contraseña y nombre son obligatorios.', step: 'validate' }, { status: 400 });
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       const { error: coachErr } = await supabaseAdmin
         .from('coaches')
         .insert({
+          id:           authData.user.id,
           nombre:       nombre.trim(),
           especialidad: body.especialidad?.trim() || null,
           tarifa_1a1:   body.tarifa_1a1  ?? 0,

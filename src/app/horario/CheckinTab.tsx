@@ -211,7 +211,7 @@ export default function CheckinTab() {
       const { data: roleData } = await supabase.rpc('get_my_role');
       const currentRole = roleData as string | null;
       setRole(currentRole);
-      if (!currentRole || !['admin', 'profesor', 'recepcionista'].includes(currentRole)) return;
+      if (!currentRole || !['admin', 'host', 'profesor', 'recepcionista'].includes(currentRole)) return;
 
       const [config, { data: resData }, { data: coachesData }] = await Promise.all([
         getHorarioConfig(),
@@ -385,7 +385,7 @@ export default function CheckinTab() {
     canceladas: rows.filter(r => r.estado.startsWith('cancelada')).length,
   };
 
-  if (!loading && role && !['admin', 'profesor', 'recepcionista'].includes(role)) {
+  if (!loading && role && !['admin', 'host', 'profesor', 'recepcionista'].includes(role)) {
     return <p style={{ color: 'var(--nexa-muted)', fontSize: 14, padding: 32 }}>Sin acceso.</p>;
   }
 
