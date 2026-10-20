@@ -160,7 +160,8 @@ export default function LiquidacionesTab() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl" style={{ border: '1px solid var(--nexa-border)' }}>
+        <div className="overflow-x-auto rounded-2xl" style={{ border: '1px solid var(--nexa-border)' }}>
+        <div style={{ minWidth: 620 }}>
           <div className="grid text-[11px] font-semibold uppercase tracking-[0.08em]"
             style={{
               gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 110px',
@@ -208,6 +209,7 @@ export default function LiquidacionesTab() {
               {clp(totalGeneral)}
             </span>
           </div>
+        </div>
         </div>
       )}
 

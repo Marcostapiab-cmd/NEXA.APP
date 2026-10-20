@@ -32,7 +32,6 @@ interface Draft {
   id?:                    string;
   nombre:                 string;
   email:                  string;
-  password:               string;
   especialidad:           string;
   tarifa_1a1:             string;
   tarifa_2a1:             string;
@@ -45,7 +44,7 @@ interface Draft {
 function emptyDraft(usedColors: string[]): Draft {
   const color = COACH_COLORS.find(c => !usedColors.includes(c)) ?? COACH_COLORS[0];
   return {
-    nombre: '', email: '', password: '', especialidad: '',
+    nombre: '', email: '', especialidad: '',
     tarifa_1a1: '', tarifa_2a1: '', tarifa_incompleta_2a1: '',
     color, activo: true, darAcceso: false,
   };
@@ -56,7 +55,6 @@ function draftFromCoach(c: Coach): Draft {
     id:                    c.id,
     nombre:                c.nombre,
     email:                 '',
-    password:              '',
     especialidad:          c.especialidad           ?? '',
     tarifa_1a1:            c.tarifa_1a1            > 0 ? String(c.tarifa_1a1)            : '',
     tarifa_2a1:            c.tarifa_2a1            > 0 ? String(c.tarifa_2a1)            : '',
@@ -497,43 +495,18 @@ export default function ProfesoresPage() {
       return;
     }
 
-    // Crear sin acceso, o editar un profesor existente: comportamiento de siempre.
+    // Crear sin acceso, o editar un profesor existente: directo a upsertCoachDB
     try {
-      let saved: Coach;
-
-      if (!modal.id) {
-        // Crear: genera cuenta de auth + coaches entry vía API route
-        const res = await fetch('/api/admin/crear-profesor', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email:                 modal.email.trim(),
-            password:              modal.password,
-            nombre:                modal.nombre.trim(),
-            especialidad:          modal.especialidad.trim() || undefined,
-            tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
-            tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
-            tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
-            color:                 modal.color || undefined,
-            activo:                modal.activo,
-          }),
-        });
-        const json = await res.json() as { coach?: Coach; error?: string };
-        if (!res.ok || !json.coach) throw new Error(json.error ?? 'Error al crear el profesor');
-        saved = json.coach;
-      } else {
-        // Editar: solo actualiza datos de display en la tabla coaches
-        saved = await upsertCoachDB({
-          id:                    modal.id,
-          nombre:                modal.nombre.trim(),
-          especialidad:          modal.especialidad.trim() || undefined,
-          tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
-          tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
-          tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
-          color:                 modal.color || undefined,
-          activo:                modal.activo,
-        });
-      }
+      const saved = await upsertCoachDB({
+        ...(modal.id ? { id: modal.id } : {}),
+        nombre:                modal.nombre.trim(),
+        especialidad:          modal.especialidad.trim() || undefined,
+        tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
+        tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
+        tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+        color:                 modal.color || undefined,
+        activo:                modal.activo,
+      });
 
       setCoaches(prev =>
         modal.id
