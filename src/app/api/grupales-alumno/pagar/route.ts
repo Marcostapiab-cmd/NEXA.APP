@@ -1,121 +1,157 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createServerClient } from '@supabase/ssr';
 import { crearPagoFlow } from '@/lib/flow';
-import { cookies } from 'next/headers';
+import { esClaseDePrueba, sesionReservable, variantesRut, type PlanGrupal, type SesionPublica } from '@/lib/catalogo';
+import { getAlumnoGrupalSesion, supabaseAdmin } from '@/lib/grupales-server';
 
 export const runtime = 'nodejs';
 
-interface Pack {
-  nombre:       string;
-  num_clases:   number;
-  precio_clp:   number;
-  validez_dias: number;
+interface Body {
+  plan_id: string;
+  primera?: { clase_id: string; fecha: string; hora: string } | null;
 }
 
+const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
+const HORA_RE  = /^\d{2}:\d{2}$/;
+
+// Compra de un pack grupal. El precio, las clases y la vigencia se leen
+// siempre de `planes_grupales`; nunca se confía en datos del cliente.
+// La primera clase elegida se guarda en la compra y se reserva recién
+// cuando Flow confirma el pago (confirmar_compra_grupal_pago, 034).
 export async function POST(req: NextRequest) {
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const admin = supabaseAdmin();
 
   try {
-    // Verificar sesión del alumno grupal
-    const cookieStore = await cookies();
-    const supabaseUser = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-    );
-    const { data: { user } } = await supabaseUser.auth.getUser();
-    if (!user || user.user_metadata?.rol !== 'grupales') {
-      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    const alumno = await getAlumnoGrupalSesion(admin);
+    if (!alumno) {
+      return NextResponse.json({ error: 'Inicia sesión para continuar con la compra.' }, { status: 401 });
     }
 
-    const { pack_id } = await req.json() as { pack_id: string };
-    if (!pack_id) return NextResponse.json({ error: 'Falta pack_id.' }, { status: 400 });
+    const { plan_id, primera } = await req.json() as Body;
+    if (!plan_id) return NextResponse.json({ error: 'Elige un plan.' }, { status: 400 });
 
-    // Buscar pack
-    const { data: pack, error: packErr } = await supabaseAdmin
-      .from('grupales_packs')
-      .select('nombre, num_clases, precio_clp, validez_dias')
-      .eq('id', pack_id)
+    const { data: planData, error: planErr } = await admin
+      .from('planes_grupales')
+      .select('id, nombre, descripcion, precio_clp, num_clases, validez_dias, destacado')
+      .eq('id', plan_id)
       .eq('activo', true)
-      .single();
-    if (packErr || !pack) {
-      return NextResponse.json({ error: 'Pack no encontrado.' }, { status: 404 });
+      .maybeSingle();
+    if (planErr || !planData) {
+      return NextResponse.json({ error: 'Este plan ya no está disponible.' }, { status: 404 });
     }
-    const p = pack as Pack;
+    const plan = planData as PlanGrupal;
 
-    // Buscar alumno
-    const { data: alumno, error: alumnoErr } = await supabaseAdmin
-      .from('grupales_alumnos')
-      .select('id, email')
-      .eq('user_id', user.id)
-      .single();
-    if (alumnoErr || !alumno) {
-      return NextResponse.json({ error: 'Alumno no encontrado.' }, { status: 404 });
+    // Clase de prueba: una sola vez por persona (regla existente del proyecto).
+    if (esClaseDePrueba(plan)) {
+      const { data: pruebas } = await admin
+        .from('planes_grupales')
+        .select('id')
+        .eq('num_clases', 1)
+        .ilike('nombre', '%prueba%');
+      const idsPrueba = ((pruebas ?? []) as { id: string }[]).map(p => p.id);
+
+      const { count: comprasPrevias } = idsPrueba.length
+        ? await admin
+            .from('grupales_compras')
+            .select('id', { count: 'exact', head: true })
+            .eq('alumno_id', alumno.id)
+            .eq('estado_pago', 'pagado')
+            .in('plan_grupal_id', idsPrueba)
+        : { count: 0 };
+
+      // Compras de prueba hechas con el flujo anterior sin cuenta (pedidos_grupales)
+      const filtros = [`email.eq."${alumno.email}"`];
+      for (const r of alumno.rut ? variantesRut(alumno.rut) : []) filtros.push(`rut.eq."${r}"`);
+      const { count: pedidosPrevios } = idsPrueba.length
+        ? await admin
+            .from('pedidos_grupales')
+            .select('id', { count: 'exact', head: true })
+            .eq('estado', 'pagado')
+            .in('plan_id', idsPrueba)
+            .or(filtros.join(','))
+        : { count: 0 };
+
+      if ((comprasPrevias ?? 0) + (pedidosPrevios ?? 0) > 0) {
+        return NextResponse.json(
+          { error: 'La clase de prueba se puede tomar una sola vez por persona. Elige otro plan.' },
+          { status: 409 },
+        );
+      }
     }
-    const al = alumno as { id: string; email: string };
 
-    const baseUrl       = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
-    const commerceOrder = `gpack-${al.id.slice(0, 8)}-${Date.now()}`;
+    // Validar la primera clase (si se eligió) contra el horario real y sus cupos.
+    let primeraValida: { clase_id: string; fecha: string; hora: string } | null = null;
+    if (primera) {
+      if (!primera.clase_id || !FECHA_RE.test(primera.fecha) || !HORA_RE.test(primera.hora)) {
+        return NextResponse.json({ error: 'El horario elegido no es válido.' }, { status: 400 });
+      }
+      const { data: sesiones, error: sesErr } = await admin.rpc('get_sesiones_publicas', { p_dias: 30 });
+      if (sesErr) {
+        return NextResponse.json({ error: 'No pudimos verificar los cupos. Intenta de nuevo.' }, { status: 503 });
+      }
+      const sesion = ((sesiones ?? []) as SesionPublica[]).find(s =>
+        s.clase_id === primera.clase_id && s.fecha === primera.fecha && s.hora === primera.hora);
+      if (!sesion || !sesionReservable(sesion)) {
+        return NextResponse.json({ error: 'Esa clase ya no tiene cupos disponibles. Elige otro horario.' }, { status: 409 });
+      }
+      const expira = new Date();
+      expira.setDate(expira.getDate() + plan.validez_dias);
+      if (new Date(`${primera.fecha}T${primera.hora}:00`) > expira) {
+        return NextResponse.json({ error: 'Esa clase queda fuera de la vigencia del plan.' }, { status: 400 });
+      }
+      primeraValida = { clase_id: primera.clase_id, fecha: primera.fecha, hora: primera.hora };
+    }
 
-    // Fecha de expiración (se calculará cuando se confirme el pago)
-    const fechaExpiraProvisional = new Date();
-    fechaExpiraProvisional.setDate(fechaExpiraProvisional.getDate() + p.validez_dias);
+    const commerceOrder = `gplan-${alumno.id.slice(0, 8)}-${Date.now()}`;
+    const expiraProvisional = new Date();
+    expiraProvisional.setDate(expiraProvisional.getDate() + plan.validez_dias);
 
-    // Crear compra pendiente (clases_restantes es columna generada: clases_totales - clases_usadas)
-    const { data: compra, error: compraErr } = await supabaseAdmin
+    const { data: compra, error: compraErr } = await admin
       .from('grupales_compras')
       .insert({
-        alumno_id:      al.id,
-        pack_id,
-        clases_totales: p.num_clases,
-        fecha_expira:   fechaExpiraProvisional.toISOString(),
-        estado_pago:    'pendiente',
-        commerce_order: commerceOrder,
-        monto_clp:      p.precio_clp,
+        alumno_id:        alumno.id,
+        plan_grupal_id:   plan.id,
+        clases_totales:   plan.num_clases,
+        fecha_expira:     expiraProvisional.toISOString(),
+        estado_pago:      'pendiente',
+        commerce_order:   commerceOrder,
+        monto_clp:        plan.precio_clp,
+        primera_clase_id: primeraValida?.clase_id ?? null,
+        primera_fecha:    primeraValida?.fecha ?? null,
+        primera_hora:     primeraValida?.hora ?? null,
       })
       .select('id')
       .single();
 
     if (compraErr || !compra) {
       console.error('[grupales/pagar] compra insert error:', compraErr);
-      return NextResponse.json({ error: 'Error al crear la orden.' }, { status: 500 });
+      return NextResponse.json({ error: 'No pudimos crear la orden. Intenta de nuevo.' }, { status: 500 });
     }
     const compraId = (compra as { id: string }).id;
+    const baseUrl  = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
 
-    // Crear pago en Flow
     const flow = await crearPagoFlow({
       commerceOrder,
-      subject:         `${p.nombre} — NEXA Clases Grupales`,
-      amount:          p.precio_clp,
-      email:           al.email,
-      urlReturn:       `${baseUrl}/grupales-alumno/retorno`,
+      subject:         `${plan.nombre} — NEXA Performance`,
+      amount:          plan.precio_clp,
+      email:           alumno.email,
+      urlReturn:       `${baseUrl}/api/grupales-alumno/retorno`,
       urlConfirmation: `${baseUrl}/api/grupales-alumno/confirmar`,
     });
 
-    // Guardar flow_token en compra
-    const { error: tokenUpdateErr } = await supabaseAdmin
+    const { error: tokenErr } = await admin
       .from('grupales_compras')
-      .update({
-        referencia_flow: flow.token,
-        flow_order:      String(flow.flowOrder),
-        estado_pago:     'pendiente',
-      })
+      .update({ referencia_flow: flow.token, flow_order: String(flow.flowOrder) })
       .eq('id', compraId);
-
-    if (tokenUpdateErr) {
-      // El link de pago ya se generó en Flow, así que dejamos que el alumno pague igual;
-      // pero si esto falla, la confirmación posterior no va a encontrar la compra por referencia_flow.
-      console.error('[grupales/pagar] error guardando flow_token en compra:', compraId, tokenUpdateErr);
+    if (tokenErr) {
+      // Sin el token guardado, la confirmación de Flow no encontraría la compra:
+      // es preferible no enviar al alumno a pagar.
+      console.error('[grupales/pagar] error guardando token de Flow:', compraId, tokenErr);
+      return NextResponse.json({ error: 'No pudimos preparar el pago. Intenta de nuevo.' }, { status: 500 });
     }
 
     return NextResponse.json({ payUrl: flow.payUrl, compraId });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Error desconocido';
-    console.error('[grupales/pagar] error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[grupales/pagar] error:', err);
+    return NextResponse.json({ error: 'No pudimos iniciar el pago. Intenta de nuevo en unos minutos.' }, { status: 500 });
   }
 }

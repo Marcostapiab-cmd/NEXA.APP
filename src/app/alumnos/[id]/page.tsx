@@ -343,11 +343,17 @@ export default function AlumnoPerfilPage() {
       return;
     }
     setReagendaErr('');
-    // Crear nueva reserva vinculada a la reagenda
+    // Crear nueva reserva vinculada a la reagenda. Hereda el tipo (1:1 / 2:1)
+    // y el profesor de la clase original: solo cambia la fecha/hora de esa clase.
+    const original = reservas.find(r => r.id === reagenda.reservaOriginalId);
+    const planDeReagenda = planes.find(p => p.id === reagenda.planId);
+    const tipoClase = original?.tipoClase
+      ?? (planDeReagenda?.modalidad === '2:1' || alumno?.tipoSesion === '2:1' ? '2:1 Duo' : '1:1 Individual');
     const nuevaReserva: Reserva = {
       id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
       fecha: nuevaFecha, hora, estado: 'pendiente',
-      reagendaId: reagenda.id, creadaAt: new Date().toISOString(),
+      reagendaId: reagenda.id, tipoClase, coachId: original?.coachId,
+      creadaAt: new Date().toISOString(),
     };
     try {
       await upsertReservaDB(nuevaReserva);
@@ -1241,6 +1247,7 @@ export default function AlumnoPerfilPage() {
         <InscripcionModal
           alumnoId={id}
           alumnoNombre={`${alumno.nombre} ${alumno.apellido}`}
+          modalidadInicial={alumno.tipoSesion}
           onSaved={handleInscripcionSaved}
           onClose={() => setShowInscripcion(false)}
         />

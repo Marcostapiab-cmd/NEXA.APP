@@ -31,6 +31,8 @@ export interface Reserva {
   descripcion?: string;
   estado: ReservaEstado;
   reagendaId?: string;      // si viene de una reagenda
+  tipoClase?: string;       // '1:1 Individual' | '2:1 Duo' | 'Grupal'…
+  coachId?: string;
   creadaAt: string;
 }
 

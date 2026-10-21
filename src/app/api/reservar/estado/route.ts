@@ -4,16 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
 
 interface PedidoRow {
-  id:            string;
-  estado:        string;
-  nombre:        string;
-  apellido:      string;
-  fecha:         string;
-  hora:          string;
-  monto_clp:     number;
-  reserva_id:    number | null;
-  planes_grupales:  { nombre: string } | null;
-  clases_grupales:  { nombre: string } | null;
+  id:                 string;
+  estado:             string;
+  nombre:             string;
+  apellido:           string;
+  modalidad:          string;
+  tipo:               string;
+  frecuencia_semanal: number;
+  monto_clp:          number;
 }
 
 export async function GET(req: NextRequest) {
@@ -31,8 +29,8 @@ export async function GET(req: NextRequest) {
   }
 
   const query = supabaseAdmin
-    .from('pedidos_grupales')
-    .select('id, estado, nombre, apellido, fecha, hora, monto_clp, reserva_id, planes_grupales(nombre), clases_grupales(nombre)');
+    .from('pedidos_planes')
+    .select('id, estado, nombre, apellido, modalidad, tipo, frecuencia_semanal, monto_clp');
 
   const { data, error } = token
     ? await query.eq('flow_token', token).maybeSingle()
@@ -45,15 +43,13 @@ export async function GET(req: NextRequest) {
   const pedido = data as unknown as PedidoRow;
 
   return NextResponse.json({
-    id:        pedido.id,
-    estado:    pedido.estado,
-    nombre:    pedido.nombre,
-    apellido:  pedido.apellido,
-    fecha:     pedido.fecha,
-    hora:      pedido.hora,
-    montoCLP:  pedido.monto_clp,
-    reservaId: pedido.reserva_id,
-    plan:      pedido.planes_grupales?.nombre ?? null,
-    clase:     pedido.clases_grupales?.nombre ?? null,
+    id:                pedido.id,
+    estado:            pedido.estado,
+    nombre:            pedido.nombre,
+    apellido:          pedido.apellido,
+    modalidad:         pedido.modalidad,
+    tipo:              pedido.tipo,
+    frecuenciaSemanal: pedido.frecuencia_semanal,
+    montoCLP:          pedido.monto_clp,
   });
 }

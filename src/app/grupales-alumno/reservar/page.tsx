@@ -1,238 +1,145 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowLeft, Calendar, Clock, Users, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import { DIAS_CORTO, MESES_LARGO } from '@/lib/format';
+import { DIAS_LARGO, MESES_CORTO, MESES_LARGO } from '@/lib/format';
+import SelectorSesion, { type SesionElegida } from '@/components/publico/SelectorSesion';
 
-interface Sesion {
-  clase_id:     string;
-  nombre:       string;
-  hora:         string;
-  dia_semana:   number;
-  capacidad:    number;
-  disponibles:  number;
-  fecha:        string;
-  bloqueada:    boolean;
-  coach_nombre: string;
+type Rel = { nombre: string } | { nombre: string }[] | null;
+interface CompraActiva {
+  id: string; clases_restantes: number; fecha_expira: string;
+  planes_grupales: Rel; grupales_packs: Rel;
 }
+const nombreRel = (r: Rel) => (Array.isArray(r) ? r[0]?.nombre : r?.nombre);
+const fechaCorta = (iso: string) => { const d = new Date(iso); return `${d.getDate()} ${MESES_CORTO[d.getMonth()]}`; };
+const fechaLarga = (f: string) => { const d = new Date(`${f}T12:00:00`); return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`; };
 
-interface Compra {
-  id:               string;
-  clases_restantes: number;
-  fecha_expira:     string;
-}
-
-function formatFechaLarga(iso: string) {
-  const d = new Date(iso + 'T12:00:00');
-  return `${DIAS_CORTO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
-}
-
-export default function ReservarPage() {
+export default function ReservarGrupal() {
   const router = useRouter();
-  const [sesiones,  setSesiones]  = useState<Sesion[]>([]);
-  const [compra,    setCompra]    = useState<Compra | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [reservando, setReservando] = useState<string | null>(null);
-  const [exito,     setExito]     = useState<string | null>(null);
-  const [errorMsg,  setErrorMsg]  = useState('');
+  const [compras,   setCompras]   = useState<CompraActiva[]>([]);
+  const [compraId,  setCompraId]  = useState<string | null>(null);
+  const [sesion,    setSesion]    = useState<SesionElegida | null>(null);
+  const [estado,    setEstado]    = useState<'cargando' | 'ok' | 'error'>('cargando');
+  const [enviando,  setEnviando]  = useState(false);
+  const [error,     setError]     = useState('');
+  const [hecha,     setHecha]     = useState<SesionElegida | null>(null);
+  const [version,   setVersion]   = useState(0); // recarga el selector tras reservar
 
   const cargar = useCallback(async () => {
-    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push('/grupales-alumno/login'); return; }
-
-    const now = new Date().toISOString();
-    const [{ data: sesioneData }, { data: compraData }] = await Promise.all([
-      supabase.rpc('get_sesiones_publicas', { p_dias: 21 }),
-      supabase.from('grupales_compras')
-        .select('id, clases_restantes, fecha_expira')
-        .eq('estado_pago', 'pagado')
-        .gt('clases_restantes', 0)
-        .gt('fecha_expira', now)
-        .order('fecha_expira', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    setSesiones((sesioneData ?? []).filter((s: Sesion) => !s.bloqueada && s.disponibles > 0) as Sesion[]);
-    setCompra(compraData as Compra | null);
-    setLoading(false);
+    if (!user) { router.replace('/grupales-alumno/login?redirect=/grupales-alumno/reservar'); return; }
+    const { data: al } = await supabase.from('grupales_alumnos').select('id').eq('user_id', user.id).maybeSingle();
+    if (!al) { setEstado('error'); return; }
+    const { data, error: err } = await supabase.from('grupales_compras')
+      .select('id, clases_restantes, fecha_expira, planes_grupales(nombre), grupales_packs(nombre)')
+      .eq('alumno_id', (al as { id: string }).id)
+      .eq('estado_pago', 'pagado')
+      .gt('fecha_expira', new Date().toISOString())
+      .gt('clases_restantes', 0)
+      .order('fecha_expira', { ascending: true });
+    if (err) { setEstado('error'); return; }
+    const lista = (data ?? []) as unknown as CompraActiva[];
+    setCompras(lista);
+    setCompraId(prev => (prev && lista.some(c => c.id === prev)) ? prev : lista[0]?.id ?? null);
+    setEstado('ok');
   }, [router]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  // Carga inicial (los datos se aplican en el callback, no durante el efecto)
+  useEffect(() => { Promise.resolve().then(cargar); }, [cargar]);
 
-  async function reservar(sesion: Sesion) {
-    if (!compra) return;
-    const key = `${sesion.fecha}|${sesion.hora}|${sesion.clase_id}`;
-    setReservando(key);
-    setErrorMsg('');
-    setExito(null);
+  const compra = compras.find(c => c.id === compraId) ?? null;
 
+  async function reservar() {
+    if (!sesion || !compra || enviando) return;
+    setError('');
+    setEnviando(true);
     try {
       const res = await fetch('/api/grupales-alumno/reservar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clase_id:    sesion.clase_id,
-          fecha:       sesion.fecha,
-          hora:        sesion.hora,
-          nombre_clase: sesion.nombre,
-          compra_id:   compra.id,
-        }),
+        body: JSON.stringify({ clase_id: sesion.clase_id, fecha: sesion.fecha, hora: sesion.hora, compra_id: compra.id }),
       });
-      const json = await res.json() as { error?: string };
-      if (!res.ok) {
-        setErrorMsg(json.error ?? 'Error al reservar. Intenta de nuevo.');
+      const json = await res.json().catch(() => ({})) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setError(json.error ?? 'No pudimos reservar. Intenta de nuevo.');
+        setVersion(v => v + 1); // cupos actualizados
+        setSesion(null);
         return;
       }
-      setExito(`${sesion.nombre} — ${formatFechaLarga(sesion.fecha)} a las ${sesion.hora}`);
-      cargar();
+      setHecha(sesion);
+      setSesion(null);
+      setVersion(v => v + 1);
+      await cargar();
     } catch {
-      setErrorMsg('No se pudo conectar para reservar. Revisa tu conexión e intenta de nuevo.');
+      setError('Sin conexión. Revisa tu internet e intenta de nuevo.');
     } finally {
-      setReservando(null);
+      setEnviando(false);
     }
   }
 
-  // Agrupar sesiones por fecha
-  const porFecha: Record<string, Sesion[]> = {};
-  for (const s of sesiones) {
-    if (!porFecha[s.fecha]) porFecha[s.fecha] = [];
-    porFecha[s.fecha].push(s);
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--nexa-muted)' }} />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen" style={{ background: 'var(--nexa-surface)' }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4"
-        style={{ background: 'var(--nexa-bg)', borderBottom: '1px solid var(--nexa-border)' }}>
-        <Link href="/grupales-alumno/dashboard" className="rounded-lg p-1.5" style={{ color: 'var(--nexa-muted)' }}>
-          <ArrowLeft size={18} />
-        </Link>
-        <div>
-          <h1 className="text-[16px] font-black" style={{ color: 'var(--nexa-text)' }}>Reservar clase</h1>
-          <p className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>Próximas 3 semanas</p>
+    <div className="nx-container max-w-3xl">
+      <Link href="/grupales-alumno/dashboard" className="nx-btn nx-btn-ghost -ml-3 mb-4"><ArrowLeft size={16} aria-hidden /> Mi cuenta</Link>
+      <p className="nx-eyebrow mb-2">Reservar</p>
+      <h1 className="nx-display mb-8 text-[32px] sm:text-[40px]" style={{ color: 'var(--nx-white)' }}>Elige tu clase.</h1>
+
+      {hecha && (
+        <div role="status" className="nx-alert nx-alert-success mb-6 flex gap-3">
+          <CheckCircle2 size={18} className="mt-0.5 shrink-0" aria-hidden />
+          <span>Reserva confirmada: <strong>{hecha.nombre}</strong>, {fechaLarga(hecha.fecha)} a las {hecha.hora}.</span>
         </div>
-      </div>
+      )}
+      {error && <p role="alert" className="nx-alert nx-alert-error mb-6">{error}</p>}
 
-      <div className="mx-auto max-w-lg px-4 py-5 space-y-4">
+      {estado === 'cargando' && <div className="space-y-3" aria-busy="true"><div className="nx-skeleton h-20" /><div className="nx-skeleton h-64" /></div>}
+      {estado === 'error' && <p role="alert" className="nx-alert nx-alert-error">No pudimos cargar tus planes. Recarga la página.</p>}
 
-        {/* Sin saldo */}
-        {!compra && (
-          <div className="rounded-2xl px-5 py-6 text-center"
-            style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
-            <AlertCircle size={32} className="mx-auto mb-3" style={{ color: 'var(--nexa-warning)' }} />
-            <p className="text-[14px] font-semibold" style={{ color: 'var(--nexa-text)' }}>Sin saldo disponible</p>
-            <p className="mt-1 text-[12px]" style={{ color: 'var(--nexa-muted)' }}>
-              Necesitas un pack activo para reservar clases.
+      {estado === 'ok' && compras.length === 0 && (
+        <div className="nx-card p-6 text-center sm:p-10">
+          <p className="text-[16px] font-semibold" style={{ color: 'var(--nx-white)' }}>No tienes clases disponibles.</p>
+          <p className="mt-2 text-[14px]" style={{ color: 'var(--nx-muted)' }}>Compra un plan para reservar tu próxima clase.</p>
+          <Link href="/planes#grupales" className="nx-btn nx-btn-primary mt-6">Ver planes</Link>
+        </div>
+      )}
+
+      {estado === 'ok' && compra && (
+        <div className="space-y-8">
+          {compras.length > 1 ? (
+            <fieldset>
+              <legend className="nx-label">Usar clases de</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {compras.map(c => (
+                  <button key={c.id} type="button" role="radio" aria-checked={c.id === compraId}
+                    onClick={() => { setCompraId(c.id); setSesion(null); }}
+                    className="nx-card px-4 py-3 text-left" data-selected={c.id === compraId}>
+                    <span className="block text-[14px] font-semibold" style={{ color: 'var(--nx-white)' }}>{nombreRel(c.planes_grupales) ?? nombreRel(c.grupales_packs) ?? 'Pack'}</span>
+                    <span className="text-[12px]" style={{ color: 'var(--nx-muted)' }}>{c.clases_restantes} disponibles · vence {fechaCorta(c.fecha_expira)}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <p className="text-[14px]" style={{ color: 'var(--nx-muted)' }}>
+              {nombreRel(compra.planes_grupales) ?? nombreRel(compra.grupales_packs) ?? 'Tu pack'}: <strong style={{ color: 'var(--nx-white)' }}>{compra.clases_restantes}</strong> {compra.clases_restantes === 1 ? 'clase disponible' : 'clases disponibles'} · vence {fechaCorta(compra.fecha_expira)}
             </p>
-            <Link href="/grupales-alumno/comprar"
-              className="nexa-btn-primary mt-4 inline-block px-6 py-2.5 text-[13px]">
-              Comprar pack
-            </Link>
-          </div>
-        )}
+          )}
 
-        {/* Saldo disponible */}
-        {compra && (
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3"
-            style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
-            <CheckCircle2 size={18} style={{ color: 'var(--nexa-success)' }} />
-            <p className="text-[13px]" style={{ color: 'var(--nexa-text)' }}>
-              <strong>{compra.clases_restantes}</strong> {compra.clases_restantes === 1 ? 'clase disponible' : 'clases disponibles'} ·
-              Vence {new Date(compra.fecha_expira).toLocaleDateString('es-CL')}
-            </p>
-          </div>
-        )}
+          <SelectorSesion key={`${compra.id}-${version}`} valor={sesion} onCambio={s => { setSesion(s); setHecha(null); }}
+            dias={21} hasta={new Date(compra.fecha_expira)} />
 
-        {/* Éxito */}
-        {exito && (
-          <div className="flex items-start gap-3 rounded-xl px-4 py-3"
-            style={{ background: 'var(--nexa-success-bg)', border: '1px solid var(--nexa-success)' }}>
-            <CheckCircle2 size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--nexa-success)' }} />
-            <div>
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--nexa-success)' }}>¡Reserva confirmada!</p>
-              <p className="text-[12px]" style={{ color: 'var(--nexa-success)' }}>{exito}</p>
-            </div>
+          <div className="sticky bottom-0 -mx-4 border-t px-4 py-4 sm:static sm:mx-0 sm:border-0 sm:p-0"
+            style={{ background: 'var(--nx-black)', borderColor: 'var(--nx-line)', paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+            <button type="button" onClick={reservar} disabled={!sesion || enviando} aria-busy={enviando}
+              className="nx-btn nx-btn-primary nx-btn-block sm:w-auto">
+              {enviando && <Loader2 size={16} className="animate-spin" aria-hidden />}
+              {enviando ? 'Reservando…' : sesion ? `Reservar ${sesion.hora} · usa 1 clase` : 'Elige un horario'}
+            </button>
           </div>
-        )}
-
-        {/* Error */}
-        {errorMsg && (
-          <div className="rounded-xl px-4 py-3 text-[12px]"
-            style={{ background: 'var(--nexa-danger-bg)', color: 'var(--nexa-danger)' }}>
-            {errorMsg}
-          </div>
-        )}
-
-        {/* Sin sesiones */}
-        {Object.keys(porFecha).length === 0 && (
-          <div className="rounded-2xl px-5 py-8 text-center"
-            style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
-            <Calendar size={32} className="mx-auto mb-3" style={{ color: 'var(--nexa-faint)' }} />
-            <p className="text-[13px]" style={{ color: 'var(--nexa-muted)' }}>
-              No hay clases disponibles en las próximas 3 semanas.
-            </p>
-          </div>
-        )}
-
-        {/* Sesiones agrupadas por fecha */}
-        {Object.entries(porFecha).map(([fecha, sesionesDia]) => (
-          <div key={fecha} className="overflow-hidden rounded-2xl"
-            style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
-            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--nexa-border)', background: 'var(--nexa-card-alt)' }}>
-              <p className="text-[12px] font-black uppercase tracking-[0.08em]" style={{ color: 'var(--nexa-text)' }}>
-                {formatFechaLarga(fecha)}
-              </p>
-            </div>
-            <ul className="divide-y" style={{ borderColor: 'var(--nexa-border)' }}>
-              {sesionesDia.map(s => {
-                const key       = `${s.fecha}|${s.hora}|${s.clase_id}`;
-                const isLoading = reservando === key;
-                return (
-                  <li key={key} className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex flex-1 flex-col gap-0.5 min-w-0">
-                      <p className="text-[13px] font-semibold" style={{ color: 'var(--nexa-text)' }}>{s.nombre}</p>
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
-                          <Clock size={11} /> {s.hora}
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px]"
-                          style={{ color: s.disponibles <= 2 ? 'var(--nexa-danger)' : 'var(--nexa-muted)' }}>
-                          <Users size={11} /> {s.disponibles} cupo{s.disponibles !== 1 ? 's' : ''}
-                        </span>
-                        {s.coach_nombre && (
-                          <span className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>· {s.coach_nombre}</span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      disabled={!compra || isLoading}
-                      onClick={() => reservar(s)}
-                      className="shrink-0 rounded-xl px-3 py-1.5 text-[12px] font-bold transition"
-                      style={!compra
-                        ? { background: 'var(--nexa-card-alt)', color: 'var(--nexa-faint)', cursor: 'not-allowed' }
-                        : { background: 'var(--nexa-text)', color: '#fff' }
-                      }>
-                      {isLoading ? <Loader2 size={13} className="animate-spin" /> : 'Reservar'}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

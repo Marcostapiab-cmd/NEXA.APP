@@ -26,9 +26,18 @@ interface GrupalesCompra {
   fecha_expira:     string;
   estado_pago:      string;
   monto_clp:        number;
-  grupales_packs:   { nombre: string }[] | null;
+  grupales_packs:   { nombre: string } | { nombre: string }[] | null;
+  planes_grupales:  { nombre: string } | { nombre: string }[] | null;
 }
 
+
+function nombreRel(rel: { nombre: string } | { nombre: string }[] | null): string | undefined {
+  return Array.isArray(rel) ? rel[0]?.nombre : rel?.nombre;
+}
+
+function nombrePack(c: GrupalesCompra): string {
+  return nombreRel(c.planes_grupales) ?? nombreRel(c.grupales_packs) ?? 'Pack';
+}
 
 function AlumnosGrupalesTab() {
   const [alumnos,  setAlumnos]  = useState<GrupalesAlumno[]>([]);
@@ -41,7 +50,7 @@ function AlumnosGrupalesTab() {
     const [{ data: als }, { data: comps }] = await Promise.all([
       supabase.from('grupales_alumnos').select('*').order('creado_en', { ascending: false }),
       supabase.from('grupales_compras')
-        .select('id, alumno_id, clases_totales, clases_restantes, clases_usadas, fecha_expira, estado_pago, monto_clp, grupales_packs(nombre)')
+        .select('id, alumno_id, clases_totales, clases_restantes, clases_usadas, fecha_expira, estado_pago, monto_clp, grupales_packs(nombre), planes_grupales(nombre)')
         .order('creado_en', { ascending: false }),
     ]);
     setAlumnos((als ?? []) as GrupalesAlumno[]);
@@ -188,7 +197,7 @@ function AlumnosGrupalesTab() {
                   <div key={comp.id} className="flex items-center gap-4 px-5 py-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold" style={{ color: 'var(--nexa-text)' }}>
-                        {comp.grupales_packs?.[0]?.nombre ?? 'Pack'} — {comp.monto_clp.toLocaleString('es-CL')} CLP
+                        {nombrePack(comp)} — {comp.monto_clp.toLocaleString('es-CL')} CLP
                       </p>
                       <p className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
                         Vence {formatFecha(comp.fecha_expira)} · {comp.clases_usadas}/{comp.clases_totales} usadas
@@ -236,6 +245,17 @@ interface Reserva {
   estado: string;
   descripcion: string | null;
   atletas: AtletaFila[];
+  // Reservas hechas con cuenta online (grupales_reservas) en vez de `reservas`
+  onlineId?: string;
+}
+
+interface ReservaOnline {
+  id: string;
+  fecha: string;
+  hora: string;
+  estado: 'reservada' | 'asistida' | 'cancelada';
+  nombre_clase: string;
+  grupales_alumnos: AtletaFila | AtletaFila[] | null;
 }
 
 interface ClaseInfo {
@@ -562,7 +582,7 @@ export default function GrupalesPage() {
       ? new Date(Date.now() + 7  * 86400000).toISOString().slice(0, 10)
       : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
-    const [{ data: reservasData }, { data: clasesData }] = await Promise.all([
+    const [{ data: reservasData }, { data: clasesData }, { data: onlineData }] = await Promise.all([
       supabase
         .from('reservas')
         .select('id, fecha, hora, estado, descripcion, atletas(nombre, apellido, telefono, email, rut)')
@@ -576,13 +596,33 @@ export default function GrupalesPage() {
         .from('clases_grupales')
         .select('nombre, hora, dia_semana, capacidad')
         .eq('activa', true),
+      supabase
+        .from('grupales_reservas')
+        .select('id, fecha, hora, estado, nombre_clase, grupales_alumnos(nombre, apellido, telefono, email, rut)')
+        .in('estado', ['reservada', 'asistida'])
+        .gte('fecha', hoy)
+        .lte('fecha', fin),
     ]);
+
+    // Reservas online: se muestran junto a las demás con un id local negativo
+    const online: Reserva[] = ((onlineData ?? []) as unknown as ReservaOnline[]).map((g, i) => {
+      const al = Array.isArray(g.grupales_alumnos) ? g.grupales_alumnos : g.grupales_alumnos ? [g.grupales_alumnos] : [];
+      return {
+        id:          -(i + 1),
+        fecha:       g.fecha,
+        hora:        g.hora,
+        estado:      g.estado === 'asistida' ? 'presente' : 'pendiente',
+        descripcion: g.nombre_clase,
+        atletas:     al,
+        onlineId:    g.id,
+      };
+    });
 
     const clases = (clasesData ?? []) as ClaseInfo[];
 
     // Agrupar por fecha + hora
     const mapa: Record<string, SesionAgrupada> = {};
-    for (const r of (reservasData ?? []) as unknown as Reserva[]) {
+    for (const r of [...((reservasData ?? []) as unknown as Reserva[]), ...online]) {
       const key = `${r.fecha}|${r.hora}`;
       if (!mapa[key]) {
         const dow = new Date(r.fecha + 'T12:00:00').getDay();
@@ -598,15 +638,17 @@ export default function GrupalesPage() {
       mapa[key].reservas.push(r);
     }
 
-    setSesiones(Object.values(mapa));
+    setSesiones(Object.values(mapa).sort((a, b) => `${a.fecha} ${a.hora}`.localeCompare(`${b.fecha} ${b.hora}`)));
     setLoading(false);
   }, [filtro]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  async function cambiarEstado(id: number, nuevoEstado: string) {
+  async function cambiarEstado(id: number, nuevoEstado: string, onlineId?: string) {
     setUpdating(id);
-    const { error } = await supabase.from('reservas').update({ estado: nuevoEstado }).eq('id', id);
+    const { error } = onlineId
+      ? await supabase.from('grupales_reservas').update({ estado: 'asistida' }).eq('id', onlineId)
+      : await supabase.from('reservas').update({ estado: nuevoEstado }).eq('id', id);
     setUpdating(null);
     if (error) {
       alert('No se pudo actualizar el estado del alumno. Verifica tu conexión e intenta de nuevo.');
@@ -803,20 +845,20 @@ export default function GrupalesPage() {
                               <>
                                 <button
                                   disabled={updating === r.id}
-                                  onClick={() => cambiarEstado(r.id, 'presente')}
+                                  onClick={() => cambiarEstado(r.id, 'presente', r.onlineId)}
                                   title="Marcar presente"
                                   className="rounded-lg px-2 py-1 text-[11px] font-bold transition disabled:opacity-40"
                                   style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
                                   ✓
                                 </button>
-                                <button
+                                {!r.onlineId && <button
                                   disabled={updating === r.id}
                                   onClick={() => cambiarEstado(r.id, 'no_show')}
                                   title="Marcar ausente"
                                   className="rounded-lg px-2 py-1 text-[11px] font-bold transition disabled:opacity-40"
                                   style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
                                   ✗
-                                </button>
+                                </button>}
                               </>
                             )}
                           </div>

@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest) {
     if (userErr || !user) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
 
     const { data: myRole } = await supabaseUser.rpc('get_my_role');
-    if (myRole !== 'admin') return NextResponse.json({ error: 'Solo administradores.' }, { status: 403 });
+    if (myRole !== 'admin' && myRole !== 'host') return NextResponse.json({ error: 'Solo administradores.' }, { status: 403 });
 
     const body = await req.json() as {
       id: string;

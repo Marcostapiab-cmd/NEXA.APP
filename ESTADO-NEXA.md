@@ -84,3 +84,37 @@ real por Flow — o ese webhook fallará.
 - Los datos del navegador NO se borran cuando se conecta una sección a Supabase — siempre se migra con fallback
 - Ver `PENDIENTES-SEGURIDAD.md` para las tareas de seguridad obligatorias antes de publicar
 - Ver `COMO-VOLVER-ATRAS.md` para instrucciones de rescate si algo sale mal
+
+---
+
+## Página pública de planes y compra en línea (2026-10-21)
+
+- **`/planes`** (nueva): portada con foto (`public/nexa-hero.jpg`), packs grupales (`planes_grupales`)
+  y planes 1:1 / 2:1 (`precios_entrenamiento` + `precios_entrenamiento_config`) con pestañas
+  Mensual/Trimestral/Semestral, cómo funciona, preguntas frecuentes y pie. `/` usa el mismo diseño.
+- **Packs grupales**: se compran con cuenta (`/grupales-alumno/*`): login/registro dentro del modal,
+  elección de primera clase con cupos reales, pago Flow, saldo y vigencia en "Mi cuenta".
+- **1:1 / 2:1**: mismo flujo de antes (`/api/reservar/*`), ahora en un modal dentro de `/planes`.
+  `/clases-grupales` redirige a `/planes#personalizado`.
+- Admin `/grupales` restaurado (packs, horario, alumnos con cuenta y su asistencia).
+
+**Migración nueva `034_compras_grupales_catalogo_unico.sql` — hay que aplicarla antes de publicar**
+(`supabase db push` o pegarla en el SQL Editor). Sin ella fallan la compra y la reserva de packs.
+Además deben estar aplicadas 026 y 033 (siguen sin commitear en el repo).
+
+Pendiente / a revisar:
+- Probar un pago real en el sandbox de Flow (no hay credenciales en el repo; no se probó contra Flow).
+- Flow devuelve a `/api/grupales-alumno/retorno` y `/api/reservar/retorno` (aceptan POST y GET).
+- 1:1 / 2:1 no tiene modelo de cupos por coach: la hora es "preferida" y el staff asigna coach.
+- No hay cancelación de clases grupales por el alumno (no existe política definida en el proyecto).
+- `middleware.ts` está deprecado en Next 16 (renombrar a `proxy.ts` cuando convenga).
+
+## Inscripción de planes 1:1 / 2:1 por día (2026-10-21)
+
+- "Inscribir alumno" (perfil del alumno) ahora: modalidad 1:1 / 2:1 tomada de la ficha, semana completa
+  del profesor (lun–sáb) con cupos reales, una hora distinta por día, "Todos los miércoles…" y
+  "Copiar esta semana a todo el plan". Cada clase se puede mover o quitar sin afectar las demás.
+- Las clases se guardan como '2:1 Duo' o '1:1 Individual' según la modalidad, y el plan con su modalidad.
+- Reagendar una clase conserva su tipo (1:1 / 2:1) y su profesor.
+- **Migración `035_corregir_planes_2a1.sql`**: corrige planes y clases futuras de alumnos 2:1 que se
+  guardaron como 1:1. Aplicarla después de la 034.

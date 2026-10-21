@@ -85,7 +85,7 @@ const SECTIONS_PROFESOR: Section[] = [
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/reservar', '/grupales-alumno'];
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/planes', '/grupales-alumno'];
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href;

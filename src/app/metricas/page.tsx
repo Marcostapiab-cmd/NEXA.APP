@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { clp } from '@/lib/format';
 import { Users, DollarSign, TrendingUp, BarChart2, AlertTriangle } from 'lucide-react';
-import type { MetricasAlumnos, MetricasIngresos, MetricasGrupales } from '@/lib/metricas-supabase';
-import { getMetricasAlumnos, getMetricasIngresos, getMetricasGrupales } from '@/lib/metricas-supabase';
+import type { MetricasAlumnos, MetricasIngresos } from '@/lib/metricas-supabase';
+import { getMetricasAlumnos, getMetricasIngresos } from '@/lib/metricas-supabase';
 
 
 function pct(part: number, total: number) {
@@ -89,24 +89,21 @@ function Total({ label, value }: { label: string; value: string }) {
 export default function MetricasPage() {
   const [alumnos,  setAlumnos]  = useState<MetricasAlumnos | null>(null);
   const [ingresos, setIngresos] = useState<MetricasIngresos | null>(null);
-  const [grupales, setGrupales] = useState<MetricasGrupales | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
 
   useEffect(() => {
-    Promise.all([getMetricasAlumnos(), getMetricasIngresos(), getMetricasGrupales()])
-      .then(([a, i, g]) => { setAlumnos(a); setIngresos(i); setGrupales(g); })
+    Promise.all([getMetricasAlumnos(), getMetricasIngresos()])
+      .then(([a, i]) => { setAlumnos(a); setIngresos(i); })
       .catch(() => setError('Error al cargar métricas.'))
       .finally(() => setLoading(false));
   }, []);
 
   const mesNombre      = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  const totalReservas  = (grupales?.reservadas ?? 0) + (grupales?.asistidas ?? 0) + (grupales?.canceladas ?? 0);
-  const pctAsistidas   = pct(grupales?.asistidas ?? 0, totalReservas);
-  const totalIngresado = (ingresos?.atletasPagado ?? 0) + (ingresos?.grupalesPagado ?? 0);
+  const totalIngresado = (ingresos?.atletasPagado ?? 0) + (ingresos?.planesPagado ?? 0);
 
-  const atletasTotal   = (ingresos?.atletasPagado   ?? 0) + (ingresos?.atletasPendiente  ?? 0);
-  const grupalesTotal  = (ingresos?.grupalesPagado  ?? 0) + (ingresos?.grupalesPendiente ?? 0);
+  const atletasTotal   = (ingresos?.atletasPagado ?? 0) + (ingresos?.atletasPendiente ?? 0);
+  const planesTotal    = (ingresos?.planesPagado  ?? 0) + (ingresos?.planesPendiente  ?? 0);
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
@@ -153,9 +150,8 @@ export default function MetricasPage() {
               Icon={DollarSign}
             />
             <StatCard
-              label="Asistencias grupales"
-              value={grupales?.asistidas ?? 0}
-              sub={`${pctAsistidas}% de reservas (30d)`}
+              label="Planes online pagados"
+              value={clp(ingresos?.planesPagado ?? 0)}
               Icon={TrendingUp}
             />
           </div>
@@ -184,18 +180,18 @@ export default function MetricasPage() {
                   </div>
                 </div>
 
-                <Divider label="Clases grupales" />
+                <Divider label="Planes online (1:1 / 2:1)" />
                 <div className="space-y-3">
                   <MetricRow
                     label="Pagado"
-                    value={clp(ingresos?.grupalesPagado ?? 0)}
-                    barPct={pct(ingresos?.grupalesPagado ?? 0, grupalesTotal)}
+                    value={clp(ingresos?.planesPagado ?? 0)}
+                    barPct={pct(ingresos?.planesPagado ?? 0, planesTotal)}
                     color="#4A8A5A"
                   />
                   <MetricRow
                     label="Pendiente"
-                    value={clp(ingresos?.grupalesPendiente ?? 0)}
-                    barPct={pct(ingresos?.grupalesPendiente ?? 0, grupalesTotal)}
+                    value={clp(ingresos?.planesPendiente ?? 0)}
+                    barPct={pct(ingresos?.planesPendiente ?? 0, planesTotal)}
                     color="#C4783A"
                   />
                 </div>
@@ -249,66 +245,6 @@ export default function MetricasPage() {
                   />
                 </div>
               </div>
-            </Card>
-
-            {/* Asistencia grupales */}
-            <Card title="Clases grupales — últimos 30 días">
-              {totalReservas === 0 ? (
-                <p className="py-4 text-center text-[13px] text-[#AAAAAA]">Sin reservas en los últimos 30 días.</p>
-              ) : (
-                <div className="space-y-3">
-                  <MetricRow
-                    label="Reservadas"
-                    value={grupales?.reservadas ?? 0}
-                    sub={`${pct(grupales?.reservadas ?? 0, totalReservas)}%`}
-                    barPct={pct(grupales?.reservadas ?? 0, totalReservas)}
-                    color="#5B8FBB"
-                  />
-                  <MetricRow
-                    label="Asistidas"
-                    value={grupales?.asistidas ?? 0}
-                    sub={`${pctAsistidas}%`}
-                    barPct={pctAsistidas}
-                    color="#4A8A5A"
-                  />
-                  <MetricRow
-                    label="Canceladas"
-                    value={grupales?.canceladas ?? 0}
-                    sub={`${pct(grupales?.canceladas ?? 0, totalReservas)}%`}
-                    barPct={pct(grupales?.canceladas ?? 0, totalReservas)}
-                    color="#B44040"
-                  />
-                  <Total label="Total reservas" value={String(totalReservas)} />
-                </div>
-              )}
-            </Card>
-
-            {/* Créditos grupales */}
-            <Card title="Créditos grupales (packs pagados)">
-              {(grupales?.clasesTotales ?? 0) === 0 ? (
-                <p className="py-4 text-center text-[13px] text-[#AAAAAA]">Sin packs activos.</p>
-              ) : (
-                <div className="space-y-3">
-                  <MetricRow
-                    label="Clases vendidas"
-                    value={grupales?.clasesTotales ?? 0}
-                  />
-                  <MetricRow
-                    label="Clases usadas"
-                    value={grupales?.clasesUsadas ?? 0}
-                    barPct={pct(grupales?.clasesUsadas ?? 0, grupales?.clasesTotales ?? 0)}
-                    color="#121212"
-                    sub={`${pct(grupales?.clasesUsadas ?? 0, grupales?.clasesTotales ?? 0)}%`}
-                  />
-                  <MetricRow
-                    label="Clases disponibles"
-                    value={grupales?.clasesRestantes ?? 0}
-                    barPct={pct(grupales?.clasesRestantes ?? 0, grupales?.clasesTotales ?? 0)}
-                    color="#4A8A5A"
-                    sub={`${pct(grupales?.clasesRestantes ?? 0, grupales?.clasesTotales ?? 0)}%`}
-                  />
-                </div>
-              )}
             </Card>
 
           </div>

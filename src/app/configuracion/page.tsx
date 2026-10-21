@@ -78,14 +78,11 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-interface ClaseGrupal {
-  id:         string;
-  nombre:     string;
-  dia_semana: number;
-  hora:       string;
-  coach_id:   string | null;
-  capacidad:  number;
-  activa:     boolean;
+type Modalidad = '1:1' | '2:1';
+const FRECUENCIAS = [1, 2, 3, 4, 5];
+
+function precioKey(modalidad: Modalidad, frecuencia: number) {
+  return `${modalidad}-${frecuencia}`;
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
@@ -105,18 +102,27 @@ export default function ConfiguracionPage() {
   });
   const [addingB, setAddingB] = useState(false);
 
-  const [clasesGrupales, setClasesGrupales] = useState<ClaseGrupal[]>([]);
-  const [claseErr,       setClaseErr]       = useState('');
-  const [addingClase,    setAddingClase]    = useState(false);
-  const [newClase, setNewClase] = useState({ nombre: '', dia_semana: 6, hora: '09:00', capacidad: 12 });
+  const [precios,       setPrecios]       = useState<Record<string, number>>({});
+  const [descuentoTrim, setDescuentoTrim] = useState(0);
+  const [descuentoSem,  setDescuentoSem]  = useState(0);
+  const [savingPrecios, setSavingPrecios] = useState(false);
+  const [savedPrecios,  setSavedPrecios]  = useState(false);
+  const [precioErr,     setPrecioErr]     = useState('');
 
-  async function loadClases() {
-    const { data } = await supabase
-      .from('clases_grupales')
-      .select('*')
-      .order('dia_semana')
-      .order('hora');
-    setClasesGrupales((data ?? []) as ClaseGrupal[]);
+  async function loadPrecios() {
+    const [{ data: pr }, { data: cf }] = await Promise.all([
+      supabase.from('precios_entrenamiento').select('modalidad, frecuencia_semanal, precio_mes_clp'),
+      supabase.from('precios_entrenamiento_config').select('clave, valor'),
+    ]);
+    const map: Record<string, number> = {};
+    for (const p of (pr ?? []) as { modalidad: Modalidad; frecuencia_semanal: number; precio_mes_clp: number }[]) {
+      map[precioKey(p.modalidad, p.frecuencia_semanal)] = p.precio_mes_clp;
+    }
+    setPrecios(map);
+    for (const c of (cf ?? []) as { clave: string; valor: number }[]) {
+      if (c.clave === 'descuento_trimestral_mes') setDescuentoTrim(c.valor);
+      if (c.clave === 'descuento_semestral_mes')  setDescuentoSem(c.valor);
+    }
   }
 
   useEffect(() => {
@@ -129,7 +135,7 @@ export default function ConfiguracionPage() {
       setRole(roleData as string ?? null);
       setDraft(cfg);
       setBloqueos(bls);
-      await loadClases();
+      await loadPrecios();
       setLoading(false);
     }
     init();
@@ -194,45 +200,38 @@ export default function ConfiguracionPage() {
     setBloqueos(prev => prev.filter(b => b.id !== id));
   }
 
-  async function handleToggleClase(id: string, activa: boolean) {
-    const { error } = await supabase.from('clases_grupales').update({ activa: !activa }).eq('id', id);
-    if (error) {
-      alert('No se pudo actualizar la clase. Verifica tu conexión e intenta de nuevo.');
-      return;
-    }
-    setClasesGrupales(prev => prev.map(c => c.id === id ? { ...c, activa: !activa } : c));
-  }
-
-  async function handleDeleteClase(id: string) {
-    if (!window.confirm('¿Eliminar esta clase? Las reservas existentes no se borran.')) return;
-    const { error } = await supabase.from('clases_grupales').delete().eq('id', id);
-    if (error) {
-      alert('No se pudo eliminar la clase. Verifica tu conexión e intenta de nuevo.');
-      return;
-    }
-    setClasesGrupales(prev => prev.filter(c => c.id !== id));
-  }
-
-  async function handleAddClase() {
-    if (!newClase.nombre.trim() || !newClase.hora) return;
-    setAddingClase(true);
-    setClaseErr('');
+  async function handleSavePrecios() {
+    setSavingPrecios(true);
+    setPrecioErr('');
     try {
-      const { error } = await supabase.from('clases_grupales').insert({
-        nombre:     newClase.nombre.trim(),
-        dia_semana: newClase.dia_semana,
-        hora:       newClase.hora,
-        capacidad:  newClase.capacidad,
-      });
-      if (error) throw error;
-      await loadClases();
-      setNewClase({ nombre: '', dia_semana: 6, hora: '09:00', capacidad: 12 });
+      const rows = (['1:1', '2:1'] as Modalidad[]).flatMap(modalidad =>
+        FRECUENCIAS.map(frecuencia => ({
+          modalidad,
+          frecuencia_semanal: frecuencia,
+          precio_mes_clp: precios[precioKey(modalidad, frecuencia)] ?? 0,
+        }))
+      );
+      const { error: precioErr1 } = await supabase
+        .from('precios_entrenamiento')
+        .upsert(rows, { onConflict: 'modalidad,frecuencia_semanal' });
+      if (precioErr1) throw precioErr1;
+
+      const { error: cfgErr } = await supabase
+        .from('precios_entrenamiento_config')
+        .upsert([
+          { clave: 'descuento_trimestral_mes', valor: descuentoTrim },
+          { clave: 'descuento_semestral_mes',  valor: descuentoSem },
+        ], { onConflict: 'clave' });
+      if (cfgErr) throw cfgErr;
+
+      setSavedPrecios(true);
+      setTimeout(() => setSavedPrecios(false), 2500);
     } catch (e: unknown) {
-      setClaseErr(typeof e === 'object' && e && 'message' in e
+      setPrecioErr(typeof e === 'object' && e && 'message' in e
         ? String((e as { message: string }).message)
-        : 'Error al guardar');
+        : 'Error al guardar los precios');
     } finally {
-      setAddingClase(false);
+      setSavingPrecios(false);
     }
   }
 
@@ -344,14 +343,7 @@ export default function ConfiguracionPage() {
 
         {/* ─ Cupos y bloques ─ */}
         <Card title="Cupos y bloques">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <NumInput
-              label="Capacidad grupal"
-              sub="Máx. alumnos por clase grupal"
-              value={draft.capacidadGrupal}
-              onChange={v => setDraft(d => ({ ...d, capacidadGrupal: v }))}
-              min={1} max={50}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <NumInput
               label="Máx. profes paralelo"
               sub="Profesores simultáneos por hora"
@@ -522,115 +514,78 @@ export default function ConfiguracionPage() {
           </div>
         </Card>
 
-        {/* ─ Clases grupales ─ */}
-        <Card title="Clases grupales">
+        {/* ─ Precios de entrenamiento ─ */}
+        <Card title="Precios de entrenamiento">
+          <p className="text-[11px] mb-4" style={{ color: 'var(--nexa-muted)' }}>
+            Precio mensual por modalidad y frecuencia semanal. Esto define lo que ve el alumno en /clases-grupales.
+          </p>
 
-          {clasesGrupales.length === 0 ? (
-            <p className="text-[12px] mb-4" style={{ color: 'var(--nexa-muted)' }}>
-              No hay clases grupales configuradas.
-            </p>
-          ) : (
-            <div className="space-y-1.5 mb-4">
-              {clasesGrupales.map(c => (
-                <div key={c.id}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-opacity"
-                  style={{
-                    background: 'var(--nexa-card-alt)',
-                    border: '1px solid var(--nexa-border)',
-                    opacity: c.activa ? 1 : 0.45,
-                  }}>
-                  <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
-                    <span className="text-[13px] font-bold" style={{ color: 'var(--nexa-text)' }}>
-                      {c.nombre}
-                    </span>
-                    <span className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
-                      {DIA_LABELS[c.dia_semana]} · {c.hora} · {c.capacidad} cupos
-                    </span>
-                    {!c.activa && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(155,155,155,0.15)', color: 'var(--nexa-muted)' }}>
-                        Pausada
-      </span>
-                    )}
-                  </div>
-                  <Toggle on={c.activa} onToggle={() => handleToggleClase(c.id, c.activa)} />
-                  <button onClick={() => handleDeleteClase(c.id)}
-                    className="rounded-lg p-1.5 shrink-0"
-                    style={{ color: '#B44040', background: 'rgba(180,64,64,0.1)' }}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
+          <div className="overflow-x-auto mb-5">
+            <table className="w-full text-[12px]" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th className="pb-2 text-left pr-4 text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--nexa-muted)' }}>Veces/semana</th>
+                  <th className="pb-2 text-left pr-4 text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--nexa-muted)' }}>1:1 ($/mes)</th>
+                  <th className="pb-2 text-left text-[10px] font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--nexa-muted)' }}>2:1 ($/mes)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FRECUENCIAS.map(f => (
+                  <tr key={f} style={{ borderTop: '1px solid var(--nexa-border)' }}>
+                    <td className="py-2 pr-4 font-semibold" style={{ color: 'var(--nexa-text)' }}>{f}x</td>
+                    {(['1:1', '2:1'] as Modalidad[]).map(m => (
+                      <td key={m} className="py-2 pr-4">
+                        <input type="text" inputMode="numeric" pattern="[0-9]*"
+                          value={precios[precioKey(m, f)] ?? 0}
+                          onChange={e => setPrecios(p => ({ ...p, [precioKey(m, f)]: parseInt(e.target.value) || 0 }))}
+                          className="w-28 rounded-lg px-2 py-1.5 text-[12px]"
+                          style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <NumInput
+              label="Descuento trimestral"
+              sub="CLP de descuento por mes al elegir plan trimestral"
+              value={descuentoTrim}
+              onChange={setDescuentoTrim}
+              min={0} max={100000}
+            />
+            <NumInput
+              label="Descuento semestral"
+              sub="CLP de descuento por mes al elegir plan semestral"
+              value={descuentoSem}
+              onChange={setDescuentoSem}
+              min={0} max={100000}
+            />
+          </div>
+
+          {precioErr && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-[11px]"
+              style={{ background: 'rgba(180,64,64,0.12)', border: '1px solid #B44040', color: '#B44040' }}>
+              {precioErr}
             </div>
           )}
 
-          {/* Formulario agregar */}
-          <div className="rounded-xl p-4 space-y-3"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--nexa-border)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--nexa-muted)' }}>
-              Agregar clase grupal
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Nombre</label>
-                <input type="text" value={newClase.nombre} placeholder="Ej: HYROX, Barre, GAP"
-                  onChange={e => setNewClase(n => ({ ...n, nombre: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-[12px]"
-                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Día</label>
-                <select value={newClase.dia_semana}
-                  onChange={e => setNewClase(n => ({ ...n, dia_semana: parseInt(e.target.value) }))}
-                  className="w-full rounded-lg px-3 py-2 text-[12px]"
-                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>
-                  {DIA_ORDER.map(dow => (
-                    <option key={dow} value={dow}>{DIA_LABELS[dow]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Hora</label>
-                <input type="time" value={newClase.hora}
-                  onChange={e => setNewClase(n => ({ ...n, hora: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-[12px]"
-                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: 'var(--nexa-muted)' }}>Cupo máx.</label>
-                <input type="text" inputMode="numeric" pattern="[0-9]*" value={newClase.capacidad}
-                  onChange={e => setNewClase(n => ({ ...n, capacidad: parseInt(e.target.value) || 12 }))}
-                  className="w-full rounded-lg px-3 py-2 text-[12px]"
-                  style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
-                />
-              </div>
-            </div>
-
-            {claseErr && (
-              <div className="rounded-lg px-3 py-2 text-[11px]"
-                style={{ background: 'rgba(180,64,64,0.12)', border: '1px solid #B44040', color: '#B44040' }}>
-                {claseErr}
-              </div>
-            )}
-
-            <button onClick={handleAddClase} disabled={!newClase.nombre.trim() || addingClase}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-bold transition"
-              style={{
-                background: 'var(--nexa-card-alt)',
-                border: '1px solid var(--nexa-border)',
-                color: 'var(--nexa-text)',
-                opacity: (!newClase.nombre.trim() || addingClase) ? 0.45 : 1,
-              }}>
-              <Plus size={13} />
-              {addingClase ? 'Agregando...' : 'Agregar clase'}
-            </button>
-          </div>
+          <button onClick={handleSavePrecios} disabled={savingPrecios}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold transition"
+            style={{
+              background: savedPrecios ? '#2E7D55' : 'var(--nexa-accent)',
+              color: '#FFFFFF',
+              opacity: savingPrecios ? 0.6 : 1,
+            }}>
+            <Save size={13} />
+            {savingPrecios ? 'Guardando...' : savedPrecios ? 'Guardado ✓' : 'Guardar precios'}
+          </button>
         </Card>
 
       </div>

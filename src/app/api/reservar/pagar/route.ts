@@ -1,32 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { crearPagoFlow } from '@/lib/flow';
+import { EMAIL_RE, montoTotalPlan, validarRut, type Modalidad, type TipoPlan as Tipo } from '@/lib/catalogo';
 
 export const runtime = 'nodejs';
 
 interface Body {
-  planId:   string;
-  claseId:  string;
-  fecha:    string;
-  hora:     string;
-  nombre:   string;
-  apellido: string;
-  email:    string;
-  telefono: string | null;
-  rut:      string | null;
+  modalidad:          Modalidad;
+  frecuenciaSemanal:  number;
+  tipo:               Tipo;
+  diasSemana:         number[];
+  hora:               string;
+  nombre:             string;
+  apellido:           string;
+  email:              string;
+  telefono:           string | null;
+  rut:                string | null;
 }
 
-interface Clase {
-  hora:     string;
-  capacidad: number;
-  nombre:   string;
-}
-
-interface Plan {
-  precio_clp: number;
-  nombre:     string;
-  num_clases: number;
-}
 
 export async function POST(req: NextRequest) {
   const supabaseAdmin = createClient(
@@ -36,65 +27,79 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json() as Body;
-    const { planId, claseId, fecha, hora, nombre, apellido, email, telefono, rut } = body;
+    const { modalidad, frecuenciaSemanal, tipo, diasSemana, hora, nombre, apellido, email, telefono, rut } = body;
 
     // Validaciones básicas
-    if (!planId || !claseId || !fecha || !hora || !nombre.trim() || !apellido.trim()) {
+    if (!['1:1', '2:1'].includes(modalidad)) {
+      return NextResponse.json({ error: 'Modalidad inválida.' }, { status: 400 });
+    }
+    if (!Number.isInteger(frecuenciaSemanal) || frecuenciaSemanal < 1 || frecuenciaSemanal > 5) {
+      return NextResponse.json({ error: 'Frecuencia inválida.' }, { status: 400 });
+    }
+    if (!['mensual', 'trimestral', 'semestral'].includes(tipo)) {
+      return NextResponse.json({ error: 'Duración inválida.' }, { status: 400 });
+    }
+    if (!Array.isArray(diasSemana) || diasSemana.length !== frecuenciaSemanal
+        || new Set(diasSemana).size !== diasSemana.length
+        || diasSemana.some(d => !Number.isInteger(d) || d < 1 || d > 6)) {
+      return NextResponse.json({ error: 'Debes elegir exactamente los días que correspondan a tu frecuencia semanal.' }, { status: 400 });
+    }
+    if (typeof hora !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
+      return NextResponse.json({ error: 'La hora no es válida.' }, { status: 400 });
+    }
+    if (rut?.trim() && !validarRut(rut)) {
+      return NextResponse.json({ error: 'El RUT no es válido.' }, { status: 400 });
+    }
+    if (!hora || !nombre?.trim() || !apellido?.trim()) {
       return NextResponse.json({ error: 'Faltan campos obligatorios.' }, { status: 400 });
     }
-    if (!email?.trim()) {
-      return NextResponse.json({ error: 'El email es obligatorio para procesar el pago.' }, { status: 400 });
+    if (!email?.trim() || !EMAIL_RE.test(email.trim())) {
+      return NextResponse.json({ error: 'Ingresa un email válido para procesar el pago.' }, { status: 400 });
     }
 
-    // Verificar plan activo
-    const { data: plan, error: planErr } = await supabaseAdmin
-      .from('planes_grupales')
-      .select('precio_clp, nombre, num_clases')
-      .eq('id', planId)
-      .eq('activo', true)
-      .single();
-    if (planErr || !plan) {
-      return NextResponse.json({ error: 'Plan no encontrado.' }, { status: 404 });
+    // Precio: siempre se calcula en el servidor, nunca se confía en el monto del cliente
+    const [{ data: precioFila, error: precioErr }, { data: configFilas, error: configErr }] = await Promise.all([
+      supabaseAdmin
+        .from('precios_entrenamiento')
+        .select('precio_mes_clp')
+        .eq('modalidad', modalidad)
+        .eq('frecuencia_semanal', frecuenciaSemanal)
+        .single(),
+      supabaseAdmin
+        .from('precios_entrenamiento_config')
+        .select('clave, valor'),
+    ]);
+
+    if (precioErr || !precioFila) {
+      return NextResponse.json({ error: 'No se encontró precio para esa combinación.' }, { status: 404 });
+    }
+    if (configErr || !configFilas) {
+      return NextResponse.json({ error: 'Error al leer configuración de precios.' }, { status: 500 });
     }
 
-    // Verificar clase activa
-    const { data: clase, error: claseErr } = await supabaseAdmin
-      .from('clases_grupales')
-      .select('hora, capacidad, nombre')
-      .eq('id', claseId)
-      .eq('activa', true)
-      .single();
-    if (claseErr || !clase) {
-      return NextResponse.json({ error: 'Clase no encontrada.' }, { status: 404 });
-    }
+    const config: Record<string, number> = {};
+    for (const c of configFilas as { clave: string; valor: number }[]) config[c.clave] = c.valor;
 
-    // Verificar cupos en tiempo real
-    const { count } = await supabaseAdmin
-      .from('reservas')
-      .select('id', { count: 'exact', head: true })
-      .eq('fecha', fecha)
-      .eq('hora', (clase as Clase).hora)
-      .ilike('tipo_clase', '%grupal%')
-      .not('estado', 'in', '(cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)');
-
-    if ((count ?? 0) >= (clase as Clase).capacidad) {
-      return NextResponse.json({ error: 'No quedan cupos disponibles para esta clase.' }, { status: 409 });
+    const montoClp = montoTotalPlan((precioFila as { precio_mes_clp: number }).precio_mes_clp, tipo, config);
+    if (!Number.isInteger(montoClp) || montoClp <= 0) {
+      return NextResponse.json({ error: 'No se pudo calcular el precio del plan.' }, { status: 500 });
     }
 
     // Crear pedido en DB
     const { data: pedido, error: pedidoErr } = await supabaseAdmin
-      .from('pedidos_grupales')
+      .from('pedidos_planes')
       .insert({
-        plan_id:   planId,
-        clase_id:  claseId,
-        fecha,
-        hora:      (clase as Clase).hora,
+        modalidad,
+        frecuencia_semanal: frecuenciaSemanal,
+        tipo,
+        dias_semana: diasSemana,
+        hora,
         nombre:    nombre.trim(),
         apellido:  apellido.trim(),
         email:     email.trim(),
         telefono:  telefono?.trim() || null,
         rut:       rut?.trim()      || null,
-        monto_clp: (plan as Plan).precio_clp,
+        monto_clp: montoClp,
         estado:    'pendiente',
       })
       .select('id')
@@ -105,25 +110,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error al crear el pedido.' }, { status: 500 });
     }
 
-    const pedidoId     = (pedido as { id: string }).id;
-    const commerceOrder = `nexa-g-${pedidoId.slice(0, 16)}`;
-    const baseUrl      = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
-    const nombreClase  = (clase as Clase & { nombre: string }).nombre;
-    const nombrePlan   = (plan as Plan).nombre;
+    const pedidoId      = (pedido as { id: string }).id;
+    const commerceOrder = `nexa-p-${pedidoId.slice(0, 16)}`;
+    const baseUrl       = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
 
     // Crear orden en Flow
     const flow = await crearPagoFlow({
       commerceOrder,
-      subject:         `${nombreClase} — ${nombrePlan} · ${nombre.trim()} ${apellido.trim()}`,
-      amount:          (plan as Plan).precio_clp,
+      subject:         `Plan ${tipo} ${modalidad} · ${nombre.trim()} ${apellido.trim()}`,
+      amount:          montoClp,
       email:           email.trim(),
-      urlReturn:       `${baseUrl}/reservar/retorno`,
+      urlReturn:       `${baseUrl}/api/reservar/retorno`,
       urlConfirmation: `${baseUrl}/api/reservar/confirmar`,
     });
 
     // Guardar flow_token en pedido
     const { error: tokenUpdateErr } = await supabaseAdmin
-      .from('pedidos_grupales')
+      .from('pedidos_planes')
       .update({
         flow_token:     flow.token,
         flow_order:     flow.flowOrder,
@@ -133,9 +136,10 @@ export async function POST(req: NextRequest) {
       .eq('id', pedidoId);
 
     if (tokenUpdateErr) {
-      // El link de pago ya se generó en Flow, así que dejamos que el alumno pague igual;
-      // pero si esto falla, la confirmación posterior no va a encontrar el pedido por flow_token.
+      // Sin el token guardado, la confirmación de Flow no encontraría el pedido:
+      // es preferible no enviar a pagar.
       console.error('[reservar/pagar] error guardando flow_token en pedido:', pedidoId, tokenUpdateErr);
+      return NextResponse.json({ error: 'No pudimos preparar el pago. Intenta de nuevo.' }, { status: 500 });
     }
 
     return NextResponse.json({ payUrl: flow.payUrl, pedidoId });

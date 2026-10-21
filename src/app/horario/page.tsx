@@ -63,6 +63,7 @@ interface AtletaBusqueda {
   nombre:   string;
   apellido: string;
   rut?:     string;
+  tipo_sesion?: '1:1' | '2:1' | null;
 }
 
 interface PlanActivo {
@@ -297,7 +298,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
       setBuscando(true);
       const { data } = await supabase
         .from('atletas')
-        .select('id, nombre, apellido, rut')
+        .select('id, nombre, apellido, rut, tipo_sesion')
         .eq('coach_id', coachId)
         .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,rut.ilike.%${query}%`)
         .limit(6);
@@ -313,6 +314,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
     setResultados([]);
     setCargandoPlan(true);
     setPlan(undefined);
+    // Tipo por defecto: el de la ficha del alumno (el plan, si lo indica, manda)
+    if (a.tipo_sesion === '1:1' || a.tipo_sesion === '2:1') setTipo(a.tipo_sesion);
 
     const today = new Date().toISOString().slice(0, 10);
     const { data: planesData } = await supabase
@@ -443,8 +446,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
               style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['1:1', '2:1', 'Grupal'] as TipoClase[]).map(t => (
+            <div className="grid grid-cols-2 gap-1.5">
+              {(['1:1', '2:1'] as TipoClase[]).map(t => (
                 <button key={t} onClick={() => setTipo(t)}
                   className="rounded-lg py-2 text-[12px] font-semibold transition"
                   style={{

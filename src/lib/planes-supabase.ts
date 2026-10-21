@@ -27,6 +27,7 @@ export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
     alumnoId:      String(r.alumno_id),
     nombre:        String(r.nombre),
     tipo:          String(r.tipo) as Plan['tipo'],
+    modalidad:     r.modalidad === '1:1' || r.modalidad === '2:1' ? r.modalidad : null,
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
@@ -77,6 +78,8 @@ export async function getReservasAlumnoDB(alumnoId: string): Promise<Reserva[]> 
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     estado:      String(r.estado) as Reserva['estado'],
     reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
+    tipoClase:   r.tipo_clase ? String(r.tipo_clase) : undefined,
+    coachId:     r.coach_id ? String(r.coach_id) : undefined,
     creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
   }));
 }
@@ -90,6 +93,9 @@ export async function upsertReservaDB(reserva: Reserva): Promise<void> {
     hora:        reserva.hora       || null,
     estado:      reserva.estado,
     reagenda_id: reserva.reagendaId || null,
+    // Solo se envían si vienen definidos, para no borrar el valor guardado
+    ...(reserva.tipoClase ? { tipo_clase: reserva.tipoClase } : {}),
+    ...(reserva.coachId   ? { coach_id:   reserva.coachId }   : {}),
   });
   if (error) throw error;
 }
@@ -118,6 +124,7 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
     alumnoId:      String(r.alumno_id),
     nombre:        String(r.nombre),
     tipo:          String(r.tipo) as Plan['tipo'],
+    modalidad:     r.modalidad === '1:1' || r.modalidad === '2:1' ? r.modalidad : null,
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),

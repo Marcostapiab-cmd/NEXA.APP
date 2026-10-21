@@ -2,29 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { consultarPagoFlow } from '@/lib/flow';
 import { Resend } from 'resend';
-import { DIAS_LARGO, MESES_LARGO } from '@/lib/format';
 
 export const runtime = 'nodejs';
 
-function formatFecha(fecha: string) {
-  const d = new Date(fecha + 'T12:00:00');
-  return `${DIAS_LARGO[d.getDay()]} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
+interface ConfirmarResult {
+  ok:                 boolean;
+  ya_procesado:       boolean;
+  atleta_id:          string | null;
+  plan_id:            string | null;
+  pedido_id:          string | null;
+  nombre:             string | null;
+  apellido:           string | null;
+  email:              string | null;
+  modalidad:          string | null;
+  tipo:               string | null;
+  frecuencia_semanal: number | null;
+  monto_clp:          number | null;
 }
 
-interface ConfirmarResult {
-  ok:            boolean;
-  ya_procesado:  boolean;
-  atleta_id:     string | null;
-  reserva_id:    number | null;
-  pedido_id:     string | null;
-  nombre:        string | null;
-  apellido:      string | null;
-  email:         string | null;
-  fecha:         string | null;
-  hora:          string | null;
-  clase_nombre:  string | null;
-  plan_nombre:   string | null;
-}
+const TIPO_LABEL: Record<string, string> = { mensual: 'Mensual', trimestral: 'Trimestral', semestral: 'Semestral' };
 
 // Flow llama a esta URL (POST con form-data) cuando se confirma el pago
 export async function POST(req: NextRequest) {
@@ -48,7 +44,7 @@ export async function POST(req: NextRequest) {
       // No pagado todavía — actualizar estado si es rechazo
       if (pago.status === 3 || pago.status === 4) {
         await supabaseAdmin
-          .from('pedidos_grupales')
+          .from('pedidos_planes')
           .update({ estado: 'fallido' })
           .eq('flow_token', token)
           .eq('estado', 'procesando');
@@ -56,15 +52,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, status: pago.status });
     }
 
-    // Toda la lógica de negocio (buscar/crear atleta, buscar/crear
-    // reserva, marcar el pedido pagado) corre en una sola transacción de
+    // El monto pagado en Flow debe coincidir con el del pedido; si no, no se
+    // acredita nada y queda para revisión manual.
+    const { data: pedidoMonto } = await supabaseAdmin
+      .from('pedidos_planes')
+      .select('monto_clp')
+      .eq('flow_token', token)
+      .maybeSingle();
+    if (pedidoMonto && Math.round(pago.amount) !== (pedidoMonto as { monto_clp: number }).monto_clp) {
+      console.error('[confirmar] monto pagado no coincide con el pedido; token', token);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Toda la lógica de negocio (buscar/crear atleta, crear el plan y sus
+    // reservas, marcar el pedido pagado) corre en una sola transacción de
     // Postgres con la fila del pedido bloqueada (SELECT ... FOR UPDATE
-    // dentro de confirmar_pedido_grupal_pago, migración 032). Si Flow
+    // dentro de confirmar_pedido_plan_pago, migración 033). Si Flow
     // reintenta la entrega del webhook, la segunda llamada espera a que
     // termine la primera y encuentra el pedido ya pagado — sin duplicar
-    // atletas ni reservas.
+    // atletas, planes ni reservas.
     const { data, error } = await supabaseAdmin
-      .rpc('confirmar_pedido_grupal_pago', { p_flow_token: token })
+      .rpc('confirmar_pedido_plan_pago', { p_flow_token: token })
       .single();
 
     if (error || !data) {
@@ -87,17 +95,16 @@ export async function POST(req: NextRequest) {
     // Enviar email de confirmación
     if (result.email && process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'NEXA <noreply@nexafitness.cl>';
-      const fechaLegible = formatFecha(result.fecha!);
-      const claseNombre  = result.clase_nombre ?? 'Clase grupal';
-      const claseHora    = result.hora ?? '';
-      const planNombre   = result.plan_nombre ?? 'Pack de prueba';
+      const fromEmail    = process.env.RESEND_FROM_EMAIL ?? 'NEXA <noreply@nexafitness.cl>';
       const nombreAlumno = result.nombre ?? '';
+      const tipoLabel    = TIPO_LABEL[result.tipo ?? ''] ?? result.tipo ?? '';
+      const planNombre   = `Plan ${tipoLabel} ${result.modalidad ?? ''}`.trim();
+      const montoTexto   = result.monto_clp ? `$${result.monto_clp.toLocaleString('es-CL')}` : '';
 
       await resend.emails.send({
         from:    fromEmail,
         to:      [result.email],
-        subject: `¡Reserva confirmada! ${claseNombre} — ${fechaLegible}`,
+        subject: `¡Tu plan está confirmado! ${planNombre}`,
         html: `
 <!DOCTYPE html>
 <html lang="es">
@@ -115,29 +122,25 @@ export async function POST(req: NextRequest) {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td style="padding:28px 32px;background:#f0fdf4;border-bottom:1px solid #dcfce7;text-align:center;">
               <div style="font-size:40px;margin-bottom:8px;">✅</div>
-              <h1 style="margin:0;font-size:22px;font-weight:900;color:#15803d;">¡Reserva confirmada!</h1>
-              <p style="margin:6px 0 0;font-size:14px;color:#16a34a;">Hola ${nombreAlumno}, tu lugar está apartado.</p>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#15803d;">¡Plan confirmado!</h1>
+              <p style="margin:6px 0 0;font-size:14px;color:#16a34a;">Hola ${nombreAlumno}, ya quedaste inscrito.</p>
             </td></tr>
             <tr><td style="padding:28px 32px;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border-radius:14px;border:1px solid #e8e8e8;overflow:hidden;">
                 <tr><td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                  <p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;">Clase</p>
-                  <p style="margin:0;font-size:17px;font-weight:900;color:#121212;">${claseNombre}</p>
+                  <p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;">Plan</p>
+                  <p style="margin:0;font-size:17px;font-weight:900;color:#121212;">${planNombre}</p>
                 </td></tr>
                 <tr><td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                  <p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;">Fecha y hora</p>
-                  <p style="margin:0;font-size:15px;font-weight:700;color:#121212;text-transform:capitalize;">${fechaLegible} · ${claseHora}</p>
-                </td></tr>
-                <tr><td style="padding:16px 20px;border-bottom:1px solid #e8e8e8;">
-                  <p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;">Pack</p>
-                  <p style="margin:0;font-size:14px;font-weight:600;color:#121212;">${planNombre}</p>
+                  <p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#999;">Frecuencia</p>
+                  <p style="margin:0;font-size:15px;font-weight:700;color:#121212;">${result.frecuencia_semanal ?? ''} veces por semana</p>
                 </td></tr>
                 <tr><td style="padding:14px 20px;text-align:center;background:#fefce8;">
-                  <p style="margin:0;font-size:13px;font-weight:700;color:#a16207;text-transform:uppercase;letter-spacing:1px;">Pago confirmado ✓</p>
+                  <p style="margin:0;font-size:13px;font-weight:700;color:#a16207;text-transform:uppercase;letter-spacing:1px;">Pago confirmado${montoTexto ? ` · ${montoTexto}` : ''} ✓</p>
                 </td></tr>
               </table>
               <p style="margin:20px 0 0;font-size:13px;color:#5e5e5e;line-height:1.6;text-align:center;">
-                Si necesitas cancelar, contáctanos con anticipación.<br>¡Te esperamos, ${nombreAlumno}!
+                Nuestro equipo te va a contactar para confirmar tu coach y horario definitivo.<br>¡Te esperamos, ${nombreAlumno}!
               </p>
             </td></tr>
           </table>

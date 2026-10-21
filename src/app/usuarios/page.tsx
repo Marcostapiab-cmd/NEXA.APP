@@ -485,7 +485,7 @@ export default function UsuariosPage() {
               {esProfesor && (
                 <>
                   <Field label="Especialidad">
-                    <input type="text" placeholder="Ej: Funcional, HYROX, Fuerza"
+                    <input type="text" placeholder="Ej: Funcional, Fuerza, Movilidad"
                       value={form.especialidad} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))}
                       className="input-nexa" />
                   </Field>

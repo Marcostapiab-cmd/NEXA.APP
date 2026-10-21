@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { EMAIL_RE, formatearRut, validarRut } from '@/lib/catalogo';
+import { supabaseAdmin } from '@/lib/grupales-server';
 
 export const runtime = 'nodejs';
 
@@ -12,83 +13,72 @@ interface Body {
   password: string;
 }
 
+// Crea la cuenta de un alumno de clases grupales (rol 'grupales').
+// El cliente inicia sesión después con signInWithPassword.
 export async function POST(req: NextRequest) {
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const admin = supabaseAdmin();
 
   try {
-    const body = await req.json() as Body;
-    const { nombre, apellido, email, telefono, rut, password } = body;
+    const { nombre, apellido, email, telefono, rut, password } = await req.json() as Body;
+    const emailNorm = email?.trim().toLowerCase() ?? '';
 
-    if (!nombre?.trim() || !apellido?.trim() || !email?.trim() || !password) {
-      return NextResponse.json({ error: 'Faltan campos obligatorios.' }, { status: 400 });
+    if (!nombre?.trim() || !apellido?.trim() || !emailNorm || !password) {
+      return NextResponse.json({ error: 'Completa nombre, apellido, email y contraseña.' }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres.' }, { status: 400 });
+    if (!EMAIL_RE.test(emailNorm)) {
+      return NextResponse.json({ error: 'El email no es válido.' }, { status: 400 });
+    }
+    if (password.length < 8) {
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
+    }
+    if (rut?.trim() && !validarRut(rut)) {
+      return NextResponse.json({ error: 'El RUT no es válido.' }, { status: 400 });
     }
 
-    // Verificar que no exista ya un alumno grupal con ese email
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await admin
       .from('grupales_alumnos')
       .select('id')
-      .eq('email', email.trim().toLowerCase())
+      .eq('email', emailNorm)
       .maybeSingle();
     if (existing) {
-      return NextResponse.json({ error: 'Ya existe una cuenta con ese email.' }, { status: 409 });
+      return NextResponse.json({ error: 'Ya existe una cuenta con ese email. Inicia sesión.' }, { status: 409 });
     }
 
-    // Crear usuario en Supabase Auth con rol 'grupales'
-    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email:          email.trim().toLowerCase(),
+    const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+      email:         emailNorm,
       password,
-      email_confirm:  true,
-      user_metadata:  { rol: 'grupales', nombre, apellido },
+      email_confirm: true,
+      user_metadata: { rol: 'grupales', nombre: nombre.trim(), apellido: apellido.trim() },
     });
 
     if (authErr || !authData.user) {
-      const raw = typeof authErr?.message === 'string' ? authErr.message : 'Error al crear el usuario.';
-      const isdup = /already|duplicate|registered|existe/i.test(raw);
+      const raw = authErr?.message ?? '';
+      const dup = /already|duplicate|registered|existe/i.test(raw);
       return NextResponse.json(
-        { error: isdup ? 'Ya existe una cuenta con ese email.' : raw },
-        { status: isdup ? 409 : 500 }
+        { error: dup ? 'Ya existe una cuenta con ese email. Inicia sesión.' : 'No pudimos crear la cuenta. Intenta de nuevo.' },
+        { status: dup ? 409 : 500 },
       );
     }
 
-    // Insertar en grupales_alumnos
-    const { error: alErr } = await supabaseAdmin.from('grupales_alumnos').insert({
+    const { error: alErr } = await admin.from('grupales_alumnos').insert({
       user_id:  authData.user.id,
       nombre:   nombre.trim(),
       apellido: apellido.trim(),
-      email:    email.trim().toLowerCase(),
+      email:    emailNorm,
       telefono: telefono?.trim() || null,
-      rut:      rut?.trim()      || null,
+      rut:      rut?.trim() ? formatearRut(rut) : null,
     });
 
     if (alErr) {
-      // Revertir el usuario creado para no dejar huérfanos
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      console.error('[registro] grupales_alumnos insert error:', alErr);
-      return NextResponse.json({ error: 'Error al guardar el perfil.' }, { status: 500 });
+      // Revertir el usuario para no dejar cuentas huérfanas
+      await admin.auth.admin.deleteUser(authData.user.id);
+      console.error('[grupales/registro] insert error:', alErr);
+      return NextResponse.json({ error: 'No pudimos guardar tu perfil. Intenta de nuevo.' }, { status: 500 });
     }
 
-    // Iniciar sesión automáticamente para el usuario
-    const { data: session, error: signErr } = await supabaseAdmin.auth.admin.generateLink({
-      type:  'magiclink',
-      email: email.trim().toLowerCase(),
-    });
-
-    // Devolver solo éxito; el cliente hará login con signInWithPassword
-    if (signErr || !session) {
-      // No es un error crítico — el usuario existe, simplemente que haga login
-      return NextResponse.json({ success: true, needsLogin: true });
-    }
-
-    return NextResponse.json({ success: true, needsLogin: false });
+    return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Error interno del servidor.');
-    console.error('[registro] error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[grupales/registro] error:', err);
+    return NextResponse.json({ error: 'No pudimos crear la cuenta. Intenta de nuevo.' }, { status: 500 });
   }
 }
