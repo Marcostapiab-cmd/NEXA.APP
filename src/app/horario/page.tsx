@@ -882,8 +882,11 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
           sesiones.get(key)!.push(r);
         }
 
-        let clases = 0;
-        let pago   = 0;
+        let n1a1        = 0;
+        let n2a1Completa = 0;
+        let n2a1Incompleta = 0;
+        let nGrupal     = 0;
+        let pago        = 0;
         sesiones.forEach(filas => {
           // Solo se paga por sesiones ya realizadas (presente / no-show /
           // cancelada tarde = "queman" la clase). Pendientes, futuras o
@@ -891,16 +894,26 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
           const realizadas = filas.filter(r => ESTADOS_QUE_QUEMAN.includes(String(r.estado)));
           if (realizadas.length === 0) return;
 
-          clases += 1;
-          const esDuo = filas.some(r => (r.tipo_clase || '').includes('2:1'));
-          if (esDuo) {
+          const tipos = filas.map(r => parseTipo(r.tipo_clase, r.descripcion));
+          if (tipos.includes('2:1')) {
             // 2:1 con ambos alumnos presentes paga tarifa2; con solo uno,
             // tarifa incompleta (nunca se paga dos veces la misma sesión).
-            pago += realizadas.length >= 2 ? c.tarifa_2a1 : c.tarifa_incompleta_2a1;
+            if (realizadas.length >= 2) { n2a1Completa += 1; pago += c.tarifa_2a1; }
+            else                        { n2a1Incompleta += 1; pago += c.tarifa_incompleta_2a1; }
+          } else if (tipos.includes('Grupal')) {
+            nGrupal += 1;
           } else {
+            n1a1 += 1;
             pago += c.tarifa_1a1;
           }
         });
+        const clases = n1a1 + n2a1Completa + n2a1Incompleta + nGrupal;
+        const desglose: { label: string; n: number; color: string }[] = [
+          { label: '1:1',              n: n1a1,           color: 'var(--nexa-text)' },
+          { label: '2:1 completas',    n: n2a1Completa,   color: '#2E7D55' },
+          { label: '2:1 incompletas',  n: n2a1Incompleta, color: '#B8860B' },
+          ...(nGrupal > 0 ? [{ label: 'grupales', n: nGrupal, color: 'var(--nexa-text)' }] : []),
+        ];
 
         return (
           <div key={c.id} style={{
@@ -922,11 +935,17 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
               }}>
                 {c.nombre}
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 3 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 12, rowGap: 2, marginTop: 3 }}>
                 <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   <span style={{ fontSize: 16, fontWeight: 300, color: '#2E7D55', marginRight: 3 }}>{clases}</span>
                   clases
                 </span>
+                {desglose.map(d => (
+                  <span key={d.label} style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 400, color: d.n > 0 ? d.color : 'var(--nexa-muted)', marginRight: 3 }}>{d.n}</span>
+                    {d.label}
+                  </span>
+                ))}
                 {pago > 0 && (
                   <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     <span style={{ fontSize: 13, fontWeight: 300, color: 'var(--nexa-accent)', marginRight: 2 }}>
