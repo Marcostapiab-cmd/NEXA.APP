@@ -195,18 +195,18 @@ CREATE POLICY "reservas_select_scoped" ON public.reservas
   FOR SELECT TO authenticated
   USING (
     get_my_role() IN ('admin', 'host', 'recepcionista')
-    OR (get_my_role() = 'profesor' AND coach_id = auth.uid())
+    OR (get_my_role() = 'profesor' AND coach_id::text = auth.uid()::text)
   );
 
 CREATE POLICY "reservas_update_scoped" ON public.reservas
   FOR UPDATE TO authenticated
   USING (
     get_my_role() IN ('admin', 'host', 'recepcionista')
-    OR (get_my_role() = 'profesor' AND coach_id = auth.uid())
+    OR (get_my_role() = 'profesor' AND coach_id::text = auth.uid()::text)
   )
   WITH CHECK (
     get_my_role() IN ('admin', 'host', 'recepcionista')
-    OR (get_my_role() = 'profesor' AND coach_id = auth.uid())
+    OR (get_my_role() = 'profesor' AND coach_id::text = auth.uid()::text)
   );
 
 CREATE POLICY "reservas_insert_staff" ON public.reservas
@@ -974,7 +974,7 @@ GRANT  EXECUTE ON FUNCTION public.confirmar_compra_grupal_pago(text, int) TO ser
 UPDATE public.planes p
    SET modalidad = '2:1'
   FROM public.atletas a
- WHERE p.alumno_id   = a.id
+ WHERE p.alumno_id::text = a.id::text   -- en la base real alumno_id es texto y atletas.id es uuid
    AND a.tipo_sesion = '2:1'
    AND p.modalidad IS NULL;
 
@@ -987,8 +987,8 @@ BEGIN
   FOR r IN
     SELECT res.id, res.fecha, res.hora
       FROM public.reservas res
-      JOIN public.planes   p ON p.id = res.plan_id
-      JOIN public.atletas  a ON a.id = p.alumno_id
+      JOIN public.planes   p ON p.id::text = res.plan_id::text
+      JOIN public.atletas  a ON a.id::text = p.alumno_id::text
      WHERE a.tipo_sesion = '2:1'
        AND p.modalidad   = '2:1'
        AND res.fecha    >= current_date

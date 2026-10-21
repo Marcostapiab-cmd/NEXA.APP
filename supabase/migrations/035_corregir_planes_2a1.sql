@@ -18,7 +18,7 @@
 UPDATE public.planes p
    SET modalidad = '2:1'
   FROM public.atletas a
- WHERE p.alumno_id   = a.id
+ WHERE p.alumno_id::text = a.id::text   -- en la base real alumno_id es texto y atletas.id es uuid
    AND a.tipo_sesion = '2:1'
    AND p.modalidad IS NULL;
 
@@ -31,8 +31,8 @@ BEGIN
   FOR r IN
     SELECT res.id, res.fecha, res.hora
       FROM public.reservas res
-      JOIN public.planes   p ON p.id = res.plan_id
-      JOIN public.atletas  a ON a.id = p.alumno_id
+      JOIN public.planes   p ON p.id::text = res.plan_id::text
+      JOIN public.atletas  a ON a.id::text = p.alumno_id::text
      WHERE a.tipo_sesion = '2:1'
        AND p.modalidad   = '2:1'
        AND res.fecha    >= current_date
