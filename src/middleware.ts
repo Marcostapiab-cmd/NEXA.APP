@@ -32,9 +32,24 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  const pathname = request.nextUrl.pathname;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Si faltan las variables de Supabase (p. ej. no están habilitadas para el
+  // entorno Preview en Vercel), no se tumba todo el sitio con un 500: las
+  // páginas públicas se muestran y el resto va al login, sin dar acceso.
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('[middleware] Faltan NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY en este entorno');
+    if (PUBLIC_OPEN.some(p => pathname.startsWith(p)) || AUTH_ROUTES.includes(pathname) || GRUPALES_AUTH.includes(pathname)) {
+      return response;
+    }
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -52,7 +67,6 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const pathname = request.nextUrl.pathname;
   const rol = user?.user_metadata?.rol as string | undefined;
 
   // Páginas abiertas: cualquiera puede verlas, logueado o no
