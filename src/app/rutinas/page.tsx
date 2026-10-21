@@ -88,7 +88,7 @@ function migrateToCalendar(raw: any): Routine {
 // ─── Calendar helpers ─────────────────────────────────────────────────────────
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DOW_LABEL  = ['L','M','X','J','V','S','D'];
+const DOW_LABEL  = ['L','M','Mi','J','V','S','D'];
 const DOW_FULL   = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
 function toDateStr(d: Date) { return d.toISOString().slice(0, 10); }
