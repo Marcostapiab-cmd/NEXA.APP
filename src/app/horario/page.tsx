@@ -16,6 +16,9 @@ import {
 
 const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 const ESTADOS_QUE_QUEMAN  = ['presente', 'no_show', 'cancelada_tarde'];
+// Reservas que ya no ocupan cupo en el horario
+const ESTADOS_INACTIVOS   = ['cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
+const esActiva = (status: string) => !ESTADOS_INACTIVOS.includes((status || '').toLowerCase());
 
 const ESTADOS_ASISTENCIA = [
   { value: 'presente',   label: 'Presente',        color: '#2E7D55' },
@@ -32,6 +35,7 @@ interface Alumno {
   reservaId: number | string;
   nombre:    string;
   status:    string;
+  tipo:      TipoClase;
 }
 
 interface Slot {
@@ -148,8 +152,18 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrup
       reservaId: r.id,
       nombre:    alumnoLabel(r),
       status:    String(r.estado || 'pendiente'),
+      tipo,
     });
   }
+  // El tipo del horario lo definen las reservas activas (una cancelada 1:1
+  // no debe hacer que un horario 2:1 se vea como 1:1).
+  map.forEach(slot => {
+    const activa = slot.alumnos.find(a => esActiva(a.status));
+    if (activa && activa.tipo !== slot.tipo) {
+      slot.tipo       = activa.tipo;
+      slot.cuposTotal = getCupos(activa.tipo, capacidadGrupal);
+    }
+  });
   return map;
 }
 
@@ -164,14 +178,38 @@ function getSlotsForCell(slotMap: Map<string, Slot>, fecha: string, hora: string
 
 // ─── Modal editar asistencia ──────────────────────────────────────────────────
 
-function EditModal({ slot, coachNombre, onClose, onSaved }: {
+function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
   slot:        Slot;
   coachNombre: string;
+  isPast:      boolean;
   onClose:     () => void;
   onSaved:     () => void;
+  onAgregar:   () => void;
 }) {
   const [alumnos, setAlumnos] = useState<Alumno[]>(slot.alumnos);
   const [saving,  setSaving]  = useState(false);
+  const [tipo,    setTipo]    = useState<TipoClase>(slot.tipo);
+  const [error,   setError]   = useState('');
+
+  const activos      = slot.alumnos.filter(a => esActiva(a.status));
+  const esIndividual = slot.tipo !== 'Grupal';
+  const hayCupo2a1   = tipo === '2:1' && activos.length < 2;
+
+  // Cambia el tipo (1:1 ↔ 2:1) de las clases activas de este horario.
+  // Sirve para corregir alumnos 2:1 que quedaron guardados como 1:1.
+  async function guardarTipo(): Promise<boolean> {
+    if (tipo === slot.tipo || !esIndividual) return true;
+    if (tipo === '1:1' && activos.length > 1) {
+      setError('Hay 2 alumnos en este horario: no puede ser 1:1.');
+      return false;
+    }
+    const tipoClase = tipo === '2:1' ? '2:1 Duo' : '1:1 Individual';
+    for (const a of activos) {
+      const { error: err } = await supabase.from('reservas').update({ tipo_clase: tipoClase }).eq('id', a.reservaId);
+      if (err) { setError(`No se pudo cambiar a ${tipo}: ${err.message}`); return false; }
+    }
+    return true;
+  }
 
   function setStatus(id: number | string, status: string) {
     setAlumnos(prev => prev.map(a => a.reservaId === id ? { ...a, status } : a));
@@ -179,7 +217,9 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
 
   async function handleSave() {
     setSaving(true);
+    setError('');
     try {
+      if (!(await guardarTipo())) { onSaved(); return; }
       const results = await Promise.allSettled(
         alumnos.map(a =>
           supabase.from('reservas').update({ estado: a.status }).eq('id', a.reservaId)
@@ -223,6 +263,36 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
         </div>
 
         <div className="p-4 space-y-5">
+          {esIndividual && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
+                style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['1:1', '2:1'] as TipoClase[]).map(t => {
+                  const active = tipo === t;
+                  const deshabilitado = t === '1:1' && activos.length > 1;
+                  return (
+                    <button key={t} type="button" onClick={() => setTipo(t)} disabled={deshabilitado}
+                      aria-pressed={active}
+                      className="rounded-lg py-2 text-[12px] font-semibold transition disabled:opacity-40"
+                      style={{
+                        background: active ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
+                        color:      active ? '#FFFFFF' : 'var(--nexa-muted)',
+                        border:     `1px solid ${active ? 'var(--nexa-accent)' : 'var(--nexa-border)'}`,
+                      }}>
+                      {t} {t === '2:1' ? `· ${Math.min(activos.length, 2)}/2` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+              {tipo !== slot.tipo && (
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--nexa-muted)' }}>
+                  Se guardará como {tipo} al presionar &quot;Guardar&quot;.
+                </p>
+              )}
+            </div>
+          )}
+
           {alumnos.map(a => (
             <div key={String(a.reservaId)}>
               <p className="text-[12px] font-semibold mb-2" style={{ color: 'var(--nexa-text)' }}>
@@ -248,11 +318,21 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
           ))}
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 space-y-2">
+          {error && (
+            <p role="alert" className="text-[12px]" style={{ color: 'var(--nexa-danger)' }}>{error}</p>
+          )}
+          {hayCupo2a1 && !isPast && tipo === slot.tipo && (
+            <button type="button" onClick={onAgregar}
+              className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition"
+              style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text)', border: '1px solid var(--nexa-border)' }}>
+              <Plus size={14} /> Agregar 2º alumno (2:1)
+            </button>
+          )}
           <button onClick={handleSave} disabled={saving}
             className="w-full rounded-xl py-2.5 text-[13px] font-bold transition"
             style={{ background: 'var(--nexa-accent)', color: '#FFFFFF', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Guardando...' : 'Guardar asistencia'}
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </div>
@@ -262,15 +342,17 @@ function EditModal({ slot, coachNombre, onClose, onSaved }: {
 
 // ─── Modal nueva sesión ───────────────────────────────────────────────────────
 
-function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSaved }: {
+function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onClose, onSaved }: {
   fecha:          string;
   hora:           string;
   coaches:        Coach[];
   defaultCoachId: string | null;
+  tipoFijo?:      TipoClase;   // al sumar un 2º alumno a un horario 2:1
   onClose:        () => void;
   onSaved:        () => void;
 }) {
-  const [tipo,         setTipo]         = useState<TipoClase>('1:1');
+  const [tipoSel,      setTipo]         = useState<TipoClase>(tipoFijo ?? '1:1');
+  const tipo = tipoFijo ?? tipoSel;
   const [coachId,      setCoachId]      = useState(defaultCoachId ?? coaches[0]?.id ?? '');
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState('');
@@ -299,13 +381,12 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
       const { data } = await supabase
         .from('atletas')
         .select('id, nombre, apellido, rut, tipo_sesion')
-        .eq('coach_id', coachId)
         .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,rut.ilike.%${query}%`)
         .limit(6);
       setResultados((data ?? []) as AtletaBusqueda[]);
       setBuscando(false);
     }, 300);
-  }, [query, walkIn, coachId]);
+  }, [query, walkIn]);
 
   // Cargar plan activo al seleccionar alumno
   async function seleccionarAlumno(a: AtletaBusqueda) {
@@ -448,8 +529,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
               style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
             <div className="grid grid-cols-2 gap-1.5">
               {(['1:1', '2:1'] as TipoClase[]).map(t => (
-                <button key={t} onClick={() => setTipo(t)}
-                  className="rounded-lg py-2 text-[12px] font-semibold transition"
+                <button key={t} onClick={() => setTipo(t)} disabled={!!tipoFijo && t !== tipoFijo}
+                  className="rounded-lg py-2 text-[12px] font-semibold transition disabled:opacity-40"
                   style={{
                     background: tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
                     color:      tipo === t ? '#FFFFFF' : 'var(--nexa-muted)',
@@ -461,8 +542,14 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, onClose, onSav
             </div>
           </div>
 
-          {/* Coach */}
-          {coaches.length > 0 && (
+          {tipoFijo && (
+            <p className="-mt-2 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+              Se suma como segundo alumno a este horario {tipoFijo}.
+            </p>
+          )}
+
+          {/* Coach (fijo al sumar un alumno a un horario existente) */}
+          {coaches.length > 0 && !tipoFijo && (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
                 style={{ color: 'var(--nexa-muted)' }}>Coach</p>
@@ -613,7 +700,7 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
   onClickSlot: (s: Slot) => void;
   isPast:      boolean;
 }) {
-  const cuposUsados  = slot.alumnos.length;
+  const cuposUsados  = slot.alumnos.filter(a => esActiva(a.status)).length;
   const cuposFull    = cuposUsados >= slot.cuposTotal;
   const hayConflicto = cuposUsados > slot.cuposTotal;
 
@@ -870,7 +957,7 @@ export default function HorarioPage() {
   const [vista,       setVista]       = useState<'horario' | 'checkin'>('horario');
   const [rol,         setRol]         = useState<string | null>(null);
   const [editSlot,    setEditSlot]    = useState<Slot | null>(null);
-  const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null } | null>(null);
+  const [nuevaSlot,   setNuevaSlot]   = useState<{ fecha: string; hora: string; coachId: string | null; tipoFijo?: TipoClase } | null>(null);
   const [toast,       setToast]       = useState<string | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1266,8 +1353,13 @@ export default function HorarioPage() {
         <EditModal
           slot={editSlot}
           coachNombre={editSlot.coachId ? (coachById.get(editSlot.coachId)?.nombre ?? '') : ''}
+          isPast={editSlot.fecha < today}
           onClose={() => setEditSlot(null)}
           onSaved={load}
+          onAgregar={() => {
+            setNuevaSlot({ fecha: editSlot.fecha, hora: editSlot.hora, coachId: editSlot.coachId, tipoFijo: '2:1' });
+            setEditSlot(null);
+          }}
         />
       )}
 
@@ -1278,6 +1370,7 @@ export default function HorarioPage() {
           hora={nuevaSlot.hora}
           coaches={coaches}
           defaultCoachId={nuevaSlot.coachId}
+          tipoFijo={nuevaSlot.tipoFijo}
           onClose={() => setNuevaSlot(null)}
           onSaved={load}
         />

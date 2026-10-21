@@ -105,7 +105,7 @@ export function buildMonthGrid(year: number, month: number): Date[][] {
 export function toDateStr(d: Date) { return d.toISOString().slice(0, 10); }
 
 export const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-export const DOW_LABEL = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+export const DOW_LABEL = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'];
 export const DOW_LONG  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 // Input/label style constants
