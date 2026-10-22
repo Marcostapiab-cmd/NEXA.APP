@@ -972,110 +972,153 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isC
 
 // ─── Barra resumen ────────────────────────────────────────────────────────────
 
-function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawReserva[] }) {
+type Conteo = { n1a1: number; n2a1Completa: number; n2a1Incompleta: number; nGrupal: number; pago: number };
+
+// Cuenta automáticamente las clases de un coach. Cuenta todas las clases
+// agendadas o realizadas (sin canceladas ni reagendadas), agrupando por
+// sesión real (fecha+hora): una clase 2:1 tiene 2 filas, una por alumno.
+// 2:1 completa = 2 alumnos; incompleta = 1 alumno.
+function contarClasesCoach(c: Coach, reservas: RawReserva[]): Conteo {
+  const sesiones = new Map<string, RawReserva[]>();
+  for (const r of reservas) {
+    if (r.coach_id !== c.id) continue;
+    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    const pos = getSlotPos(r);
+    if (!pos) continue;
+    const key = `${pos.fecha}|${pos.hora}`;
+    if (!sesiones.has(key)) sesiones.set(key, []);
+    sesiones.get(key)!.push(r);
+  }
+
+  const k: Conteo = { n1a1: 0, n2a1Completa: 0, n2a1Incompleta: 0, nGrupal: 0, pago: 0 };
+  sesiones.forEach(filas => {
+    const tipos = filas.map(r => parseTipo(r.tipo_clase, r.descripcion));
+    if (tipos.includes('2:1')) {
+      if (filas.length >= 2) { k.n2a1Completa++;   k.pago += c.tarifa_2a1; }
+      else                   { k.n2a1Incompleta++; k.pago += c.tarifa_incompleta_2a1; }
+    } else if (tipos.includes('Grupal')) {
+      k.nGrupal++;
+    } else {
+      k.n1a1++; k.pago += c.tarifa_1a1;
+    }
+  });
+  return k;
+}
+
+// Reservas de un rango de fechas, por páginas (Supabase entrega máx. 1000 filas)
+async function reservasRango(desde: string, hasta: string): Promise<RawReserva[]> {
+  const out: RawReserva[] = [];
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('id, fecha, hora, coach_id, tipo_clase, descripcion, estado')
+      .gte('fecha', desde).lte('fecha', hasta)
+      .order('id').range(i, i + 999);
+    if (error) throw error;
+    out.push(...((data ?? []) as RawReserva[]));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+function ResumenBar({ coaches, reservas, monday }: { coaches: Coach[]; reservas: RawReserva[]; monday: Date }) {
+  const [periodo,   setPeriodo]   = useState<'semana' | 'mes'>('semana');
+  const [delMes,    setDelMes]    = useState<RawReserva[] | null>(null);
+  const [errorMes,  setErrorMes]  = useState('');
+
+  const anio = monday.getFullYear();
+  const mes  = monday.getMonth();
+  const mesLabel = new Date(anio, mes, 1).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+
+  // Al ver el mes, se cargan todas sus reservas (se recarga si cambia la semana
+  // o se edita una clase, porque `reservas` cambia).
+  useEffect(() => {
+    if (periodo !== 'mes') return;
+    let vivo = true;
+    const desde = `${anio}-${String(mes + 1).padStart(2, '0')}-01`;
+    const ultimo = new Date(anio, mes + 1, 0).getDate();
+    const hasta = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(ultimo).padStart(2, '0')}`;
+    reservasRango(desde, hasta)
+      .then(d => { if (vivo) { setDelMes(d); setErrorMes(''); } })
+      .catch(e => { if (vivo) setErrorMes(e instanceof Error ? e.message : 'Error al cargar el mes'); });
+    return () => { vivo = false; };
+  }, [periodo, anio, mes, reservas]);
+
   if (!coaches.length) return null;
 
+  const fuente   = periodo === 'semana' ? reservas : (delMes ?? []);
+  const cargando = periodo === 'mes' && delMes === null && !errorMes;
+
+  const boton = (p: 'semana' | 'mes', label: string) => (
+    <button type="button" onClick={() => setPeriodo(p)}
+      style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+        padding: '4px 10px', borderRadius: 4,
+        background: periodo === p ? 'var(--nexa-text)' : 'transparent',
+        color:      periodo === p ? 'var(--nexa-card)' : 'var(--nexa-muted)',
+        border:     '1px solid var(--nexa-border)',
+      }}>
+      {label}
+    </button>
+  );
+
   return (
-    <div style={{
-      display:    'flex',
-      gap:        1,
-      background: 'var(--nexa-border)',
-      border:     '1px solid var(--nexa-border)',
-      borderTop:  '2px solid var(--nexa-border)',
-    }}>
-      {coaches.map((c, i) => {
-        const color = c.color || COACH_COLORS[i % COACH_COLORS.length];
+    <div style={{ border: '1px solid var(--nexa-border)', borderTop: '2px solid var(--nexa-border)', background: 'var(--nexa-card)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderBottom: '1px solid var(--nexa-border)', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--nexa-muted)', marginRight: 6 }}>
+          Conteo de clases
+        </span>
+        {boton('semana', 'Semana')}
+        {boton('mes', `Mes · ${mesLabel}`)}
+        <span style={{ fontSize: 10, color: 'var(--nexa-muted)', marginLeft: 'auto' }}>
+          {cargando ? 'Cargando…' : errorMes ? `Error: ${errorMes}` : 'Agendadas y realizadas · sin canceladas'}
+        </span>
+      </div>
 
-        // Agrupar las reservas del coach por sesión real (fecha+hora), no por
-        // fila: una clase 2:1 genera 2 filas (una por alumno) y antes se
-        // pagaba y contaba dos veces la misma sesión.
-        const sesiones = new Map<string, RawReserva[]>();
-        for (const r of reservas) {
-          if (r.coach_id !== c.id) continue;
-          const pos = getSlotPos(r);
-          if (!pos) continue;
-          const key = `${pos.fecha}|${pos.hora}`;
-          if (!sesiones.has(key)) sesiones.set(key, []);
-          sesiones.get(key)!.push(r);
-        }
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 1, background: 'var(--nexa-border)' }}>
+        {coaches.map((c, i) => {
+          const color = c.color || COACH_COLORS[i % COACH_COLORS.length];
+          const k = contarClasesCoach(c, fuente);
+          const total = k.n1a1 + k.n2a1Completa + k.n2a1Incompleta + k.nGrupal;
+          const filas: { label: string; n: number; color: string }[] = [
+            { label: '1:1',             n: k.n1a1,           color: 'var(--nexa-text)' },
+            { label: '2:1 completas',   n: k.n2a1Completa,   color: '#2E7D55' },
+            { label: '2:1 incompletas', n: k.n2a1Incompleta, color: '#B8860B' },
+            ...(k.nGrupal > 0 ? [{ label: 'Grupales', n: k.nGrupal, color: 'var(--nexa-text)' }] : []),
+          ];
 
-        let n1a1        = 0;
-        let n2a1Completa = 0;
-        let n2a1Incompleta = 0;
-        let nGrupal     = 0;
-        let pago        = 0;
-        sesiones.forEach(filas => {
-          // Solo se paga por sesiones ya realizadas (presente / no-show /
-          // cancelada tarde = "queman" la clase). Pendientes, futuras o
-          // canceladas a tiempo no cuentan para el pago.
-          const realizadas = filas.filter(r => ESTADOS_QUE_QUEMAN.includes(String(r.estado)));
-          if (realizadas.length === 0) return;
-
-          const tipos = filas.map(r => parseTipo(r.tipo_clase, r.descripcion));
-          if (tipos.includes('2:1')) {
-            // 2:1 con ambos alumnos presentes paga tarifa2; con solo uno,
-            // tarifa incompleta (nunca se paga dos veces la misma sesión).
-            if (realizadas.length >= 2) { n2a1Completa += 1; pago += c.tarifa_2a1; }
-            else                        { n2a1Incompleta += 1; pago += c.tarifa_incompleta_2a1; }
-          } else if (tipos.includes('Grupal')) {
-            nGrupal += 1;
-          } else {
-            n1a1 += 1;
-            pago += c.tarifa_1a1;
-          }
-        });
-        const clases = n1a1 + n2a1Completa + n2a1Incompleta + nGrupal;
-        const desglose: { label: string; n: number; color: string }[] = [
-          { label: '1:1',              n: n1a1,           color: 'var(--nexa-text)' },
-          { label: '2:1 completas',    n: n2a1Completa,   color: '#2E7D55' },
-          { label: '2:1 incompletas',  n: n2a1Incompleta, color: '#B8860B' },
-          ...(nGrupal > 0 ? [{ label: 'grupales', n: nGrupal, color: 'var(--nexa-text)' }] : []),
-        ];
-
-        return (
-          <div key={c.id} style={{
-            flex:       1,
-            padding:    '10px 14px',
-            background: 'var(--nexa-card)',
-            display:    'flex',
-            alignItems: 'center',
-            gap:        12,
-          }}>
-            <div style={{
-              width: 3, height: 28, background: color, borderRadius: 2, flexShrink: 0,
-            }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{
-                fontSize: 11, fontWeight: 700, color,
-                textTransform: 'capitalize', overflow: 'hidden',
-                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {c.nombre}
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 12, rowGap: 2, marginTop: 3 }}>
-                <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <span style={{ fontSize: 16, fontWeight: 300, color: '#2E7D55', marginRight: 3 }}>{clases}</span>
-                  clases
-                </span>
-                {desglose.map(d => (
-                  <span key={d.label} style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: 13, fontWeight: 400, color: d.n > 0 ? d.color : 'var(--nexa-muted)', marginRight: 3 }}>{d.n}</span>
-                    {d.label}
+          return (
+            <div key={c.id} style={{ flex: '1 1 200px', padding: '10px 14px', background: 'var(--nexa-card)', display: 'flex', gap: 12 }}>
+              <div style={{ width: 3, background: color, borderRadius: 2, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.nombre}
+                  </p>
+                  <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 16, fontWeight: 300, color: 'var(--nexa-text)', marginRight: 3 }}>{total}</span>
+                    clases
                   </span>
-                ))}
-                {pago > 0 && (
-                  <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <span style={{ fontSize: 13, fontWeight: 300, color: 'var(--nexa-accent)', marginRight: 2 }}>
-                      ${pago.toLocaleString('es-CL')}
-                    </span>
-                    pago
-                  </span>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  {filas.map(f => (
+                    <div key={f.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, lineHeight: 1.6 }}>
+                      <span style={{ color: 'var(--nexa-muted)' }}>{f.label}</span>
+                      <span style={{ fontWeight: 600, color: f.n > 0 ? f.color : 'var(--nexa-muted)' }}>{f.n}</span>
+                    </div>
+                  ))}
+                </div>
+                {k.pago > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--nexa-border)' }}>
+                    <span style={{ color: 'var(--nexa-muted)' }}>Pago estimado</span>
+                    <span style={{ fontWeight: 700, color: 'var(--nexa-accent)' }}>${k.pago.toLocaleString('es-CL')}</span>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1478,7 +1521,7 @@ export default function HorarioPage() {
               </div>
 
               {/* Barra resumen */}
-              <ResumenBar coaches={coaches} reservas={reservas} />
+              <ResumenBar coaches={coaches} reservas={reservas} monday={monday} />
             </div>
 
           </>
