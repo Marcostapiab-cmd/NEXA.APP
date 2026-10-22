@@ -75,9 +75,13 @@ interface PlanActivo {
   nombre:       string;
   total_clases: number;
   end_date:     string;
-  usado:        number;
+  usado:        number;   // clases ya realizadas (queman)
+  agendadas:    number;   // clases futuras/pendientes ya reservadas
   modalidad?:   '1:1' | '2:1' | null;
 }
+
+// Reservas que no ocupan una clase del plan (se devolvió o se movió)
+const ESTADOS_NO_DESCUENTAN = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -423,13 +427,21 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
       setTipo(p.modalidad);
     }
 
-    const { count } = await supabase
+    // Todas las reservas del plan: las realizadas y las ya agendadas
+    // ocupan una clase del contrato.
+    const { data: resPlan } = await supabase
       .from('reservas')
-      .select('*', { count: 'exact', head: true })
-      .eq('plan_id', p.id)
-      .in('estado', ESTADOS_QUE_QUEMAN);
+      .select('estado')
+      .eq('plan_id', p.id);
 
-    setPlan({ ...p, modalidad: p.modalidad ?? null, usado: count ?? 0 });
+    let usado = 0, agendadas = 0;
+    for (const r of resPlan ?? []) {
+      const e = String(r.estado ?? '').toLowerCase();
+      if (ESTADOS_QUE_QUEMAN.includes(e))       usado++;
+      else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas++;
+    }
+
+    setPlan({ ...p, modalidad: p.modalidad ?? null, usado, agendadas });
     setCargandoPlan(false);
   }
 
@@ -503,6 +515,11 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
 
   const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined));
   const sinPlan      = alumno !== null && !cargandoPlan && plan === null;
+  // Número que tendría esta clase dentro del plan (ej. 13 de 12 = extra)
+  const ocupadas     = plan ? plan.usado + plan.agendadas : 0;
+  const restantes    = plan ? Math.max(plan.total_clases - ocupadas, 0) : 0;
+  const numeroClase  = ocupadas + 1;
+  const esExtra      = !!plan && !walkIn && numeroClase > plan.total_clases;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -622,7 +639,45 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
                     )}
                   </div>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>
-                    {plan.usado}/{plan.total_clases} clases usadas · vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                    vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                  </p>
+
+                  {/* Mini resumen del plan */}
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                    {[
+                      { n: plan.usado,     label: 'Usadas',    color: 'var(--nexa-text)' },
+                      { n: plan.agendadas, label: 'Agendadas', color: 'var(--nexa-text)' },
+                      { n: restantes,      label: 'Quedan',    color: restantes === 0 ? '#B44040' : restantes <= 2 ? '#B8860B' : '#2E7D55' },
+                    ].map(x => (
+                      <div key={x.label} className="rounded-md py-1.5"
+                        style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+                        <p className="text-[16px] font-light leading-none" style={{ color: x.color }}>{x.n}</p>
+                        <p className="text-[9px] uppercase tracking-wider mt-1" style={{ color: 'var(--nexa-muted)' }}>{x.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] mt-1.5" style={{ color: 'var(--nexa-muted)' }}>
+                    Plan de {plan.total_clases} clases · esta sería la clase {numeroClase}
+                  </p>
+                </div>
+              )}
+              {alumno && !cargandoPlan && plan && esExtra && (
+                <div className="mt-2 rounded-lg px-3 py-2.5"
+                  style={{ background: 'rgba(180,64,64,0.08)', border: '1px solid rgba(180,64,64,0.45)' }}>
+                  <p className="text-[12px] font-bold" style={{ color: '#B44040' }}>
+                    ⚠ Clase extra: {numeroClase} de {plan.total_clases}
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: '#B44040' }}>
+                    {alumno.nombre} ya tiene todas las clases de su plan usadas o agendadas.
+                    Esta clase queda fuera del plan: recuerda cobrarla aparte.
+                  </p>
+                </div>
+              )}
+              {alumno && !cargandoPlan && plan && !esExtra && restantes === 1 && (
+                <div className="mt-2 rounded-lg px-3 py-2"
+                  style={{ background: '#C9A96E18', border: '1px solid #C9A96E66' }}>
+                  <p className="text-[11px] font-semibold" style={{ color: '#B8860B' }}>
+                    Es la última clase de su plan.
                   </p>
                 </div>
               )}
@@ -679,11 +734,11 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
           <button onClick={handleSave} disabled={!puedeAgendar}
             className="flex-1 rounded-xl py-2.5 text-[13px] font-bold transition"
             style={{
-              background: sinPlan || walkIn ? '#C9A96E' : 'var(--nexa-accent)',
+              background: esExtra ? '#B44040' : sinPlan || walkIn ? '#C9A96E' : 'var(--nexa-accent)',
               color:      '#FFFFFF',
               opacity:    puedeAgendar ? 1 : 0.4,
             }}>
-            {saving ? 'Guardando...' : sinPlan ? 'Agendar sin plan' : walkIn ? 'Agendar invitado' : 'Agendar'}
+            {saving ? 'Guardando...' : esExtra ? 'Agendar clase extra' : sinPlan ? 'Agendar sin plan' : walkIn ? 'Agendar invitado' : 'Agendar'}
           </button>
         </div>
       </div>
