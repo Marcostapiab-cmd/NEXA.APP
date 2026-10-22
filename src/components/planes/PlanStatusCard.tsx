@@ -8,6 +8,8 @@ import {
   getPlanEstado,
   getDiasRestantes,
   getClasesRestantes,
+  getClasesPorAgendar,
+  getClasesExtra,
   getPlanProgress,
   getEffectiveEndDate,
   ESTADO_CONFIG,
@@ -35,6 +37,9 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
   const progress  = getPlanProgress(plan);
   const endDate   = getEffectiveEndDate(plan);
   const isExtended = plan.extendedUntil && plan.extendedUntil > plan.endDate;
+  const agendadas  = plan.agendadasClases ?? 0;
+  const porAgendar = getClasesPorAgendar(plan);
+  const extra      = getClasesExtra(plan);
 
   // Próxima clase (reserva futura confirmada/pendiente)
   const proximaClase = reservas
@@ -47,6 +52,9 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
   // Alertas
   const alerts: { msg: string; level: 'warn' | 'error' }[] = [];
   if (estado === 'vencido')    alerts.push({ msg: 'El plan está vencido. Renueva para seguir reservando clases.', level: 'error' });
+  if (extra > 0) alerts.push({ msg: `Tiene ${extra} clase${extra !== 1 ? 's' : ''} extra agendada${extra !== 1 ? 's' : ''} por sobre su plan de ${plan.totalClases}. Cóbralas aparte.`, level: 'error' });
+  else if (porAgendar === 0 && estado !== 'vencido' && estado !== 'sin_clases')
+    alerts.push({ msg: 'Ya tiene todas las clases de su plan agendadas: la próxima que agendes será extra.', level: 'warn' });
   if (estado === 'sin_clases') alerts.push({ msg: 'No quedan clases disponibles en este plan.', level: 'error' });
   if (estado === 'por_vencer' && diasRest  <= 7 && diasRest  > 0) alerts.push({ msg: `El plan vence en ${diasRest} día${diasRest !== 1 ? 's' : ''}.`, level: 'warn' });
   if (estado === 'por_vencer' && clasesRest <= 2 && clasesRest > 0) alerts.push({ msg: `Solo quedan ${clasesRest} clase${clasesRest !== 1 ? 's' : ''} disponibles.`, level: 'warn' });
@@ -131,6 +139,11 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
           <span className="font-bold text-[#121212]">
             {plan.usedClases} <span className="font-normal text-[#777777]">/ {plan.totalClases}</span>
           </span>
+        </div>
+        <div className="mb-2 flex flex-wrap gap-x-3 text-[11px] text-[#777777]">
+          <span><b className="text-[#121212]">{agendadas}</b> agendadas</span>
+          <span><b style={{ color: porAgendar === 0 ? '#B44040' : '#121212' }}>{porAgendar}</b> por agendar</span>
+          {extra > 0 && <span className="font-bold text-[#B44040]">{extra} extra · cobrar</span>}
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-[#E4E4E4]">
           <div className="h-full rounded-full transition-all duration-500"

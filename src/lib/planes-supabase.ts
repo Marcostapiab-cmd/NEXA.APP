@@ -3,6 +3,37 @@ import type { Plan, Reserva, Reagenda } from './planes';
 
 // Estados que SÍ queman clase del plan
 export const ESTADOS_QUE_QUEMAN: string[] = ['presente', 'no_show', 'cancelada_tarde'];
+// Estados que NO ocupan una clase del plan (se devolvió o se movió a otra fecha)
+export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
+
+// Cuenta, por plan, las clases realizadas y las agendadas
+function contarPorPlan(rows: { plan_id: unknown; estado: unknown }[]) {
+  const usadas    = new Map<string, number>();
+  const agendadas = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.plan_id) continue;
+    const pid = String(r.plan_id);
+    const e   = String(r.estado ?? '').toLowerCase();
+    if (ESTADOS_QUE_QUEMAN.includes(e))          usadas.set(pid, (usadas.get(pid) ?? 0) + 1);
+    else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas.set(pid, (agendadas.get(pid) ?? 0) + 1);
+  }
+  return { usadas, agendadas };
+}
+
+// Supabase devuelve máximo 1000 filas por consulta: se pide por páginas
+async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown }[]> {
+  const out: { plan_id: unknown; estado: unknown }[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase
+      .from('reservas').select('plan_id, estado')
+      .not('plan_id', 'is', null)
+      .order('id').range(desde, desde + 999);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
 
 // ─── Planes ───────────────────────────────────────────────────────────────────
 
@@ -13,14 +44,8 @@ export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
   ]);
   if (error) throw error;
 
-  // Contar reservas que queman por plan (source of truth, no usamos used_clases guardado)
-  const countByPlan = new Map<string, number>();
-  for (const r of (reservasData ?? [])) {
-    if (ESTADOS_QUE_QUEMAN.includes(String(r.estado))) {
-      const pid = String(r.plan_id);
-      countByPlan.set(pid, (countByPlan.get(pid) ?? 0) + 1);
-    }
-  }
+  // Contar por plan desde las reservas (source of truth, no usamos used_clases guardado)
+  const { usadas: countByPlan, agendadas } = contarPorPlan(reservasData ?? []);
 
   return (planesData ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
@@ -30,6 +55,7 @@ export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
     modalidad:     r.modalidad === '1:1' || r.modalidad === '2:1' ? r.modalidad : null,
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
+    agendadasClases: agendadas.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,
@@ -107,17 +133,13 @@ export async function deleteReservaDB(reservaId: string): Promise<void> {
 
 // Todos los planes (para el dashboard)
 export async function getAllPlanesDB(): Promise<Plan[]> {
-  const [{ data, error }, { data: reservasData }] = await Promise.all([
+  const [{ data, error }, reservasData] = await Promise.all([
     supabase.from('planes').select('*').order('start_date', { ascending: false }),
-    supabase.from('reservas').select('plan_id, estado').in('estado', ESTADOS_QUE_QUEMAN),
+    reservasConPlan(),
   ]);
   if (error) throw error;
 
-  const countByPlan = new Map<string, number>();
-  for (const r of (reservasData ?? [])) {
-    const pid = String(r.plan_id);
-    countByPlan.set(pid, (countByPlan.get(pid) ?? 0) + 1);
-  }
+  const { usadas: countByPlan, agendadas } = contarPorPlan(reservasData);
 
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
@@ -127,6 +149,7 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
     modalidad:     r.modalidad === '1:1' || r.modalidad === '2:1' ? r.modalidad : null,
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
+    agendadasClases: agendadas.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,
