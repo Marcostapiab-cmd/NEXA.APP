@@ -36,6 +36,7 @@ interface Alumno {
   nombre:    string;
   status:    string;
   tipo:      TipoClase;
+  extra?:    string;   // ej. "13/12" si la clase supera su plan
 }
 
 interface Slot {
@@ -60,6 +61,8 @@ interface RawReserva {
   estado?:     string;
   atletas?:    { nombre: string; apellido: string } | null;
   nombre_atleta?: string;
+  plan_id?:    string | null;
+  extra?:      string;
 }
 
 interface AtletaBusqueda {
@@ -135,6 +138,43 @@ function addOneHour(hora: string): string {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
+// Marca las reservas que superan el total de clases de su plan. Las clases del
+// plan se numeran por fecha: las primeras N entran en el plan y las demás son
+// extra (hay que cobrarlas aparte).
+async function marcarClasesExtra(reservas: RawReserva[]): Promise<RawReserva[]> {
+  const planIds = [...new Set(reservas.map(r => r.plan_id).filter(Boolean).map(String))];
+  if (planIds.length === 0) return reservas;
+
+  const [{ data: planes }, { data: todas }] = await Promise.all([
+    supabase.from('planes').select('id, total_clases').in('id', planIds),
+    supabase.from('reservas').select('id, fecha, hora, estado, plan_id').in('plan_id', planIds),
+  ]);
+  const total = new Map<string, number>(
+    ((planes ?? []) as { id: string; total_clases: number }[]).map(p => [String(p.id), Number(p.total_clases)])
+  );
+
+  const porPlan = new Map<string, { id: string; orden: string }[]>();
+  for (const r of (todas ?? []) as { id: unknown; fecha: string; hora?: string; estado?: string; plan_id: unknown }[]) {
+    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    const pid = String(r.plan_id);
+    if (!porPlan.has(pid)) porPlan.set(pid, []);
+    porPlan.get(pid)!.push({ id: String(r.id), orden: `${String(r.fecha).slice(0, 10)} ${String(r.hora ?? '').slice(0, 5)}` });
+  }
+
+  const extra = new Map<string, string>();
+  porPlan.forEach((lista, pid) => {
+    const t = total.get(pid);
+    if (!t) return;
+    lista.sort((a, b) => a.orden.localeCompare(b.orden) || Number(a.id) - Number(b.id));
+    lista.forEach((r, i) => { if (i >= t) extra.set(r.id, `${i + 1}/${t}`); });
+  });
+
+  return reservas.map(r => {
+    const e = extra.get(String(r.id));
+    return e && esActiva(String(r.estado ?? '')) ? { ...r, extra: e } : r;
+  });
+}
+
 // Clave incluye coachId para que cada coach tenga su propio slot por celda
 function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrupal: number): Map<string, Slot> {
   const map = new Map<string, Slot>();
@@ -157,6 +197,7 @@ function buildSlotMap(reservas: RawReserva[], coachFiltro: string, capacidadGrup
       nombre:    alumnoLabel(r),
       status:    String(r.estado || 'pendiente'),
       tipo,
+      extra:     r.extra,
     });
   }
   // El tipo del horario lo definen las reservas activas (una cancelada 1:1
@@ -302,6 +343,12 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
               <p className="text-[12px] font-semibold mb-2" style={{ color: 'var(--nexa-text)' }}>
                 {a.nombre}
               </p>
+              {a.extra && (
+                <p className="-mt-1 mb-2 rounded-md px-2 py-1 text-[11px] font-semibold"
+                  style={{ background: 'rgba(180,64,64,0.08)', border: '1px solid rgba(180,64,64,0.45)', color: '#B44040' }}>
+                  ⚠ Clase extra ({a.extra}): fuera de su plan, cobrar aparte
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-1.5">
                 {ESTADOS_ASISTENCIA.map(e => {
                   const active = a.status === e.value;
@@ -372,6 +419,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
 
   // Modo walk-in (excepción explícita)
   const [walkIn,    setWalkIn]    = useState(false);
+  const [extraOk,   setExtraOk]   = useState(false);   // confirmó que cobrará la clase extra
   const [rutWalkIn, setRutWalkIn] = useState('');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -399,6 +447,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     setResultados([]);
     setCargandoPlan(true);
     setPlan(undefined);
+    setExtraOk(false);
     // Tipo por defecto: el de la ficha del alumno (el plan, si lo indica, manda)
     if (a.tipo_sesion === '1:1' || a.tipo_sesion === '2:1') setTipo(a.tipo_sesion);
 
@@ -451,6 +500,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     if (!walkIn) {
       if (!alumno) { setError('Selecciona un alumno'); return; }
       if (plan === undefined) { setError('Espera, cargando plan...'); return; }
+      if (esExtra && !extraOk) { setError('Confirma que esta clase extra se cobrará aparte.'); return; }
     }
 
     setSaving(true);
@@ -513,13 +563,13 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     weekday: 'long', day: 'numeric', month: 'long',
   });
 
-  const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined));
   const sinPlan      = alumno !== null && !cargandoPlan && plan === null;
   // Número que tendría esta clase dentro del plan (ej. 13 de 12 = extra)
   const ocupadas     = plan ? plan.usado + plan.agendadas : 0;
   const restantes    = plan ? Math.max(plan.total_clases - ocupadas, 0) : 0;
   const numeroClase  = ocupadas + 1;
   const esExtra      = !!plan && !walkIn && numeroClase > plan.total_clases;
+  const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined)) && (!esExtra || extraOk);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -671,6 +721,10 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
                     {alumno.nombre} ya tiene todas las clases de su plan usadas o agendadas.
                     Esta clase queda fuera del plan: recuerda cobrarla aparte.
                   </p>
+                  <label className="mt-2 flex items-center gap-2 text-[11px] font-semibold cursor-pointer" style={{ color: '#B44040' }}>
+                    <input type="checkbox" checked={extraOk} onChange={e => setExtraOk(e.target.checked)} />
+                    Entiendo, la cobraré como clase extra
+                  </label>
                 </div>
               )}
               {alumno && !cargandoPlan && plan && !esExtra && restantes === 1 && (
@@ -786,6 +840,14 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           lineHeight: 1.35,
         }}>
+          {a.extra && (
+            <span title={`Clase extra (${a.extra}): fuera del plan, cobrar aparte`} style={{
+              fontSize: 8, fontWeight: 800, color: '#fff', background: '#B44040',
+              borderRadius: 2, padding: '0 3px', marginRight: 3, letterSpacing: '0.04em',
+            }}>
+              EXTRA
+            </span>
+          )}
           {a.nombre}
         </div>
       ))}
@@ -1085,7 +1147,7 @@ export default function HorarioPage() {
       setCoaches(cs);
       setHorConfig(cfg);
       setBloqueos(bls);
-      setReservas(reservasConNombre);
+      setReservas(await marcarClasesExtra(reservasConNombre));
     } catch (err) {
       console.error('horario load error', err);
     } finally {

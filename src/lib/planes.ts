@@ -14,7 +14,8 @@ export interface Plan {
   tipo: PlanTipo;
   modalidad?: PlanModalidad | null;
   totalClases: number;
-  usedClases: number;
+  usedClases: number;       // clases ya realizadas (presente / no-show / cancelada tarde)
+  agendadasClases?: number; // clases futuras o pendientes ya reservadas con este plan
   startDate: string;        // YYYY-MM-DD
   endDate: string;          // YYYY-MM-DD
   extendedUntil?: string;   // admin override: extiende la fecha de vencimiento
@@ -148,6 +149,21 @@ export function getDiasRestantes(plan: Plan, hoy = todayStr()): number {
 
 export function getClasesRestantes(plan: Plan): number {
   return Math.max(0, plan.totalClases - plan.usedClases);
+}
+
+// Clases del plan ya ocupadas: realizadas + agendadas
+export function getClasesComprometidas(plan: Plan): number {
+  return plan.usedClases + (plan.agendadasClases ?? 0);
+}
+
+// Clases que todavía se pueden agendar dentro del plan
+export function getClasesPorAgendar(plan: Plan): number {
+  return Math.max(0, plan.totalClases - getClasesComprometidas(plan));
+}
+
+// Clases agendadas/realizadas por sobre el plan (hay que cobrarlas aparte)
+export function getClasesExtra(plan: Plan): number {
+  return Math.max(0, getClasesComprometidas(plan) - plan.totalClases);
 }
 
 export function getPlanEstado(plan: Plan, hoy = todayStr()): PlanEstado {
