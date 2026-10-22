@@ -75,9 +75,13 @@ interface PlanActivo {
   nombre:       string;
   total_clases: number;
   end_date:     string;
-  usado:        number;
+  usado:        number;   // clases ya realizadas (queman)
+  agendadas:    number;   // clases futuras/pendientes ya reservadas
   modalidad?:   '1:1' | '2:1' | null;
 }
+
+// Reservas que no ocupan una clase del plan (se devolvió o se movió)
+const ESTADOS_NO_DESCUENTAN = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -423,13 +427,21 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
       setTipo(p.modalidad);
     }
 
-    const { count } = await supabase
+    // Todas las reservas del plan: las realizadas y las ya agendadas
+    // ocupan una clase del contrato.
+    const { data: resPlan } = await supabase
       .from('reservas')
-      .select('*', { count: 'exact', head: true })
-      .eq('plan_id', p.id)
-      .in('estado', ESTADOS_QUE_QUEMAN);
+      .select('estado')
+      .eq('plan_id', p.id);
 
-    setPlan({ ...p, modalidad: p.modalidad ?? null, usado: count ?? 0 });
+    let usado = 0, agendadas = 0;
+    for (const r of resPlan ?? []) {
+      const e = String(r.estado ?? '').toLowerCase();
+      if (ESTADOS_QUE_QUEMAN.includes(e))       usado++;
+      else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas++;
+    }
+
+    setPlan({ ...p, modalidad: p.modalidad ?? null, usado, agendadas });
     setCargandoPlan(false);
   }
 
@@ -503,6 +515,11 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
 
   const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined));
   const sinPlan      = alumno !== null && !cargandoPlan && plan === null;
+  // Número que tendría esta clase dentro del plan (ej. 13 de 12 = extra)
+  const ocupadas     = plan ? plan.usado + plan.agendadas : 0;
+  const restantes    = plan ? Math.max(plan.total_clases - ocupadas, 0) : 0;
+  const numeroClase  = ocupadas + 1;
+  const esExtra      = !!plan && !walkIn && numeroClase > plan.total_clases;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -622,7 +639,45 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
                     )}
                   </div>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--nexa-muted)' }}>
-                    {plan.usado}/{plan.total_clases} clases usadas · vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                    vence {new Date(plan.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                  </p>
+
+                  {/* Mini resumen del plan */}
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                    {[
+                      { n: plan.usado,     label: 'Usadas',    color: 'var(--nexa-text)' },
+                      { n: plan.agendadas, label: 'Agendadas', color: 'var(--nexa-text)' },
+                      { n: restantes,      label: 'Quedan',    color: restantes === 0 ? '#B44040' : restantes <= 2 ? '#B8860B' : '#2E7D55' },
+                    ].map(x => (
+                      <div key={x.label} className="rounded-md py-1.5"
+                        style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+                        <p className="text-[16px] font-light leading-none" style={{ color: x.color }}>{x.n}</p>
+                        <p className="text-[9px] uppercase tracking-wider mt-1" style={{ color: 'var(--nexa-muted)' }}>{x.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] mt-1.5" style={{ color: 'var(--nexa-muted)' }}>
+                    Plan de {plan.total_clases} clases · esta sería la clase {numeroClase}
+                  </p>
+                </div>
+              )}
+              {alumno && !cargandoPlan && plan && esExtra && (
+                <div className="mt-2 rounded-lg px-3 py-2.5"
+                  style={{ background: 'rgba(180,64,64,0.08)', border: '1px solid rgba(180,64,64,0.45)' }}>
+                  <p className="text-[12px] font-bold" style={{ color: '#B44040' }}>
+                    ⚠ Clase extra: {numeroClase} de {plan.total_clases}
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: '#B44040' }}>
+                    {alumno.nombre} ya tiene todas las clases de su plan usadas o agendadas.
+                    Esta clase queda fuera del plan: recuerda cobrarla aparte.
+                  </p>
+                </div>
+              )}
+              {alumno && !cargandoPlan && plan && !esExtra && restantes === 1 && (
+                <div className="mt-2 rounded-lg px-3 py-2"
+                  style={{ background: '#C9A96E18', border: '1px solid #C9A96E66' }}>
+                  <p className="text-[11px] font-semibold" style={{ color: '#B8860B' }}>
+                    Es la última clase de su plan.
                   </p>
                 </div>
               )}
@@ -679,11 +734,11 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
           <button onClick={handleSave} disabled={!puedeAgendar}
             className="flex-1 rounded-xl py-2.5 text-[13px] font-bold transition"
             style={{
-              background: sinPlan || walkIn ? '#C9A96E' : 'var(--nexa-accent)',
+              background: esExtra ? '#B44040' : sinPlan || walkIn ? '#C9A96E' : 'var(--nexa-accent)',
               color:      '#FFFFFF',
               opacity:    puedeAgendar ? 1 : 0.4,
             }}>
-            {saving ? 'Guardando...' : sinPlan ? 'Agendar sin plan' : walkIn ? 'Agendar invitado' : 'Agendar'}
+            {saving ? 'Guardando...' : esExtra ? 'Agendar clase extra' : sinPlan ? 'Agendar sin plan' : walkIn ? 'Agendar invitado' : 'Agendar'}
           </button>
         </div>
       </div>
@@ -882,8 +937,11 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
           sesiones.get(key)!.push(r);
         }
 
-        let clases = 0;
-        let pago   = 0;
+        let n1a1        = 0;
+        let n2a1Completa = 0;
+        let n2a1Incompleta = 0;
+        let nGrupal     = 0;
+        let pago        = 0;
         sesiones.forEach(filas => {
           // Solo se paga por sesiones ya realizadas (presente / no-show /
           // cancelada tarde = "queman" la clase). Pendientes, futuras o
@@ -891,16 +949,26 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
           const realizadas = filas.filter(r => ESTADOS_QUE_QUEMAN.includes(String(r.estado)));
           if (realizadas.length === 0) return;
 
-          clases += 1;
-          const esDuo = filas.some(r => (r.tipo_clase || '').includes('2:1'));
-          if (esDuo) {
+          const tipos = filas.map(r => parseTipo(r.tipo_clase, r.descripcion));
+          if (tipos.includes('2:1')) {
             // 2:1 con ambos alumnos presentes paga tarifa2; con solo uno,
             // tarifa incompleta (nunca se paga dos veces la misma sesión).
-            pago += realizadas.length >= 2 ? c.tarifa_2a1 : c.tarifa_incompleta_2a1;
+            if (realizadas.length >= 2) { n2a1Completa += 1; pago += c.tarifa_2a1; }
+            else                        { n2a1Incompleta += 1; pago += c.tarifa_incompleta_2a1; }
+          } else if (tipos.includes('Grupal')) {
+            nGrupal += 1;
           } else {
+            n1a1 += 1;
             pago += c.tarifa_1a1;
           }
         });
+        const clases = n1a1 + n2a1Completa + n2a1Incompleta + nGrupal;
+        const desglose: { label: string; n: number; color: string }[] = [
+          { label: '1:1',              n: n1a1,           color: 'var(--nexa-text)' },
+          { label: '2:1 completas',    n: n2a1Completa,   color: '#2E7D55' },
+          { label: '2:1 incompletas',  n: n2a1Incompleta, color: '#B8860B' },
+          ...(nGrupal > 0 ? [{ label: 'grupales', n: nGrupal, color: 'var(--nexa-text)' }] : []),
+        ];
 
         return (
           <div key={c.id} style={{
@@ -922,11 +990,17 @@ function ResumenBar({ coaches, reservas }: { coaches: Coach[]; reservas: RawRese
               }}>
                 {c.nombre}
               </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 3 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 12, rowGap: 2, marginTop: 3 }}>
                 <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   <span style={{ fontSize: 16, fontWeight: 300, color: '#2E7D55', marginRight: 3 }}>{clases}</span>
                   clases
                 </span>
+                {desglose.map(d => (
+                  <span key={d.label} style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 400, color: d.n > 0 ? d.color : 'var(--nexa-muted)', marginRight: 3 }}>{d.n}</span>
+                    {d.label}
+                  </span>
+                ))}
                 {pago > 0 && (
                   <span style={{ fontSize: 9, color: 'var(--nexa-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     <span style={{ fontSize: 13, fontWeight: 300, color: 'var(--nexa-accent)', marginRight: 2 }}>
