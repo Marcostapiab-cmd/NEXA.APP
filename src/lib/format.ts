@@ -12,3 +12,13 @@ export function clp(n: number): string {
     maximumFractionDigits: 0,
   }).format(n);
 }
+
+/** Fecha local YYYY-MM-DD (no UTC: en Chile, después de las 21:00 UTC ya es "mañana"). */
+export function fechaLocal(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Hoy en hora local, formato YYYY-MM-DD. */
+export function hoyLocal(): string {
+  return fechaLocal();
+}
