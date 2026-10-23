@@ -8,7 +8,9 @@ import {
   calcEndDate,
   todayStr,
   addDays,
+  PLAN_SEMANAS,
 } from '@/lib/planes';
+import { FRECUENCIAS } from '@/lib/catalogo';
 
 const IC = 'w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]';
 const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]';
@@ -51,6 +53,13 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
     : DEFAULT_FORM()
   );
   const [autoEnd, setAutoEnd] = useState(mode === 'create');
+  // Veces por semana: con el tipo de plan define el total de clases (ej. 3x × 12 semanas = 36)
+  const [frecuencia, setFrecuencia] = useState<number | null>(() => {
+    if (!initial || initial.tipo === 'personalizado') return null;
+    const sem = PLAN_SEMANAS[initial.tipo];
+    const f = initial.totalClases / sem;
+    return Number.isInteger(f) && f >= 1 && f <= 5 ? f : null;
+  });
   const [saving, setSaving] = useState(false);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
@@ -74,13 +83,22 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
       ...prev,
       tipo,
       nombre: mode === 'create' ? preset[tipo] : prev.nombre,
+      totalClases: frecuencia && tipo !== 'personalizado' ? frecuencia * PLAN_SEMANAS[tipo] : prev.totalClases,
       endDate: autoEnd && tipo !== 'personalizado' ? calcEndDate(prev.startDate, tipo) : prev.endDate,
     }));
   }
 
+  function elegirFrecuencia(n: number) {
+    setFrecuencia(n);
+    if (f.tipo !== 'personalizado') set('totalClases', n * PLAN_SEMANAS[f.tipo]);
+  }
+
+  const esCustom = f.tipo === 'personalizado';
+  const faltaFrecuencia = !esCustom && !frecuencia;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!f.nombre.trim() || !f.startDate || !f.endDate || saving) return;
+    if (!f.nombre.trim() || !f.startDate || !f.endDate || saving || faltaFrecuencia) return;
     setSaving(true);
     try {
       await onSave({
@@ -163,8 +181,31 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
                   placeholder="Plan Mensual 8 clases" required className={IC} />
               </div>
 
-              {/* Clases */}
-              <div>
+              {/* Veces por semana */}
+              {!esCustom && (
+                <div>
+                  <label className={LC}>Veces por semana</label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {FRECUENCIAS.map(n => (
+                      <button key={n} type="button" onClick={() => elegirFrecuencia(n)} aria-pressed={frecuencia === n}
+                        className={`rounded-xl border py-2.5 text-center transition ${
+                          frecuencia === n
+                            ? 'border-[#121212] bg-[#121212] text-white'
+                            : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B] hover:text-[#121212]'
+                        }`}>
+                        <p className="text-sm font-bold">{n}x</p>
+                        <p className="text-[9px] opacity-70">{n * PLAN_SEMANAS[f.tipo]} clases</p>
+                      </button>
+                    ))}
+                  </div>
+                  {frecuencia
+                    ? <p className="mt-1.5 text-[11px] text-[#888888]">{frecuencia} {frecuencia === 1 ? 'vez' : 'veces'} por semana × {PLAN_SEMANAS[f.tipo]} semanas = {frecuencia * PLAN_SEMANAS[f.tipo]} clases.</p>
+                    : <p className="mt-1.5 text-[11px] text-[#C4783A]">Elige cuántas veces por semana entrena para calcular el total de clases.</p>}
+                </div>
+              )}
+
+              {/* Clases (manual solo en plan personalizado) */}
+              {esCustom && <div>
                 <label className={LC}>Total de clases</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {CLASES_PRESET.map(n => (
@@ -181,7 +222,7 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
                 <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.totalClases}
                   onChange={e => set('totalClases', parseInt(e.target.value) || 1)}
                   className={IC} />
-              </div>
+              </div>}
 
               {/* Clases usadas (solo edit) */}
               {isEdit && (
@@ -263,10 +304,10 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
               className="flex-1 rounded-xl border border-[#C8C8C8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888] hover:text-[#121212]">
               Cancelar
             </button>
-            <button type="submit" disabled={!!endWarning || saving}
+            <button type="submit" disabled={!!endWarning || saving || faltaFrecuencia}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
               <Save className="h-4 w-4" />
-              {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear plan'}
+              {saving ? 'Guardando...' : faltaFrecuencia ? 'Elige veces por semana' : isEdit ? 'Guardar cambios' : 'Crear plan'}
             </button>
           </div>
         </form>
