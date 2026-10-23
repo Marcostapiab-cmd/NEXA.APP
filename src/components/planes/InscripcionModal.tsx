@@ -13,8 +13,10 @@ import { DEFAULT_HORARIO_CONFIG, getBloqueos, getHorarioConfig, generateHours, t
 import {
   DIAS_PLAN, alternarSesion, conflictosSesiones, diaSemana, fechasDelDia, fechasSemana, lunesDe,
   moverSesion, quitarSesion, repetirDia, repetirSemana, tipoClaseDeModalidad,
+  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan,
   type Bloqueo, type Ocupacion, type SesionPlan,
 } from '@/lib/agenda-plan';
+import { FRECUENCIAS } from '@/lib/catalogo';
 import SemanaProfesor from './SemanaProfesor';
 
 const IC = 'w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]';
@@ -60,6 +62,7 @@ interface Props {
 export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInicial, onSaved, onClose }: Props) {
   const [modalidad, setModalidad] = useState<PlanModalidad>(modalidadInicial ?? '1:1');
   const [tipo,      setTipo]      = useState<PlanTipo>('mensual');
+  const [frecuencia,setFrecuencia]= useState<number | null>(null); // veces por semana
   const [startDate, setStart]     = useState(todayStr());
   const [endDateMan,setEndMan]    = useState('');
   const [coaches,   setCoaches]   = useState<Coach[]>([]);
@@ -77,6 +80,9 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
   const semanas  = isCustom ? undefined : PLAN_SEMANAS[tipo];
   const endDate  = isCustom ? (endDateMan || addDays(startDate, 30)) : calcEndDate(startDate, tipo);
   const coach    = coaches.find(c => c.id === coachId);
+  const totalObjetivo = !isCustom && frecuencia && semanas ? totalClasesPlan(frecuencia, semanas) : undefined;
+  const excedidas = frecuencia ? semanasExcedidas(sesiones, frecuencia) : [];
+  const faltan    = totalObjetivo !== undefined ? totalObjetivo - sesiones.length : 0;
 
   useEffect(() => {
     getCoachesActivosDB().then(setCoaches).catch(() => {});
@@ -113,6 +119,31 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
     return cfg?.abierto ? generateHours(cfg.apertura, cfg.cierre, config.duracionBloque) : [];
   };
 
+  // Aplica un cambio a las clases solo si respeta las veces por semana y el total del plan
+  function cambiarSesiones(fn: (prev: SesionPlan[]) => SesionPlan[]) {
+    if (!frecuencia) return;
+    const next = fn(sesiones);
+    if (semanasExcedidas(next, frecuencia).length) {
+      setError(`El plan es de ${frecuencia} ${frecuencia === 1 ? 'vez' : 'veces'} por semana: esa semana ya está completa. Quita una clase de esa semana primero.`);
+      return;
+    }
+    if (totalObjetivo !== undefined && next.length > totalObjetivo) {
+      setError(`El plan ya tiene sus ${totalObjetivo} clases (${frecuencia} × ${semanas} semanas).`);
+      return;
+    }
+    setError('');
+    setSesiones(next);
+  }
+
+  function elegirCelda(fecha: string, hora: string) {
+    if (!frecuencia) return;
+    if (!puedeAgregarEnSemana(sesiones, fecha, frecuencia)) {
+      setError(`Esta semana ya tiene ${clasesEnSemana(sesiones, fecha)} de ${frecuencia} clases. Quita una para elegir otro día.`);
+      return;
+    }
+    cambiarSesiones(prev => alternarSesion(prev, fecha, hora));
+  }
+
   function elegirProfesor(id: string) {
     setCoachId(prev => prev === id ? prev : id);
     setLunes(lunesDe(startDate < todayStr() ? todayStr() : startDate));
@@ -125,7 +156,13 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
 
   async function handleSave() {
     setError('');
+    if (!frecuencia) { setError('Elige cuántas veces por semana entrena el alumno.'); return; }
+    if (excedidas.length) { setError(`Hay semanas con más de ${frecuencia} clases. Ajústalas antes de guardar.`); return; }
     if (!isCustom && sesiones.length === 0) { setError('Elige al menos una clase en la semana del profesor.'); return; }
+    if (totalObjetivo !== undefined && sesiones.length !== totalObjetivo) {
+      setError(`El plan debe tener ${totalObjetivo} clases (${frecuencia} por semana × ${semanas} semanas). Ahora tiene ${sesiones.length}.`);
+      return;
+    }
     if (sesiones.length > 0 && !coachId)  { setError('Elige el profesor.'); return; }
 
     setSaving(true);
@@ -145,7 +182,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
       const plan: Plan = {
         id:          crypto.randomUUID(),
         alumnoId,
-        nombre:      `Plan ${TIPOS.find(t => t.value === tipo)?.label ?? tipo} ${modalidad}`,
+        nombre:      `Plan ${TIPOS.find(t => t.value === tipo)?.label ?? tipo} ${modalidad} · ${frecuencia}x/sem`,
         tipo,
         modalidad,
         totalClases: sesiones.length,
@@ -236,6 +273,21 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
               </div>
             </div>
 
+            {/* Veces por semana */}
+            <div>
+              <label className={LC}>Veces por semana</label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {FRECUENCIAS.map(f => (
+                  <button key={f} type="button" onClick={() => { setFrecuencia(f); setError(''); }} aria-pressed={frecuencia === f}
+                    className={`rounded-xl border py-2.5 text-center transition ${frecuencia === f ? 'border-[#121212] bg-[#121212] text-white' : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B]'}`}>
+                    <p className="text-sm font-bold">{f}x</p>
+                    <p className="text-[9px] opacity-70">{semanas ? `${totalClasesPlan(f, semanas)} clases` : 'por sem'}</p>
+                  </button>
+                ))}
+              </div>
+              {!frecuencia && <p className="mt-1.5 text-[11px] text-[#C4783A]">Elige cuántas veces por semana entrena para poder agendar.</p>}
+            </div>
+
             {/* Fechas */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -274,16 +326,17 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
             </div>
 
             {/* Semana del profesor */}
-            {coach && (
+            {coach && frecuencia && (
               <div className="space-y-3">
                 <p className="text-xs text-[#5E5E5E]">
-                  Elige la hora de cada día de la semana de <strong>{coach.nombre}</strong>. Cada día puede tener una hora distinta.
+                  Elige <strong>{frecuencia} {frecuencia === 1 ? 'día' : 'días'}</strong> en la semana de <strong>{coach.nombre}</strong>. Cada día puede tener una hora distinta.
+                  {' '}<span className="font-semibold text-[#121212]">Esta semana: {sesionesSemana.length}/{frecuencia}</span>
                 </p>
                 <SemanaProfesor
                   lunes={lunes} onSemana={setLunes} inicio={startDate} fin={endDate} config={config}
                   modalidad={modalidad} ocupacion={ocupacion} bloqueos={bloqueos} sesiones={sesiones}
                   cargando={cargandoOc}
-                  onCelda={(fecha, hora) => setSesiones(prev => alternarSesion(prev, fecha, hora))} />
+                  onCelda={elegirCelda} />
 
                 {sesionesSemana.length > 0 && (
                   <div className="rounded-xl border border-[#C8C8C8] bg-[#F4F4F4] p-3">
@@ -294,7 +347,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
                         const total = dia ? fechasDelDia(dia.n, startDate, endDate, semanas).length : 0;
                         return dia && (
                           <button key={s.fecha} type="button"
-                            onClick={() => setSesiones(prev => repetirDia(prev, dia.n, s.hora, startDate, endDate, semanas))}
+                            onClick={() => cambiarSesiones(prev => repetirDia(prev, dia.n, s.hora, startDate, endDate, semanas))}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-[#C8C8C8] bg-white px-3 py-2 text-xs font-semibold text-[#121212] transition hover:border-[#121212]">
                             <Repeat className="h-3.5 w-3.5" /> Todos los {dia.plural} a las {s.hora} ({total})
                           </button>
@@ -302,7 +355,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
                       })}
                       {sesionesSemana.length > 1 && (
                         <button type="button"
-                          onClick={() => setSesiones(prev => repetirSemana(prev, lunes, startDate, endDate, semanas))}
+                          onClick={() => cambiarSesiones(prev => repetirSemana(prev, lunes, startDate, endDate, semanas))}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-[#121212] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#3E3E3E]">
                           <CalendarRange className="h-3.5 w-3.5" /> Copiar esta semana a todo el plan
                         </button>
@@ -318,7 +371,9 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
             {sesiones.length > 0 && (
               <div>
                 <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <label className={LC} style={{ marginBottom: 0 }}>Clases agendadas ({sesiones.length})</label>
+                  <label className={LC} style={{ marginBottom: 0 }}>
+                    Clases agendadas ({sesiones.length}{totalObjetivo !== undefined ? ` de ${totalObjetivo}` : ''})
+                  </label>
                   <span className="text-[10px] font-semibold text-[#777777]">
                     {porDia.map(d => `${d.corto} ×${d.n_}`).join(' · ')}
                   </span>
@@ -331,10 +386,10 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
                       <li key={s.fecha} className={`flex flex-wrap items-center gap-2 px-3 py-2 ${err ? 'bg-[#FAEAEA]' : ''}`}>
                         <span className="w-9 text-xs font-bold text-[#121212]">{nombreDia(s.fecha)}</span>
                         <input type="date" value={s.fecha} min={startDate} max={endDate} aria-label="Fecha"
-                          onChange={e => e.target.value && setSesiones(prev => moverSesion(prev, s.fecha, e.target.value, s.hora))}
+                          onChange={e => e.target.value && cambiarSesiones(prev => moverSesion(prev, s.fecha, e.target.value, s.hora))}
                           className="rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-2 py-1.5 text-xs text-[#121212]" />
                         <select value={s.hora} aria-label="Hora"
-                          onChange={e => setSesiones(prev => moverSesion(prev, s.fecha, s.fecha, e.target.value))}
+                          onChange={e => cambiarSesiones(prev => moverSesion(prev, s.fecha, s.fecha, e.target.value))}
                           className="rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-2 py-1.5 text-xs text-[#121212]">
                           {(horas.includes(s.hora) ? horas : [s.hora, ...horas]).map(h => <option key={h} value={h}>{h}</option>)}
                         </select>
@@ -350,7 +405,8 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
                 </ul>
                 {!isCustom && semanas && (
                   <p className="mt-1.5 text-[10px] text-[#888888]">
-                    Plan {TIPOS.find(t => t.value === tipo)?.label.toLowerCase()}: hasta {semanas} clases por cada día de la semana elegido. Vence el {fmtFecha(endDate)}.
+                    Plan {TIPOS.find(t => t.value === tipo)?.label.toLowerCase()}: {frecuencia} {frecuencia === 1 ? 'vez' : 'veces'} por semana × {semanas} semanas = {totalObjetivo} clases. Vence el {fmtFecha(endDate)}.
+                    {faltan > 0 && <strong className="text-[#C4783A]"> Faltan {faltan}.</strong>}
                   </p>
                 )}
               </div>
@@ -372,10 +428,14 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
             className="flex-1 rounded-xl border border-[#C8C8C8] py-2.5 text-sm font-medium text-[#5E5E5E] transition hover:border-[#888888]">
             Cancelar
           </button>
-          <button type="button" onClick={handleSave} disabled={saving || nConflictos > 0 || (!isCustom && sesiones.length === 0)}
+          <button type="button" onClick={handleSave} disabled={saving || !frecuencia || nConflictos > 0 || excedidas.length > 0 || (!isCustom && sesiones.length === 0) || (totalObjetivo !== undefined && sesiones.length !== totalObjetivo)}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#121212] py-2.5 text-sm font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
             <Save className="h-4 w-4" />
-            {saving ? 'Guardando...' : sesiones.length ? `Inscribir · ${sesiones.length} clases ${modalidad}` : isCustom ? 'Crear plan' : 'Elige las clases'}
+            {saving ? 'Guardando...'
+              : !frecuencia ? 'Elige veces por semana'
+              : faltan > 0 ? `Faltan ${faltan} clases`
+              : sesiones.length ? `Inscribir · ${sesiones.length} clases ${modalidad}`
+              : isCustom ? 'Crear plan' : 'Elige las clases'}
           </button>
         </div>
       </div>

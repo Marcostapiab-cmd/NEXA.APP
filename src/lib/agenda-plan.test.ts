@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   alternarSesion, conflictosSesiones, evaluarCelda, fechasDelDia, lunesDe, moverSesion,
   repetirDia, repetirSemana, tipoClaseDeModalidad, type SesionPlan,
+  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan,
 } from './agenda-plan';
 
 // Plan mensual que parte el lunes 2 de noviembre de 2026 (30 días → hasta 2 dic)
@@ -91,5 +92,31 @@ describe('cupos 1:1 / 2:1', () => {
   it('guarda el tipo de clase según la modalidad', () => {
     expect(tipoClaseDeModalidad('2:1')).toBe('2:1 Duo');
     expect(tipoClaseDeModalidad('1:1')).toBe('1:1 Individual');
+  });
+});
+
+describe('frecuencia semanal', () => {
+  const s = (fecha: string): SesionPlan => ({ fecha, hora: '08:00', origen: 'manual' });
+  // Semana del 2 nov: lun 2, mié 4. Semana del 9 nov: lun 9.
+  const ses = [s('2026-11-02'), s('2026-11-04'), s('2026-11-09')];
+
+  it('cuenta las clases de la semana', () => {
+    expect(clasesEnSemana(ses, '2026-11-06')).toBe(2);
+    expect(clasesEnSemana(ses, '2026-11-12')).toBe(1);
+  });
+  it('no deja pasar la frecuencia, pero sí cambiar la hora de un día elegido', () => {
+    expect(puedeAgregarEnSemana(ses, '2026-11-06', 2)).toBe(false);
+    expect(puedeAgregarEnSemana(ses, '2026-11-04', 2)).toBe(true);
+    expect(puedeAgregarEnSemana(ses, '2026-11-06', 3)).toBe(true);
+  });
+  it('detecta semanas con más clases de las permitidas', () => {
+    expect(semanasExcedidas(ses, 1)).toEqual(['2026-11-02']);
+    expect(semanasExcedidas(ses, 2)).toEqual([]);
+  });
+  it('copiar una semana de 3 días a un plan mensual da 3 × 4 = 12 clases', () => {
+    let out: SesionPlan[] = [s('2026-11-02'), s('2026-11-04'), s('2026-11-06')];
+    out = repetirSemana(out, '2026-11-02', INICIO, FIN, 4);
+    expect(out).toHaveLength(totalClasesPlan(3, 4));
+    expect(semanasExcedidas(out, 3)).toEqual([]);
   });
 });

@@ -167,3 +167,32 @@ export function conflictosSesiones(
 export function tipoClaseDeModalidad(m: PlanModalidad): string {
   return m === '2:1' ? '2:1 Duo' : '1:1 Individual';
 }
+
+// ── Frecuencia semanal (veces por semana) ───────────────────────
+
+/** Cuántas clases hay en la semana (lun–dom) de `fecha`. */
+export function clasesEnSemana(sesiones: SesionPlan[], fecha: string): number {
+  const lunes = lunesDe(fecha);
+  return sesiones.filter(s => lunesDe(s.fecha) === lunes).length;
+}
+
+/** ¿Se puede agregar una clase en `fecha` sin pasar la frecuencia semanal? */
+export function puedeAgregarEnSemana(sesiones: SesionPlan[], fecha: string, frecuencia: number): boolean {
+  if (sesiones.some(s => s.fecha === fecha)) return true; // cambiar la hora de un día ya elegido
+  return clasesEnSemana(sesiones, fecha) < frecuencia;
+}
+
+/** Semanas (por su lunes) que tienen más clases que la frecuencia elegida. */
+export function semanasExcedidas(sesiones: SesionPlan[], frecuencia: number): string[] {
+  const cuenta = new Map<string, number>();
+  for (const s of sesiones) {
+    const l = lunesDe(s.fecha);
+    cuenta.set(l, (cuenta.get(l) ?? 0) + 1);
+  }
+  return [...cuenta].filter(([, n]) => n > frecuencia).map(([l]) => l).sort();
+}
+
+/** Total de clases de un plan: veces por semana × semanas. */
+export function totalClasesPlan(frecuencia: number, semanas: number): number {
+  return frecuencia * semanas;
+}
