@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -9,12 +10,20 @@ import type { Sesion } from '@/lib/sesiones';
 import { getSesionesDB } from '@/lib/sesiones-supabase';
 import { getRutinasDB, type RutinaDB } from '@/lib/rutinas-supabase';
 import type { Plan, Reserva } from '@/lib/planes';
-import { getPlanEstado, getClasesRestantes, getDiasRestantes, ESTADO_CONFIG, RESERVA_LABEL } from '@/lib/planes';
+import { getPlanEstado, getClasesRestantes, getDiasRestantes, getEffectiveEndDate, ESTADO_CONFIG, RESERVA_LABEL } from '@/lib/planes';
 import { getAllPlanesDB, getReservasFechaDB } from '@/lib/planes-supabase';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = hoyLocal();
+
+// Días transcurridos desde una fecha YYYY-MM-DD hasta hoy
+function diasDesde(fecha: string): number {
+  const diff = Math.round(
+    (new Date(TODAY + 'T12:00:00').getTime() - new Date(fecha + 'T12:00:00').getTime()) / 86400000
+  );
+  return Math.max(0, diff);
+}
 
 function todayDow(): number {
   const d = new Date().getDay();
@@ -122,7 +131,19 @@ export default function DashboardPage() {
   });
 
   // Planes que necesitan atención: vencido, sin_clases, por_vencer
-  const planesRenovar = planes
+  // Solo el plan más reciente de cada alumno: si ya renovó, los planes viejos no cuentan.
+  const ultimoPlanPorAlumno = new Map<string, Plan>();
+  for (const p of planes) {
+    const actual = ultimoPlanPorAlumno.get(p.alumnoId);
+    if (
+      !actual ||
+      p.startDate > actual.startDate ||
+      (p.startDate === actual.startDate && p.createdAt > actual.createdAt)
+    ) {
+      ultimoPlanPorAlumno.set(p.alumnoId, p);
+    }
+  }
+  const planesRenovar = [...ultimoPlanPorAlumno.values()]
     .map(p => ({ plan: p, estado: getPlanEstado(p) }))
     .filter(({ estado }) => estado !== 'activo')
     .sort((a, b) => {
@@ -230,7 +251,7 @@ export default function DashboardPage() {
                           {cfg.label}
                         </span>
                         <span className="text-[10px] text-[#AAAAAA]">
-                          {estado === 'vencido'    ? `venció hace ${Math.abs(dias)}d` :
+                          {estado === 'vencido'    ? `venció hace ${diasDesde(getEffectiveEndDate(plan))}d` :
                            estado === 'sin_clases' ? '0 clases restantes' :
                            `${restantes} clase${restantes !== 1 ? 's' : ''} · ${dias}d`}
                         </span>
