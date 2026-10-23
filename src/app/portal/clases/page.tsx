@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -76,7 +77,7 @@ export default function PortalClasesPage() {
     );
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocal();
 
   const filtradas = reservas.filter(r => {
     if (filtro === 'proximas')  return r.fecha >= hoy;

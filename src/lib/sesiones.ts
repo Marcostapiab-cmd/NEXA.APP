@@ -1,3 +1,4 @@
+import { hoyLocal } from './format';
 // Shared session types — used by weightroom (logging) and athlete profile (display)
 
 export interface SesionSerie {
@@ -95,7 +96,7 @@ export function computeEstadoSesion(sesion: Sesion, fechaPlaneada: string): Esta
   const totales     = sesion.ejercicios.reduce((s, e) => s + e.series.length, 0);
   const completadas = sesion.ejercicios.reduce((s, e) => s + e.series.filter(sr => sr.completada).length, 0);
   if (totales > 0 && completadas === totales) return 'completado';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyLocal();
   return fechaPlaneada < today ? 'incompleto' : 'en_progreso';
 }
 

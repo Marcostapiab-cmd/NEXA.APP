@@ -1,31 +1,47 @@
 import { supabase } from './supabaseClient';
 import type { Plan, Reserva, Reagenda } from './planes';
+import { hoyLocal } from './format';
 
 // Estados que SÍ queman clase del plan
 export const ESTADOS_QUE_QUEMAN: string[] = ['presente', 'no_show', 'cancelada_tarde'];
 // Estados que NO ocupan una clase del plan (se devolvió o se movió a otra fecha)
 export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
 
+// Cómo cuenta una reserva en su plan:
+//  - 'usada'    → realizada o perdida (presente, no-show, cancelación tardía)
+//  - 'agendada' → clase futura (o de hoy) aún sin marcar
+//  - null       → no ocupa clase: cancelada a tiempo, reagendada, o una clase
+//                 que ya pasó y quedó "pendiente" (no vino y avisó con tiempo)
+export function cuentaEnPlan(estado: unknown, fecha: unknown, hoy = hoyLocal()): 'usada' | 'agendada' | null {
+  const e = String(estado ?? '').toLowerCase();
+  if (ESTADOS_QUE_QUEMAN.includes(e))    return 'usada';
+  if (ESTADOS_NO_DESCUENTAN.includes(e)) return null;
+  const f = String(fecha ?? '').slice(0, 10);
+  if (e === 'pendiente' && f && f < hoy) return null;
+  return 'agendada';
+}
+
 // Cuenta, por plan, las clases realizadas y las agendadas
-function contarPorPlan(rows: { plan_id: unknown; estado: unknown }[]) {
+function contarPorPlan(rows: { plan_id: unknown; estado: unknown; fecha?: unknown }[]) {
   const usadas    = new Map<string, number>();
   const agendadas = new Map<string, number>();
+  const hoy = hoyLocal();
   for (const r of rows) {
     if (!r.plan_id) continue;
     const pid = String(r.plan_id);
-    const e   = String(r.estado ?? '').toLowerCase();
-    if (ESTADOS_QUE_QUEMAN.includes(e))          usadas.set(pid, (usadas.get(pid) ?? 0) + 1);
-    else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas.set(pid, (agendadas.get(pid) ?? 0) + 1);
+    const c   = cuentaEnPlan(r.estado, r.fecha, hoy);
+    if (c === 'usada')         usadas.set(pid, (usadas.get(pid) ?? 0) + 1);
+    else if (c === 'agendada') agendadas.set(pid, (agendadas.get(pid) ?? 0) + 1);
   }
   return { usadas, agendadas };
 }
 
 // Supabase devuelve máximo 1000 filas por consulta: se pide por páginas
-async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown }[]> {
-  const out: { plan_id: unknown; estado: unknown }[] = [];
+async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown; fecha: unknown }[]> {
+  const out: { plan_id: unknown; estado: unknown; fecha: unknown }[] = [];
   for (let desde = 0; ; desde += 1000) {
     const { data, error } = await supabase
-      .from('reservas').select('plan_id, estado')
+      .from('reservas').select('plan_id, estado, fecha')
       .not('plan_id', 'is', null)
       .order('id').range(desde, desde + 999);
     if (error) throw error;
@@ -40,7 +56,7 @@ async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown }[
 export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
   const [{ data: planesData, error }, { data: reservasData }] = await Promise.all([
     supabase.from('planes').select('*').eq('alumno_id', alumnoId).order('start_date', { ascending: false }),
-    supabase.from('reservas').select('plan_id, estado').eq('alumno_id', alumnoId),
+    supabase.from('reservas').select('plan_id, estado, fecha').eq('alumno_id', alumnoId),
   ]);
   if (error) throw error;
 
@@ -206,7 +222,7 @@ export async function getReagendasAlumnoDB(alumnoId: string): Promise<Reagenda[]
     .from('reagendas')
     .select('*')
     .eq('alumno_id', alumnoId)
-    .order('created_at', { ascending: false });
+    .order('creada_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:                String(r.id),

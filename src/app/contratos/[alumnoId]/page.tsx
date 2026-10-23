@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -83,7 +84,7 @@ function ContratoDoc({ a, salud, plan, extra }: {
           CONTRATO DE SERVICIOS DE ENTRENAMIENTO PERSONAL
         </div>
         <div style={{ fontSize: 11, color: '#888888', marginTop: 6, fontFamily: 'Arial, sans-serif' }}>
-          Fecha: {fmtLong(new Date().toISOString().slice(0, 10))}
+          Fecha: {fmtLong(hoyLocal())}
         </div>
       </div>
 
@@ -167,7 +168,7 @@ function ContratoDoc({ a, salud, plan, extra }: {
       {/* Footer */}
       <div style={{ borderTop: '1px solid #333333', marginTop: 32, paddingTop: 10, textAlign: 'center' }}>
         <div style={{ fontSize: 9, color: '#555555', fontFamily: 'Arial, sans-serif' }}>
-          NEXA Training Studio · Where Strength Connects · Generado el {fmtLong(new Date().toISOString().slice(0, 10))}
+          NEXA Training Studio · Where Strength Connects · Generado el {fmtLong(hoyLocal())}
         </div>
       </div>
     </div>
@@ -282,7 +283,7 @@ export default function ContratoPage() {
     ]).then(([a, s, planes]) => {
       setAlumno(a);
       setSalud(s);
-      const activePlan = planes.find(p => p.endDate >= new Date().toISOString().slice(0, 10)) ?? planes[0] ?? null;
+      const activePlan = planes.find(p => p.endDate >= hoyLocal()) ?? planes[0] ?? null;
       setPlan(activePlan);
     }).catch(() => {})
       .finally(() => setLoading(false));
@@ -294,10 +295,10 @@ export default function ContratoPage() {
     try {
       const updated = await updateAlumno(alumno.id, {
         contratoFirmado:    true,
-        contratoFechaFirma: new Date().toISOString().slice(0, 10),
+        contratoFechaFirma: hoyLocal(),
       });
       if (updated) {
-        setAlumno(prev => prev ? { ...prev, contratoFirmado: true, contratoFechaFirma: new Date().toISOString().slice(0, 10) } : prev);
+        setAlumno(prev => prev ? { ...prev, contratoFirmado: true, contratoFechaFirma: hoyLocal() } : prev);
         setSaved(true);
       }
     } catch {

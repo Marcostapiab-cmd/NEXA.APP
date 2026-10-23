@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal, fechaLocal } from '@/lib/format';
 
 import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus, ClipboardCheck } from 'lucide-react';
@@ -6,6 +7,7 @@ import CheckinTab from './CheckinTab';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
 import { validarConflictoTipo } from '@/lib/reservas-validation';
+import { cuentaEnPlan } from '@/lib/planes-supabase';
 import {
   getHorarioConfig, getBloqueos, generateHours,
   DEFAULT_HORARIO_CONFIG,
@@ -15,7 +17,6 @@ import {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-const ESTADOS_QUE_QUEMAN  = ['presente', 'no_show', 'cancelada_tarde'];
 // Reservas que ya no ocupan cupo en el horario
 const ESTADOS_INACTIVOS   = ['cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
 const esActiva = (status: string) => !ESTADOS_INACTIVOS.includes((status || '').toLowerCase());
@@ -83,8 +84,6 @@ interface PlanActivo {
   modalidad?:   '1:1' | '2:1' | null;
 }
 
-// Reservas que no ocupan una clase del plan (se devolvió o se movió)
-const ESTADOS_NO_DESCUENTAN = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,7 +95,7 @@ function getMonday(offset: number): Date {
   return d;
 }
 
-function dateStr(d: Date)  { return d.toISOString().slice(0, 10); }
+function dateStr(d: Date)  { return fechaLocal(d); }
 function fmtLabel(d: Date) { return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }); }
 
 function getSlotPos(r: RawReserva): { fecha: string; hora: string } | null {
@@ -153,9 +152,10 @@ async function marcarClasesExtra(reservas: RawReserva[]): Promise<RawReserva[]> 
     ((planes ?? []) as { id: string; total_clases: number }[]).map(p => [String(p.id), Number(p.total_clases)])
   );
 
+  const hoy = hoyLocal();
   const porPlan = new Map<string, { id: string; orden: string }[]>();
   for (const r of (todas ?? []) as { id: unknown; fecha: string; hora?: string; estado?: string; plan_id: unknown }[]) {
-    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    if (!cuentaEnPlan(r.estado, r.fecha, hoy)) continue;
     const pid = String(r.plan_id);
     if (!porPlan.has(pid)) porPlan.set(pid, []);
     porPlan.get(pid)!.push({ id: String(r.id), orden: `${String(r.fecha).slice(0, 10)} ${String(r.hora ?? '').slice(0, 5)}` });
@@ -248,6 +248,27 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
       setError('Hay 2 alumnos en este horario: no puede ser 1:1.');
       return false;
     }
+    // No se puede cambiar el tipo si choca con la modalidad del plan/ficha del alumno
+    const { data: filas } = await supabase
+      .from('reservas')
+      .select('alumno_id, plan_id')
+      .in('id', activos.map(a => a.reservaId));
+    const planIds   = (filas ?? []).map(f => f.plan_id).filter(Boolean);
+    const alumnoIds = (filas ?? []).map(f => f.alumno_id).filter(Boolean);
+    const [{ data: planes }, { data: atletas }] = await Promise.all([
+      planIds.length   ? supabase.from('planes').select('id, modalidad').in('id', planIds)                       : Promise.resolve({ data: [] }),
+      alumnoIds.length ? supabase.from('atletas').select('id, nombre, tipo_sesion').in('id', alumnoIds) : Promise.resolve({ data: [] }),
+    ]);
+    for (const f of filas ?? []) {
+      const pl = (planes ?? []).find(x => String(x.id) === String(f.plan_id)) as { modalidad?: string | null } | undefined;
+      const at = (atletas ?? []).find(x => String(x.id) === String(f.alumno_id)) as { nombre?: string; tipo_sesion?: string | null } | undefined;
+      const mod = pl?.modalidad || at?.tipo_sesion;
+      if ((mod === '1:1' || mod === '2:1') && mod !== tipo) {
+        setError(`${at?.nombre ?? 'Un alumno'} es ${mod} según su ${pl?.modalidad ? 'plan' : 'ficha'}: esta clase no puede pasar a ${tipo}.`);
+        return false;
+      }
+    }
+
     const tipoClase = tipo === '2:1' ? '2:1 Duo' : '1:1 Individual';
     for (const a of activos) {
       const { error: err } = await supabase.from('reservas').update({ tipo_clase: tipoClase }).eq('id', a.reservaId);
@@ -365,6 +386,11 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
                   );
                 })}
               </div>
+              {isPast && a.status === 'pendiente' && (
+                <p className="mt-1.5 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+                  Clase pasada en pendiente: no vino y avisó con tiempo, no descuenta del plan.
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -416,6 +442,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
   // undefined = aún no cargado, null = sin plan activo, objeto = plan encontrado
   const [plan,         setPlan]         = useState<PlanActivo | null | undefined>(undefined);
   const [cargandoPlan, setCargandoPlan] = useState(false);
+  // Modalidad del alumno (1:1 o 2:1): un alumno no puede tener clases de ambos tipos
+  const [modalidad,    setModalidad]    = useState<{ tipo: '1:1' | '2:1'; origen: string } | null>(null);
 
   // Modo walk-in (excepción explícita)
   const [walkIn,    setWalkIn]    = useState(false);
@@ -448,10 +476,9 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     setCargandoPlan(true);
     setPlan(undefined);
     setExtraOk(false);
-    // Tipo por defecto: el de la ficha del alumno (el plan, si lo indica, manda)
-    if (a.tipo_sesion === '1:1' || a.tipo_sesion === '2:1') setTipo(a.tipo_sesion);
+    setModalidad(null);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = hoyLocal();
     const { data: planesData } = await supabase
       .from('planes')
       .select('id, nombre, total_clases, end_date, modalidad')
@@ -460,34 +487,51 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
       .order('end_date', { ascending: true })
       .limit(1);
 
-    if (!planesData || planesData.length === 0) {
+    const p = (planesData?.[0] ?? null) as {
+      id: string; nombre: string; total_clases: number;
+      end_date: string; modalidad?: '1:1' | '2:1' | null;
+    } | null;
+
+    // Modalidad del alumno: la del plan manda; si no, la de su ficha;
+    // si no, la de sus clases individuales activas ya agendadas.
+    let mod: { tipo: '1:1' | '2:1'; origen: string } | null = null;
+    if (p?.modalidad === '1:1' || p?.modalidad === '2:1') {
+      mod = { tipo: p.modalidad, origen: 'su plan' };
+    } else if (a.tipo_sesion === '1:1' || a.tipo_sesion === '2:1') {
+      mod = { tipo: a.tipo_sesion, origen: 'su ficha' };
+    } else {
+      const { data: previas } = await supabase
+        .from('reservas')
+        .select('tipo_clase, descripcion, estado')
+        .eq('alumno_id', a.id)
+        .gte('fecha', today)
+        .order('fecha', { ascending: false })
+        .limit(20);
+      const previa = (previas ?? []).find(r =>
+        esActiva(String(r.estado ?? '')) && parseTipo(r.tipo_clase, r.descripcion) !== 'Grupal');
+      if (previa) mod = { tipo: parseTipo(previa.tipo_clase, previa.descripcion) as '1:1' | '2:1', origen: 'sus clases agendadas' };
+    }
+    setModalidad(mod);
+    if (mod && !tipoFijo) setTipo(mod.tipo);
+
+    if (!p) {
       setPlan(null);
       setCargandoPlan(false);
       return;
-    }
-
-    const p = planesData[0] as {
-      id: string; nombre: string; total_clases: number;
-      end_date: string; modalidad?: '1:1' | '2:1' | null;
-    };
-
-    // Auto-seleccionar tipo según modalidad del plan
-    if (p.modalidad === '1:1' || p.modalidad === '2:1') {
-      setTipo(p.modalidad);
     }
 
     // Todas las reservas del plan: las realizadas y las ya agendadas
     // ocupan una clase del contrato.
     const { data: resPlan } = await supabase
       .from('reservas')
-      .select('estado')
+      .select('estado, fecha')
       .eq('plan_id', p.id);
 
     let usado = 0, agendadas = 0;
     for (const r of resPlan ?? []) {
-      const e = String(r.estado ?? '').toLowerCase();
-      if (ESTADOS_QUE_QUEMAN.includes(e))       usado++;
-      else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas++;
+      const c = cuentaEnPlan(r.estado, r.fecha, today);
+      if (c === 'usada')         usado++;
+      else if (c === 'agendada') agendadas++;
     }
 
     setPlan({ ...p, modalidad: p.modalidad ?? null, usado, agendadas });
@@ -501,6 +545,10 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
       if (!alumno) { setError('Selecciona un alumno'); return; }
       if (plan === undefined) { setError('Espera, cargando plan...'); return; }
       if (esExtra && !extraOk) { setError('Confirma que esta clase extra se cobrará aparte.'); return; }
+      if (conflictoModalidad) {
+        setError(`${alumno.nombre} es ${modalidad!.tipo} (según ${modalidad!.origen}): no se puede agendar en una clase ${tipo}.`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -551,6 +599,12 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
           duracion_min: 60,
         });
         if (err) throw err;
+
+        // Enlazar el plan a la modalidad con la que se agenda (si aún no la tenía),
+        // así las próximas clases del alumno quedan fijas en ese tipo.
+        if (plan && !plan.modalidad && (tipo === '1:1' || tipo === '2:1')) {
+          await supabase.from('planes').update({ modalidad: tipo }).eq('id', plan.id);
+        }
       }
 
       onSaved(); onClose();
@@ -569,7 +623,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
   const restantes    = plan ? Math.max(plan.total_clases - ocupadas, 0) : 0;
   const numeroClase  = ocupadas + 1;
   const esExtra      = !!plan && !walkIn && numeroClase > plan.total_clases;
-  const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined)) && (!esExtra || extraOk);
+  const conflictoModalidad = !walkIn && !!modalidad && tipo !== 'Grupal' && tipo !== modalidad.tipo;
+  const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined)) && (!esExtra || extraOk) && !conflictoModalidad;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -596,7 +651,8 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
               style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
             <div className="grid grid-cols-2 gap-1.5">
               {(['1:1', '2:1'] as TipoClase[]).map(t => (
-                <button key={t} onClick={() => setTipo(t)} disabled={!!tipoFijo && t !== tipoFijo}
+                <button key={t} onClick={() => setTipo(t)}
+                  disabled={(!!tipoFijo && t !== tipoFijo) || (!walkIn && !!modalidad && t !== modalidad.tipo)}
                   className="rounded-lg py-2 text-[12px] font-semibold transition disabled:opacity-40"
                   style={{
                     background: tipo === t ? 'var(--nexa-accent)' : 'var(--nexa-card-alt)',
@@ -613,6 +669,22 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
             <p className="-mt-2 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
               Se suma como segundo alumno a este horario {tipoFijo}.
             </p>
+          )}
+          {!walkIn && alumno && modalidad && !conflictoModalidad && (
+            <p className="-mt-2 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+              {alumno.nombre} es {modalidad.tipo} según {modalidad.origen}: solo puede agendar clases {modalidad.tipo}.
+            </p>
+          )}
+          {conflictoModalidad && (
+            <div className="-mt-1 rounded-lg px-3 py-2.5"
+              style={{ background: 'rgba(180,64,64,0.08)', border: '1px solid rgba(180,64,64,0.45)' }}>
+              <p className="text-[12px] font-bold" style={{ color: '#B44040' }}>
+                ⚠ {alumno!.nombre} es {modalidad!.tipo}, no {tipo}
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: '#B44040' }}>
+                Según {modalidad!.origen}. Un alumno no puede tener clases 1:1 y 2:1 a la vez: agéndalo en un horario {modalidad!.tipo}.
+              </p>
+            </div>
           )}
 
           {/* Coach (fijo al sumar un alumno a un horario existente) */}
@@ -642,7 +714,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
               <div className="relative">
                 <input
                   value={query}
-                  onChange={e => { setQuery(e.target.value); setAlumno(null); setPlan(undefined); }}
+                  onChange={e => { setQuery(e.target.value); setAlumno(null); setPlan(undefined); setModalidad(null); }}
                   placeholder="Buscar por nombre o RUT..."
                   autoFocus
                   className="w-full rounded-lg px-3 py-2.5 text-[13px]"
@@ -979,10 +1051,11 @@ type Conteo = { n1a1: number; n2a1Completa: number; n2a1Incompleta: number; nGru
 // sesión real (fecha+hora): una clase 2:1 tiene 2 filas, una por alumno.
 // 2:1 completa = 2 alumnos; incompleta = 1 alumno.
 function contarClasesCoach(c: Coach, reservas: RawReserva[]): Conteo {
+  const hoy = hoyLocal();
   const sesiones = new Map<string, RawReserva[]>();
   for (const r of reservas) {
     if (r.coach_id !== c.id) continue;
-    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    if (!cuentaEnPlan(r.estado, getSlotPos(r)?.fecha ?? r.fecha, hoy)) continue;
     const pos = getSlotPos(r);
     if (!pos) continue;
     const key = `${pos.fecha}|${pos.hora}`;
@@ -1147,7 +1220,7 @@ export default function HorarioPage() {
     d.setDate(monday.getDate() + i);
     return d;
   });
-  const today     = new Date().toISOString().slice(0, 10);
+  const today     = hoyLocal();
   const now       = new Date();
   const weekLabel = `${fmtLabel(days[0])} — ${fmtLabel(days[5])}`;
 

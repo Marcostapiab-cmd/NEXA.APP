@@ -392,43 +392,6 @@ export default function DashboardPage() {
         {/* Right column */}
         <div className="space-y-4">
 
-          {/* Quién debe renovar el plan */}
-          <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
-            <div className="flex items-center justify-between border-b border-[#EBEBEB] px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]">
-                Renovaciones pendientes
-              </p>
-              <RefreshCw size={12} className="text-[#D8D8D8]" />
-            </div>
-            {planesRenovar.length === 0 ? (
-              <div className="px-5 py-5 text-center">
-                <p className="text-[13px] text-[#AAAAAA]">Todos los planes al día.</p>
-              </div>
-            ) : (
-              <div className="p-2">
-                {planesRenovar.map(({ plan, estado }) => {
-                  const cfg    = ESTADO_CONFIG[estado];
-                  const alumno = alumnoMap[plan.alumnoId];
-                  return (
-                    <Link key={plan.id} href={`/alumnos/${plan.alumnoId}`}
-                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 transition hover:bg-[#EBEBEB]">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#EBEBEB] text-[11px] font-bold text-[#9B9B9B]">
-                        {alumno?.nombre[0]?.toUpperCase() ?? '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-[12px] font-medium text-[#121212]">
-                          {alumno ? `${alumno.nombre} ${alumno.apellido ?? ''}`.trim() : 'Alumno'}
-                        </p>
-                        <p className="text-[10px]" style={{ color: cfg.color }}>{cfg.label}</p>
-                      </div>
-                      <ChevronRight size={12} className="shrink-0 text-[#D8D8D8]" />
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Alumnos */}
           <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#F5F5F5]">
             <div className="flex items-center justify-between border-b border-[#EBEBEB] px-5 py-3.5">

@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, X, CalendarDays, CheckSquare } from 'lucide-react';
@@ -35,7 +36,7 @@ interface Props {
 }
 
 export default function WeightroomCalendarModal({ alumno, routine, onLoad, onClose }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyLocal();
   const [cursor, setCursor]     = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selected, setSelected] = useState<string | null>(today);
 

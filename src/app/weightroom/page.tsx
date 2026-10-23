@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
@@ -35,7 +36,7 @@ function getWeekIdx(start: string) {
   return Math.max(0, Math.floor((n.getTime() - s.getTime()) / 86400000 / 7));
 }
 function getActiveBlock(r: Routine): DayBlock | null {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyLocal();
   if (!r.startDate || !r.endDate) return null;
   if (today < r.startDate || today > r.endDate) return null;
   if (r.sessions) {
@@ -144,7 +145,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   onSaved: () => void;
 }) {
   const IC = 'w-full rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2 text-base text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#121212] tabular-nums font-medium';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyLocal();
 
   const [activeBlock,    setActiveBlock]    = useState<DayBlock | null>(defaultBlock);
   const [isRecording,    setIsRecording]    = useState(false);

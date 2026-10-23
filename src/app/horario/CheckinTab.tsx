@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -190,7 +191,7 @@ function CheckinCard({
 
 export default function CheckinTab() {
   const router  = useRouter();
-  const today   = new Date().toISOString().slice(0, 10);
+  const today   = hoyLocal();
 
   const [role,    setRole]    = useState<string | null>(null);
   const [rows,    setRows]    = useState<CheckinRow[]>([]);

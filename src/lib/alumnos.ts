@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { hoyLocal } from './format';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 
 const SELECT_FIELDS = `
@@ -39,7 +40,7 @@ function toAlumno(r: Record<string, unknown>): Alumno {
 export async function getAlumnos(): Promise<Alumno[]> {
   const { data, error } = await supabase
     .from('atletas')
-    .select('id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado, rut, etapa, estado_pago')
+    .select('id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado, rut, telefono, tipo_sesion, etapa, estado_pago')
     .order('nombre', { ascending: true });
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => toAlumno(r));
@@ -117,6 +118,19 @@ export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): 
     .select(SELECT_FIELDS)
     .single();
   if (error) throw error;
+
+  // La ficha y el plan van enlazados: si cambia el tipo de sesión,
+  // los planes vigentes del alumno pasan a esa misma modalidad.
+  if (a.tipoSesion === '1:1' || a.tipoSesion === '2:1') {
+    const hoy = hoyLocal();
+    const { error: errPlan } = await supabase
+      .from('planes')
+      .update({ modalidad: a.tipoSesion })
+      .eq('alumno_id', id)
+      .gte('end_date', hoy);
+    if (errPlan) throw errPlan;
+  }
+
   return toAlumno(data as unknown as Record<string, unknown>);
 }
 

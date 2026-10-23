@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -51,7 +52,7 @@ export default function PortalRutinasPage() {
       if (!atletaData) { router.push('/portal/sin-cuenta'); return; }
 
       const aid = (atletaData as { id: string }).id;
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyLocal();
 
       // Rutinas donde el alumno_ids contiene el id del atleta y están activas
       const { data: rutinasData } = await supabase

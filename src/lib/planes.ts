@@ -1,3 +1,4 @@
+import { hoyLocal } from './format';
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export type PlanTipo    = 'mensual' | 'trimestral' | 'semestral' | 'personalizado';
@@ -76,7 +77,7 @@ export const PLAN_TIPO_LABEL: Record<PlanTipo, string> = {
 // ─── Helpers de fechas ──────────────────────────────────────────────────────
 
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return hoyLocal();
 }
 
 export function formatDate(ds: string): string {
