@@ -26,6 +26,8 @@ const ESTADOS_ASISTENCIA = [
   { value: 'no_show',    label: 'No se presentó',  color: '#B44040' },
   { value: 'pendiente',  label: 'Pendiente',        color: '#9B9B9B' },
   { value: 'reagendada', label: 'Reagenda',         color: '#9B9BD5' },
+  { value: 'cancelada_tiempo', label: 'Avisó a tiempo (no descuenta)', color: '#555555' },
+  { value: 'cancelada_tarde',  label: 'Avisó tarde (descuenta)',       color: '#B8860B' },
 ];
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
