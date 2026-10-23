@@ -7,6 +7,7 @@ import CheckinTab from './CheckinTab';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
 import { validarConflictoTipo } from '@/lib/reservas-validation';
+import { cuentaEnPlan } from '@/lib/planes-supabase';
 import {
   getHorarioConfig, getBloqueos, generateHours,
   DEFAULT_HORARIO_CONFIG,
@@ -16,7 +17,6 @@ import {
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-const ESTADOS_QUE_QUEMAN  = ['presente', 'no_show', 'cancelada_tarde'];
 // Reservas que ya no ocupan cupo en el horario
 const ESTADOS_INACTIVOS   = ['cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
 const esActiva = (status: string) => !ESTADOS_INACTIVOS.includes((status || '').toLowerCase());
@@ -84,8 +84,6 @@ interface PlanActivo {
   modalidad?:   '1:1' | '2:1' | null;
 }
 
-// Reservas que no ocupan una clase del plan (se devolvió o se movió)
-const ESTADOS_NO_DESCUENTAN = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -154,9 +152,10 @@ async function marcarClasesExtra(reservas: RawReserva[]): Promise<RawReserva[]> 
     ((planes ?? []) as { id: string; total_clases: number }[]).map(p => [String(p.id), Number(p.total_clases)])
   );
 
+  const hoy = hoyLocal();
   const porPlan = new Map<string, { id: string; orden: string }[]>();
   for (const r of (todas ?? []) as { id: unknown; fecha: string; hora?: string; estado?: string; plan_id: unknown }[]) {
-    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    if (!cuentaEnPlan(r.estado, r.fecha, hoy)) continue;
     const pid = String(r.plan_id);
     if (!porPlan.has(pid)) porPlan.set(pid, []);
     porPlan.get(pid)!.push({ id: String(r.id), orden: `${String(r.fecha).slice(0, 10)} ${String(r.hora ?? '').slice(0, 5)}` });
@@ -387,6 +386,11 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
                   );
                 })}
               </div>
+              {isPast && a.status === 'pendiente' && (
+                <p className="mt-1.5 text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+                  Clase pasada en pendiente: no vino y avisó con tiempo, no descuenta del plan.
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -520,14 +524,14 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     // ocupan una clase del contrato.
     const { data: resPlan } = await supabase
       .from('reservas')
-      .select('estado')
+      .select('estado, fecha')
       .eq('plan_id', p.id);
 
     let usado = 0, agendadas = 0;
     for (const r of resPlan ?? []) {
-      const e = String(r.estado ?? '').toLowerCase();
-      if (ESTADOS_QUE_QUEMAN.includes(e))       usado++;
-      else if (!ESTADOS_NO_DESCUENTAN.includes(e)) agendadas++;
+      const c = cuentaEnPlan(r.estado, r.fecha, today);
+      if (c === 'usada')         usado++;
+      else if (c === 'agendada') agendadas++;
     }
 
     setPlan({ ...p, modalidad: p.modalidad ?? null, usado, agendadas });
@@ -1047,10 +1051,11 @@ type Conteo = { n1a1: number; n2a1Completa: number; n2a1Incompleta: number; nGru
 // sesión real (fecha+hora): una clase 2:1 tiene 2 filas, una por alumno.
 // 2:1 completa = 2 alumnos; incompleta = 1 alumno.
 function contarClasesCoach(c: Coach, reservas: RawReserva[]): Conteo {
+  const hoy = hoyLocal();
   const sesiones = new Map<string, RawReserva[]>();
   for (const r of reservas) {
     if (r.coach_id !== c.id) continue;
-    if (ESTADOS_NO_DESCUENTAN.includes(String(r.estado ?? '').toLowerCase())) continue;
+    if (!cuentaEnPlan(r.estado, getSlotPos(r)?.fecha ?? r.fecha, hoy)) continue;
     const pos = getSlotPos(r);
     if (!pos) continue;
     const key = `${pos.fecha}|${pos.hora}`;
