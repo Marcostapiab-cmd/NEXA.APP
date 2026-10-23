@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
@@ -116,7 +117,7 @@ const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-
 // ─── Plan status helper ───────────────────────────────────────────────────────
 
 function getAlumnoPlanBadge(alumnoId: string, planes: Plan[]): { label: string; color: string } | null {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoyLocal();
   const active = planes.find(p =>
     p.alumnoId === alumnoId && p.endDate >= today && (p.totalClases - p.usedClases) > 0
   );

@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -86,7 +87,7 @@ export default function PortalPage() {
       setReservas((resData ?? []) as Reserva[]);
 
       // Planes activos
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyLocal();
       const { data: planesData } = await supabase
         .from('planes')
         .select('id, nombre, total_clases, used_clases, start_date, end_date')
@@ -138,7 +139,7 @@ export default function PortalPage() {
 
   if (!atleta) return null;
 
-  const proximasReservas = reservas.filter(r => r.fecha >= new Date().toISOString().slice(0, 10)).slice(0, 3);
+  const proximasReservas = reservas.filter(r => r.fecha >= hoyLocal()).slice(0, 3);
   const pagosPendientes  = pagos.filter(p => p.estado === 'pendiente');
   const planActivo       = planes[0];
 
@@ -291,11 +292,11 @@ export default function PortalPage() {
         </div>
 
         {/* Historial reciente */}
-        {reservas.filter(r => r.fecha < new Date().toISOString().slice(0, 10)).length > 0 && (
+        {reservas.filter(r => r.fecha < hoyLocal()).length > 0 && (
           <div className="rounded-2xl border border-[#D8D8D8] bg-white p-5">
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]">Historial reciente</p>
             <div className="space-y-2">
-              {reservas.filter(r => r.fecha < new Date().toISOString().slice(0, 10)).slice(0, 5).map(r => {
+              {reservas.filter(r => r.fecha < hoyLocal()).slice(0, 5).map(r => {
                 const asistio = r.estado === 'presente';
                 return (
                   <div key={r.id} className="flex items-center gap-3">

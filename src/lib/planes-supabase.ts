@@ -206,7 +206,7 @@ export async function getReagendasAlumnoDB(alumnoId: string): Promise<Reagenda[]
     .from('reagendas')
     .select('*')
     .eq('alumno_id', alumnoId)
-    .order('created_at', { ascending: false });
+    .order('creada_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:                String(r.id),

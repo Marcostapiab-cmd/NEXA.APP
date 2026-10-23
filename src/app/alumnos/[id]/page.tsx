@@ -1,4 +1,5 @@
 'use client';
+import { hoyLocal } from '@/lib/format';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -17,7 +18,6 @@ import PlanStatusCard   from '@/components/planes/PlanStatusCard';
 import {
   getPlanesAlumnoDB, upsertPlanDB, deletePlanDB,
   getReservasAlumnoDB, upsertReservaDB, deleteReservaDB,
-  recalcUsedClasesDB,
   getReagendasAlumnoDB, upsertReagendaDB,
 } from '@/lib/planes-supabase';
 import { getBloqueos, type HorarioBloqueo } from '@/lib/horario-config';
@@ -119,7 +119,7 @@ export default function AlumnoPerfilPage() {
   const [mediciones,   setMediciones]  = useState<Medicion[]>([]);
   const [showMedicion, setShowMedicion] = useState(false);
   const [medSaving,    setMedSaving]   = useState(false);
-  const [medForm, setMedForm] = useState<Omit<Medicion, 'id' | 'alumnoId' | 'createdAt'>>({ fecha: new Date().toISOString().slice(0, 10), peso: '', grasa: '', musculo: '', notas: '' });
+  const [medForm, setMedForm] = useState<Omit<Medicion, 'id' | 'alumnoId' | 'createdAt'>>({ fecha: hoyLocal(), peso: '', grasa: '', musculo: '', notas: '' });
   const [expandedSesion, setExpandedSesion] = useState<string | null>(null);
 
   // Salud (solo admin/profesor — null = sin acceso)
@@ -235,7 +235,7 @@ export default function AlumnoPerfilPage() {
       const nueva = await insertMedicionDB({ alumnoId: id, ...medForm });
       setMediciones(prev => [nueva, ...prev].sort((a, b) => b.fecha.localeCompare(a.fecha)));
       setShowMedicion(false);
-      setMedForm({ fecha: new Date().toISOString().slice(0, 10), peso: '', grasa: '', musculo: '', notas: '' });
+      setMedForm({ fecha: hoyLocal(), peso: '', grasa: '', musculo: '', notas: '' });
     } catch (e) {
       console.error('Error guardando medición:', e);
     } finally {
@@ -255,8 +255,9 @@ export default function AlumnoPerfilPage() {
 
   function handleInscripcionSaved(plan: Plan) {
     setPlanes(prev => [plan, ...prev]);
-    // Las reservas se recargan desde DB para tener los IDs reales generados por la DB
-    getReservasAlumnoDB(id).then(setReservas).catch(() => {});
+    // Planes y reservas se recargan desde la DB: así el plan trae sus clases
+    // agendadas y las reservas los IDs reales generados por la DB
+    loadReservas();
   }
 
   async function handleSavePlan(data: Omit<Plan, 'id' | 'alumnoId' | 'createdAt'>) {
@@ -299,10 +300,8 @@ export default function AlumnoPerfilPage() {
       return;
     }
     setReservas(prev => prev.map(r => r.id === reservaId ? updated : r));
-    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
-    if ((newCount ?? -1) >= 0) {
-      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount as number } : p));
-    }
+    // Recalcula usadas y agendadas del plan
+    getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
     // Auto-crear reagenda si se marca como "reagendada" y no existe ya una
     if (nuevoEstado === 'reagendada') {
       const yaExiste = reagendas.some(r => r.reservaOriginalId === reservaId);
@@ -384,10 +383,7 @@ export default function AlumnoPerfilPage() {
       return;
     }
     setReservas(prev => prev.filter(r => r.id !== reservaId));
-    const newCount = await recalcUsedClasesDB(reserva.planId, id).catch(() => -1);
-    if (newCount >= 0) {
-      setPlanes(prev => prev.map(p => p.id === reserva.planId ? { ...p, usedClases: newCount } : p));
-    }
+    getPlanesAlumnoDB(id).then(setPlanes).catch(() => {});
   }
 
   async function handleInvitarPortal() {

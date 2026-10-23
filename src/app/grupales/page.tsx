@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw, UserCircle, CreditCard, Plus, Pencil, Trash2, Star, X, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { clp, DIAS_LARGO, MESES_LARGO, MESES_CORTO } from '@/lib/format';
+import { clp, DIAS_LARGO, MESES_LARGO, MESES_CORTO , hoyLocal } from '@/lib/format';
 
 // ── Tipos para alumnos grupales ──────────────────────────────
 
@@ -575,7 +575,7 @@ export default function GrupalesPage() {
 
   const cargar = useCallback(async () => {
     setLoading(true);
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyLocal();
     const fin = filtro === 'hoy'
       ? hoy
       : filtro === 'semana'
@@ -742,7 +742,7 @@ export default function GrupalesPage() {
         <div className="space-y-5">
           {sesiones.map(sesion => {
             const key   = `${sesion.fecha}|${sesion.hora}`;
-            const esHoy = sesion.fecha === new Date().toISOString().slice(0, 10);
+            const esHoy = sesion.fecha === hoyLocal();
             const lleno = sesion.capacidad > 0 && sesion.reservas.length >= sesion.capacidad;
 
             return (

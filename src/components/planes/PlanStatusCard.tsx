@@ -156,7 +156,7 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
       </div>
 
       {/* ── Stats grid ── */}
-      <div className="grid grid-cols-2 gap-px border-t border-[#E4E4E4] sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px border-t border-[#E4E4E4]">
         {[
           {
             icon: <Dumbbell className="h-4 w-4" />,
