@@ -196,3 +196,15 @@ export function semanasExcedidas(sesiones: SesionPlan[], frecuencia: number): st
 export function totalClasesPlan(frecuencia: number, semanas: number): number {
   return frecuencia * semanas;
 }
+
+/**
+ * Agenda días fijos de la semana (ej. lun/mié/vie) desde el inicio hasta el fin
+ * del plan, cada uno a su hora. Reemplaza todo lo agendado antes.
+ */
+export function agendarDiasFijos(
+  dias: { dia: number; hora: string }[], inicio: string, fin: string, maxPorDia?: number,
+): SesionPlan[] {
+  let out: SesionPlan[] = [];
+  for (const { dia, hora } of dias) out = repetirDia(out, dia, hora, inicio, fin, maxPorDia);
+  return out;
+}
