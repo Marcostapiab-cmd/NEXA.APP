@@ -366,9 +366,8 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
             </div>
 
             {/* Semana del profesor */}
-            {coach && frecuencia && (
-              <div className="space-y-3">
-                {/* Días fijos: agenda todo el plan de una vez */}
+            {/* Días fijos: agenda todo el plan de una vez */}
+            {frecuencia && (
                 <div className="rounded-xl border border-[#C8C8C8] bg-white p-3">
                   <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
                     Días fijos · elige {frecuencia} ({nDiasFijos}/{frecuencia})
@@ -407,9 +406,14 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
                       ? `Agendar ${DIAS_PLAN.filter(d => diasFijos[d.n]).map(d => d.corto).join(', ')} hasta el ${fmtFecha(endDate)}`
                       : `Elige ${frecuencia - nDiasFijos} ${frecuencia - nDiasFijos === 1 ? 'día' : 'días'} más`}
                   </button>
+                  {!coach && <p className="mt-1.5 text-[10px] font-semibold text-[#C4783A]">Elige el profesor para ver si alguna clase choca con su agenda.</p>}
                   <p className="mt-1.5 text-[10px] text-[#888888]">Reemplaza lo que hayas marcado antes. Después puedes mover clases sueltas en el calendario o en la lista.</p>
                 </div>
 
+            )}
+
+            {coach && frecuencia && (
+              <div className="space-y-3">
                 <p className="text-xs text-[#5E5E5E]">O elige a mano: 
                   Elige <strong>{frecuencia} {frecuencia === 1 ? 'día' : 'días'}</strong> en la semana de <strong>{coach.nombre}</strong>. Cada día puede tener una hora distinta.
                   {' '}<span className="font-semibold text-[#121212]">Esta semana: {sesionesSemana.length}/{frecuencia}</span>
