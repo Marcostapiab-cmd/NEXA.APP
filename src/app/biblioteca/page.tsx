@@ -613,11 +613,11 @@ export default function BibliotecaPage() {
           </button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#D8D8D8]">
+        <div className="overflow-x-auto rounded-2xl border border-[#D8D8D8]">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#D8D8D8] bg-[#F5F5F5]">
-                <th className="w-8 px-4 py-3 text-left text-[9px] font-bold uppercase tracking-[0.14em] text-[#AAAAAA]">#</th>
+                <th className="hidden w-8 px-4 py-3 text-left text-[9px] sm:table-cell font-bold uppercase tracking-[0.14em] text-[#AAAAAA]">#</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-[0.14em] text-[#9B9B9B]">Ejercicio</th>
                 <th className="px-4 py-3 text-left text-[9px] font-bold uppercase tracking-[0.14em] text-[#9B9B9B]">Video</th>
                 <th className="w-10 pr-3 py-3" />
@@ -635,7 +635,7 @@ export default function BibliotecaPage() {
                     style={{ backgroundColor: isEven ? '#F5F5F5' : '#F8F8F8' }}
                   >
                     {/* # */}
-                    <td className="px-4 py-3.5 text-[11px] font-mono text-[#AAAAAA]">{idx + 1}</td>
+                    <td className="hidden px-4 py-3.5 text-[11px] font-mono text-[#AAAAAA] sm:table-cell">{idx + 1}</td>
 
                     {/* Nombre */}
                     <td className="px-4 py-3.5">
@@ -677,7 +677,7 @@ export default function BibliotecaPage() {
                     <td className="pr-3 py-3.5 text-right">
                       <button
                         onClick={() => setEditando(ej)}
-                        className="rounded-lg p-1.5 text-[#9B9B9B] opacity-0 transition group-hover:opacity-100 hover:bg-[#D8D8D8] hover:text-[#5E5E5E]"
+                        className="rounded-lg p-2 text-[#9B9B9B] transition lg:p-1.5 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-[#D8D8D8] hover:text-[#5E5E5E]"
                         title="Editar"
                       >
                         <Pencil className="h-3.5 w-3.5" />

@@ -309,7 +309,7 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden"
         style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}
@@ -638,7 +638,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
   const puedeAgendar = !saving && (walkIn || (alumno !== null && plan !== undefined)) && (!esExtra || extraOk) && !conflictoModalidad;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden"
         style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}
@@ -1465,7 +1465,7 @@ export default function HorarioPage() {
                 style={{
                   overflowX:  'auto',
                   overflowY:  'auto',
-                  maxHeight:  'calc(100vh - 180px)',
+                  maxHeight:  'calc(100dvh - 180px)',
                   border:     '1px solid var(--nexa-border)',
                   borderTop:  'none',
                 }}

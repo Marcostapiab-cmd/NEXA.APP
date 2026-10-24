@@ -1,12 +1,12 @@
 'use client';
-import { hoyLocal } from '@/lib/format';
+import { hoyLocal, fechaLocal } from '@/lib/format';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import {
   Trash2, Plus, ChevronLeft, ChevronRight,
   X, Download, Copy, Save, FolderOpen, GripVertical, Search, FileText,
-  Users, ArrowLeft, PlayCircle,
+  Users, ArrowLeft, PlayCircle, ChevronUp, ChevronDown, Check, AlertCircle, Loader2,
 } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
 import { getMergedEjercicios, getEjerciciosPropios, saveEjercicioPropio, type EjBiblioteca } from '@/lib/ejercicios';
@@ -92,7 +92,7 @@ const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Ago
 const DOW_LABEL  = ['L','M','Mi','J','V','S','D'];
 const DOW_FULL   = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
-function toDateStr(d: Date) { return d.toISOString().slice(0, 10); }
+function toDateStr(d: Date) { return fechaLocal(d); }
 
 function buildMonthGrid(year: number, month: number): Date[][] {
   const first    = new Date(year, month, 1);
@@ -241,7 +241,7 @@ function ExerciseSearch({ onAdd, onCancel }: {
   return (
     <form onSubmit={submit} className="rounded-xl border border-[#D8D8D8] bg-[#F5F5F5] p-4">
       <div className="mb-4 flex items-center gap-2.5">
-        <p className="flex-1 text-sm font-bold text-[#121212]">{picked?.name}</p>
+        <p className="min-w-0 flex-1 break-words text-sm font-bold text-[#121212]">{picked?.name}</p>
         {picked?.youtubeUrl && (
           <span className="rounded-md bg-[#121212]/6 px-2 py-0.5 text-[9px] font-bold text-[#121212]">
             Video incluido
@@ -291,7 +291,7 @@ function ExerciseSearch({ onAdd, onCancel }: {
 
       <div className="mt-4 flex gap-2">
         <button type="submit"
-          className="rounded-xl bg-[#121212] px-5 py-2.5 text-xs font-bold text-white transition hover:brightness-110">
+          className="flex-1 rounded-xl bg-[#121212] px-5 py-3 text-xs sm:flex-none sm:py-2.5 font-bold text-white transition hover:brightness-110">
           Agregar ejercicio
         </button>
         <button type="button" onClick={onCancel}
@@ -372,8 +372,8 @@ function CopyToCalendarModal({ sourceDate, session, routine, onCopy, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-6 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#D8D8D8] bg-[#F5F5F5] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/40 p-3 pt-4 backdrop-blur-sm sm:p-4 sm:pt-6">
+      <div className="relative mb-6 w-full max-w-lg rounded-2xl border border-[#D8D8D8] bg-[#F5F5F5] shadow-2xl">
 
         {/* ── Conflict overlay ── */}
         {conflictMode === 'asking' && (
@@ -639,12 +639,18 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
     dragIdx.current = i; updEx(arr);
   }
   function handleDragEnd() { dragIdx.current = null; }
+  function moveEx(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= exs.length) return;
+    const arr = [...exs]; [arr[i], arr[j]] = [arr[j], arr[i]];
+    updEx(arr);
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#D8D8D8] bg-[#F0F0F0]">
       {/* Header */}
-      <div className="border-b border-[#D8D8D8] px-5 py-4">
-        <div className="flex items-start gap-4">
+      <div className="border-b border-[#D8D8D8] px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="flex flex-col items-center justify-center rounded-xl border border-[#D8D8D8] bg-[#F8F8F8] px-3 pb-2 pt-2.5 min-w-[52px]">
             <span className="text-3xl font-black leading-none tabular-nums text-[#121212]">
               {d.getDate().toString().padStart(2, '0')}
@@ -653,7 +659,7 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
               {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()]}
             </span>
           </div>
-          <div className="flex-1 pt-0.5">
+          <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-base font-bold capitalize text-[#121212]">
               {MONTHS_ES[d.getMonth()]} {d.getFullYear()}
             </p>
@@ -668,7 +674,8 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
                 <Copy className="h-3 w-3" /> Copiar
               </button>
               <button onClick={onClear}
-                className="rounded-xl border border-[#D8D8D8] p-1.5 text-[#777777] transition hover:border-[#B44040]/30 hover:text-[#B44040]">
+                aria-label="Vaciar día"
+                className="rounded-xl border border-[#D8D8D8] p-2 text-[#777777] transition hover:border-[#B44040]/30 hover:text-[#B44040] sm:p-1.5">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -680,10 +687,55 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
         <input value={session?.name ?? ''}
           onChange={e => onUpdate({ ...ensure(), name: e.target.value })}
           placeholder="Nombre del entrenamiento (ej: Piernas · Empuje)"
-          className="w-full bg-transparent text-sm font-medium text-[#121212] placeholder-[#AAAAAA] outline-none" />
+          className="w-full rounded-lg border border-transparent bg-transparent py-1 text-sm font-medium focus:border-[#D8D8D8] text-[#121212] placeholder-[#AAAAAA] outline-none" />
+
+        {/* Celular: tarjetas con reordenar ↑↓ (arrastrar no funciona con el dedo) */}
+        {exs.length > 0 && (
+          <ul className="space-y-2 sm:hidden">
+            {exs.map((ex, idx) => (
+              <li key={ex.id} className="rounded-xl border border-[#E0E0E0] bg-[#F8F8F8] p-3">
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 w-5 shrink-0 text-center font-mono text-xs text-[#9B9B9B]">{idx + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-[15px] font-semibold leading-snug text-[#121212]">{ex.name}</p>
+                    <p className="mt-1 text-sm text-[#121212]">
+                      {ex.series} <span className="text-[#9B9B9B]">×</span> {ex.reps}
+                      {ex.rest && <span className="text-[#777777]"> · {ex.rest}</span>}
+                    </p>
+                    {(ex.tempo || ex.notes) && (
+                      <p className="mt-0.5 break-words text-xs text-[#9B9B9B]">
+                        {[ex.tempo && `Tempo ${ex.tempo}`, ex.notes].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                    {ex.youtubeUrl && (
+                      <a href={ex.youtubeUrl} target="_blank" rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[#D8D8D8] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#121212]">
+                        <PlayCircle className="h-4 w-4" /> Ver video
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <button onClick={() => moveEx(idx, -1)} disabled={idx === 0} aria-label="Subir"
+                      className="rounded-lg p-1.5 text-[#888888] disabled:opacity-25">
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => moveEx(idx, 1)} disabled={idx === exs.length - 1} aria-label="Bajar"
+                      className="rounded-lg p-1.5 text-[#888888] disabled:opacity-25">
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => delEx(ex.id)} aria-label="Eliminar"
+                      className="rounded-lg p-1.5 text-[#AAAAAA] active:text-[#B44040]">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {exs.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-[#E0E0E0]">
+          <div className="hidden overflow-x-auto rounded-xl border border-[#E0E0E0] sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#E0E0E0] bg-[#F5F5F5]">
@@ -743,11 +795,11 @@ function DayEditor({ dateStr, session, routine, onUpdate, onCopy, onClear }: {
           : (
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setShowSearch(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#D0D0D0] px-3.5 py-2 text-xs font-medium text-[#888888] transition hover:border-[#9B9B9B] hover:text-[#5E5E5E]">
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#D0D0D0] px-3.5 py-3 text-xs sm:flex-none sm:py-2 font-medium text-[#888888] transition hover:border-[#9B9B9B] hover:text-[#5E5E5E]">
                 <Plus className="h-3.5 w-3.5" /> Agregar ejercicio
               </button>
               <button onClick={() => setShowQuickCreate(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-[#DEDEDE] px-3.5 py-2 text-xs font-medium text-[#9B9B9B] transition hover:border-[#121212]/22 hover:text-[#121212]">
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#DEDEDE] px-3.5 py-3 text-xs sm:flex-none sm:py-2 font-medium text-[#9B9B9B] transition hover:border-[#121212]/22 hover:text-[#121212]">
                 <FileText className="h-3.5 w-3.5" /> Crear desde texto
               </button>
             </div>
@@ -771,7 +823,7 @@ function SavePlantillaModal({ onSave, onClose }: { onSave: (nombre: string) => v
   const [nombre, setNombre] = useState('');
   function submit() { if (nombre.trim()) { onSave(nombre.trim()); onClose(); } }
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+    <div className="nx-overlay fixed inset-0 z-[80] flex justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl border border-[#D8D8D8] bg-[#EBEBEB] p-6 shadow-2xl">
         <p className="text-sm font-bold text-[#121212]">Guardar como plantilla</p>
         <p className="mt-1 text-xs text-[#888888]">Elige un nombre para reutilizar estos ejercicios en otros días.</p>
@@ -890,9 +942,30 @@ return `<p class="day">${label}${s.name ? ' — ' + s.name : ''}</p>${s.exercise
 
 // ─── RoutineCalendarEditor ────────────────────────────────────────────────────
 
-function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
+function SaveIndicator({ state, onRetry }: { state: 'idle' | 'saving' | 'saved' | 'error'; onRetry: () => void }) {
+  if (state === 'idle') return null;
+  if (state === 'saving') return (
+    <span className="flex items-center gap-1 text-[11px] text-[#9B9B9B]">
+      <Loader2 className="h-3 w-3 animate-spin" /> Guardando…
+    </span>
+  );
+  if (state === 'saved') return (
+    <span className="flex items-center gap-1 text-[11px] text-[#4A8A5A]">
+      <Check className="h-3 w-3" /> Guardado
+    </span>
+  );
+  return (
+    <button onClick={onRetry}
+      className="flex items-center gap-1 rounded-lg border border-[#B44040]/30 bg-[#FAEAEA] px-2 py-1 text-[11px] font-semibold text-[#B44040]">
+      <AlertCircle className="h-3 w-3" /> Sin guardar · Reintentar
+    </button>
+  );
+}
+
+function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack, saveState, onRetrySave }: {
   routine: Routine; alumno: Alumno; planes: Plan[];
   onUpdate: (r: Routine) => void; onBack: () => void;
+  saveState: 'idle' | 'saving' | 'saved' | 'error'; onRetrySave: () => void;
 }) {
   const today    = new Date();
   const todayStr = toDateStr(today);
@@ -902,6 +975,15 @@ function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
   const [viewMonth, setViewMonth] = useState(initDate.getMonth());
   const [selDate,   setSelDate]   = useState<string | null>(null);
   const [copyDate,  setCopyDate]  = useState<string | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // En el celular el editor del día queda debajo del calendario: se baja hasta él
+  useEffect(() => {
+    if (!selDate || !editorRef.current) return;
+    if (window.matchMedia('(min-width: 1024px)').matches) return;
+    const t = setTimeout(() => editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    return () => clearTimeout(t);
+  }, [selDate]);
 
   const grid = buildMonthGrid(viewYear, viewMonth);
   const isCurrentMonthView = viewYear === today.getFullYear() && viewMonth === today.getMonth();
@@ -942,36 +1024,39 @@ function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
   return (
     <div>
       {/* ── Alumno header ── */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <button onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#888888] transition hover:border-[#D8D8D8] hover:text-[#121212]">
-          <ArrowLeft className="h-3.5 w-3.5" /> Alumnos
-        </button>
+      <div className="mb-5 space-y-3 sm:mb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#121212]/6 text-xs font-black text-[#121212]">
-            {initials}
+          <button onClick={onBack}
+            className="flex shrink-0 items-center gap-2 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#888888] transition hover:border-[#D8D8D8] hover:text-[#121212]">
+            <ArrowLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Alumnos</span>
+          </button>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#121212]/6 text-xs font-black text-[#121212]">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-[#121212]">
+                {alumno.nombre}{alumno.apellido ? ` ${alumno.apellido}` : ''}
+              </p>
+              {plan && (
+                <p className="text-[10px] font-semibold" style={{ color: plan.color }}>{plan.label}</p>
+              )}
+            </div>
           </div>
-          <div>
-            <p className="text-base font-bold text-[#121212]">
-              {alumno.nombre}{alumno.apellido ? ` ${alumno.apellido}` : ''}
-            </p>
-            {plan && (
-              <p className="text-[10px] font-semibold" style={{ color: plan.color }}>{plan.label}</p>
-            )}
-          </div>
+          {sessionCount > 0 && (
+            <button onClick={() => exportToPDF(routine, `${alumno.nombre}${alumno.apellido ? ' ' + alumno.apellido : ''}`)}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#9B9B9B] transition hover:border-[#D8D8D8] hover:text-[#5E5E5E]">
+              <Download className="h-3.5 w-3.5" /> PDF
+            </button>
+          )}
         </div>
-        <div className="flex-1">
+        <div className="flex items-center gap-3">
           <input value={routine.name}
             onChange={e => patch({ name: e.target.value })}
             placeholder="Nombre del programa"
-            className="w-full bg-transparent text-right text-sm font-medium text-[#888888] outline-none placeholder-[#B0B0B0] transition focus:text-[#121212]" />
+            className="min-w-0 flex-1 rounded-xl border border-[#E0E0E0] bg-[#F8F8F8] px-3 py-2 text-sm font-medium text-[#121212] outline-none placeholder-[#B0B0B0] transition focus:border-[#9B9B9B]" />
+          <div className="shrink-0"><SaveIndicator state={saveState} onRetry={onRetrySave} /></div>
         </div>
-        {sessionCount > 0 && (
-          <button onClick={() => exportToPDF(routine, `${alumno.nombre}${alumno.apellido ? ' ' + alumno.apellido : ''}`)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#E0E0E0] px-3 py-2 text-xs text-[#9B9B9B] transition hover:border-[#D8D8D8] hover:text-[#5E5E5E]">
-            <Download className="h-3.5 w-3.5" /> PDF
-          </button>
-        )}
       </div>
 
       <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6">
@@ -1029,7 +1114,7 @@ function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
                   const chipColor = '#121212';
                   return (
                     <button key={di} onClick={() => setSelDate(isSel ? null : ds)}
-                      className={`group relative flex min-h-[58px] flex-col items-start p-1.5 text-left transition-colors
+                      className={`group relative flex min-h-[52px] min-w-0 flex-col items-start p-1 text-left sm:min-h-[58px] sm:p-1.5 transition-colors
                         ${di < 6 ? 'border-r border-[#E4E4E4]' : ''}
                         ${isSel ? 'bg-black/[0.04]' : 'hover:bg-[#EBEBEB]'}
                         ${(!isThisM || (!inRange && isThisM)) ? 'opacity-20' : ''}
@@ -1064,7 +1149,7 @@ function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
         </div>
 
         {/* ── Right col ── */}
-        <div className="mt-4 space-y-3 lg:mt-0">
+        <div ref={editorRef} className="mt-4 scroll-mt-20 space-y-3 lg:mt-0">
           {selDate ? (
             <>
               <DayEditor
@@ -1093,7 +1178,7 @@ function RoutineCalendarEditor({ routine, alumno, planes, onUpdate, onBack }: {
               </svg>
               <div>
                 <p className="text-sm font-semibold text-[#9B9B9B]">Selecciona un día</p>
-                <p className="mt-1 text-xs text-[#B0B0B0]">Haz click en cualquier fecha del calendario para agregar ejercicios</p>
+                <p className="mt-1 px-4 text-xs text-[#B0B0B0]">Toca cualquier fecha del calendario para agregar ejercicios</p>
               </div>
             </div>
           )}
@@ -1150,7 +1235,7 @@ function AlumnoSelectorScreen({ alumnos, routines, planes, onSelect }: {
       {/* Search */}
       <div className="relative mb-6">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9B9B9B]" />
-        <input value={q} onChange={e => setQ(e.target.value)} autoFocus
+        <input value={q} onChange={e => setQ(e.target.value)}
           placeholder="Buscar alumno..."
           className="w-full rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] py-3.5 pl-11 pr-4 text-sm text-[#121212] placeholder-[#AAAAAA] outline-none transition focus:border-[#D8D8D8]" />
       </div>
@@ -1255,25 +1340,81 @@ export default function RutinasPage() {
 
   function save(next: Routine[]) {
     setRoutines(next);
-    localStorage.setItem('nexa_routines', JSON.stringify(next));
+    try { localStorage.setItem('nexa_routines', JSON.stringify(next)); } catch {}
   }
 
-  function syncToSupabase(r: Routine) {
-    saveRutinaDB({
-      id:         r.id,
-      nombre:     r.name,
-      alumno_ids: r.alumnoIds ?? (r.alumnoId ? [r.alumnoId] : []),
-      start_date: r.startDate ?? '',
-      end_date:   r.endDate   ?? '',
-      sessions:   (r.sessions ?? {}) as Record<string, unknown>,
-      blocks:     [],
-    }).catch(() => {
-      // El cambio queda guardado localmente, pero si esto falla el resto
-      // del equipo (otro dispositivo/usuario) nunca lo va a ver. Antes
-      // este error se ignoraba en silencio.
-      alert('No se pudo guardar la rutina en el servidor. El cambio quedó solo en este dispositivo — revisa tu conexión e inténtalo de nuevo.');
-    });
+  // ── Guardado en el servidor ──────────────────────────────────────────────
+  // Se espera a que el usuario deje de escribir (debounce) y los envíos van
+  // de a uno, en orden: así una respuesta lenta nunca pisa un cambio más nuevo
+  // (pasaba en el celular con mala señal).
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const pendingRef  = useRef<Map<string, Routine>>(new Map());
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushingRef = useRef(false);
+
+  async function flushSaves() {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (flushingRef.current) return;
+    flushingRef.current = true;
+    let failed = false;
+    try {
+      while (pendingRef.current.size > 0) {
+        const [id, r] = pendingRef.current.entries().next().value as [string, Routine];
+        pendingRef.current.delete(id);
+        setSaveState('saving');
+        try {
+          await saveRutinaDB({
+            id:         r.id,
+            nombre:     r.name,
+            alumno_ids: r.alumnoIds ?? (r.alumnoId ? [r.alumnoId] : []),
+            start_date: r.startDate ?? '',
+            end_date:   r.endDate   ?? '',
+            sessions:   (r.sessions ?? {}) as Record<string, unknown>,
+            blocks:     [],
+          });
+        } catch {
+          // Se vuelve a dejar en cola (salvo que ya haya una versión más nueva)
+          if (!pendingRef.current.has(id)) pendingRef.current.set(id, r);
+          failed = true;
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+    if (failed) setSaveState('error');
+    else if (pendingRef.current.size > 0) flushSaves();
+    else setSaveState('saved');
   }
+
+  function syncToSupabase(r: Routine, immediate = false) {
+    pendingRef.current.set(r.id, r);
+    setSaveState('saving');
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (immediate) flushSaves();
+    else timerRef.current = setTimeout(flushSaves, 700);
+  }
+
+  // Si el usuario cambia de app o cierra la pestaña, se guarda de inmediato
+  useEffect(() => {
+    const onHide = () => { if (pendingRef.current.size > 0) flushSaves(); };
+    const onVis  = () => { if (document.visibilityState === 'hidden') onHide(); };
+    const onOnline = () => { if (pendingRef.current.size > 0) flushSaves(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pagehide', onHide);
+    window.addEventListener('online', onOnline);
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingRef.current.size > 0) { flushSaves(); e.preventDefault(); }
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleSelectAlumno(alumno: Alumno) {
     const existing = routines.find(r => r.alumnoId === alumno.id || r.alumnoIds?.[0] === alumno.id);
@@ -1288,8 +1429,8 @@ export default function RutinasPage() {
       };
       const updated = [newRoutine, ...routines];
       setRoutines(updated);
-      localStorage.setItem('nexa_routines', JSON.stringify(updated));
-      syncToSupabase(newRoutine);
+      try { localStorage.setItem('nexa_routines', JSON.stringify(updated)); } catch {}
+      syncToSupabase(newRoutine, true);
     }
     setSelectedAlumno(alumno);
   }
@@ -1304,7 +1445,7 @@ export default function RutinasPage() {
     : null;
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
       {selectedAlumno && currentRoutine
         ? (
           <RoutineCalendarEditor
@@ -1312,7 +1453,9 @@ export default function RutinasPage() {
             alumno={selectedAlumno}
             planes={planes}
             onUpdate={updateRoutine}
-            onBack={() => setSelectedAlumno(null)}
+            onBack={() => { flushSaves(); setSelectedAlumno(null); }}
+            saveState={saveState}
+            onRetrySave={flushSaves}
           />
         ) : (
           <AlumnoSelectorScreen

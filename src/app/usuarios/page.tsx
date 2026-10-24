@@ -288,7 +288,7 @@ export default function UsuariosPage() {
 
       {/* ── Modal Editar usuario ─────────────────────────────────────── */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) closeEdit(); }}>
 
@@ -414,7 +414,7 @@ export default function UsuariosPage() {
 
       {/* ── Modal Nuevo usuario ─────────────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
 

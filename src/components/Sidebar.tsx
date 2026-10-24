@@ -97,7 +97,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   return (
     <Link
       href={item.href}
-      className="flex items-center gap-2.5 rounded-[8px] px-3 py-2 text-[13px] font-medium transition-all duration-150"
+      className="flex items-center gap-2.5 rounded-[8px] px-3 py-2.5 text-[14px] lg:py-2 lg:text-[13px] font-medium transition-all duration-150"
       style={active
         ? { background: 'var(--nexa-card-alt)', color: 'var(--nexa-text)', fontWeight: 600 }
         : { color: 'var(--nexa-muted)' }}
@@ -112,7 +112,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
 function SectionBlock({ section, pathname }: { section: Section; pathname: string }) {
   const hasActive = section.items.some(i => isActive(pathname, i.href));
-  const [open, setOpen] = useState(hasActive);
+  const [open, setOpen] = useState(true);
 
   useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
 
@@ -147,7 +147,7 @@ function SectionBlock({ section, pathname }: { section: Section; pathname: strin
               {isCollapsible && (
                 <Link
                   href={item.href}
-                  className="flex items-center gap-2.5 rounded-[8px] py-2 pl-6 pr-3 text-[13px] font-medium transition-all duration-150"
+                  className="flex items-center gap-2.5 rounded-[8px] py-2.5 pl-6 pr-3 text-[14px] lg:py-2 lg:text-[13px] font-medium transition-all duration-150"
                   style={isActive(pathname, item.href)
                     ? { background: 'var(--nexa-card-alt)', color: 'var(--nexa-text)', fontWeight: 600 }
                     : { color: 'var(--nexa-muted)' }}
@@ -190,11 +190,47 @@ export default function Sidebar() {
   const [drawerOpen,   setDrawerOpen]  = useState(false);
 
   useEffect(() => {
-    supabase.rpc('get_my_role').then(({ data }: { data: unknown }) => setRole(data as string | null));
-    supabase.auth.getUser().then(res => setEmail(res.data.user?.email ?? null));
+    let cancelled = false;
+
+    // Lee el rol de forma robusta: en iPhone la sesión a veces aún no está lista
+    // en el primer intento, y si el rol queda en null el menú sale vacío.
+    async function loadRole(attempt = 0): Promise<void> {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
+      if (cancelled) return;
+      if (user?.email) setEmail(user.email);
+
+      const fromMeta = (user?.user_metadata?.rol as string | undefined) ?? null;
+      const { data, error } = await supabase.rpc('get_my_role');
+      if (cancelled) return;
+
+      const rol = (typeof data === 'string' && data) ? data : fromMeta;
+      if (rol) { setRole(rol); return; }
+
+      if ((error || !user) && attempt < 3) {
+        setTimeout(() => { if (!cancelled) loadRole(attempt + 1); }, 600 * (attempt + 1));
+        return;
+      }
+      // Sin rol conocido: se muestra el menú general (cada página y RLS validan el acceso).
+      setRole('desconocido');
+    }
+
+    loadRole();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadRole();
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  // Bloquea el scroll de la página mientras el menú móvil está abierto
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [drawerOpen]);
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -214,7 +250,14 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <>
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+        {role === null && (
+          <div className="space-y-2 px-3" aria-busy="true">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="h-7 animate-pulse rounded-[8px]" style={{ background: 'var(--nexa-card-alt)' }} />
+            ))}
+          </div>
+        )}
         {sections.map(s => (
           <SectionBlock key={s.label} section={s} pathname={pathname} />
         ))}
@@ -223,7 +266,7 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="shrink-0 px-3 py-3" style={{ borderTop: '1px solid var(--nexa-border)' }}>
+      <div className="shrink-0 px-3 pt-3" style={{ borderTop: '1px solid var(--nexa-border)', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-2.5 rounded-[8px] px-2 py-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black"
             style={{ background: 'var(--nexa-card-alt)', color: 'var(--nexa-text-sub)' }}>
@@ -233,18 +276,18 @@ export default function Sidebar() {
             <p className="truncate text-[11px] font-semibold" style={{ color: 'var(--nexa-text-sub)' }}>
               {email ?? '—'}
             </p>
-            {role && (
+            {role && role !== 'desconocido' && (
               <p className="text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--nexa-faint)' }}>
                 {role}
               </p>
             )}
           </div>
           <button onClick={handleLogout} disabled={loggingOut} title="Cerrar sesión"
-            className="shrink-0 rounded-[6px] p-1.5 transition-colors disabled:opacity-40"
+            className="shrink-0 rounded-[6px] p-2.5 transition-colors disabled:opacity-40 lg:p-1.5"
             style={{ color: 'var(--nexa-muted)' }}
             onMouseEnter={e => { if (!loggingOut) e.currentTarget.style.color = 'var(--nexa-text)'; }}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--nexa-muted)')}>
-            <LogOut size={13} strokeWidth={2} className={loggingOut ? 'animate-pulse' : ''} />
+            <LogOut size={15} strokeWidth={2} className={loggingOut ? 'animate-pulse' : ''} />
           </button>
         </div>
       </div>
@@ -255,7 +298,7 @@ export default function Sidebar() {
     <>
       {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
       <aside
-        className="fixed left-0 top-0 z-30 hidden h-screen w-[220px] flex-col lg:flex"
+        className="fixed left-0 top-0 z-30 hidden h-dvh w-[220px] flex-col lg:flex"
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
         <Link href="/clases-grupales" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
@@ -291,7 +334,7 @@ export default function Sidebar() {
 
       {/* ── Mobile drawer ────────────────────────────────────────────────── */}
       <div
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[220px] flex-col lg:hidden transition-transform duration-200 ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed left-0 top-0 z-50 flex h-dvh w-[260px] max-w-[85vw] flex-col lg:hidden transition-transform duration-200 ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
         <div className="flex h-14 shrink-0 items-center justify-between px-4"

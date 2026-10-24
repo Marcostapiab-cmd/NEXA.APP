@@ -133,7 +133,7 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[70dvh] overflow-y-auto">
             <div className="space-y-5 p-5">
 
               {/* Tipo */}

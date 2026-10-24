@@ -58,21 +58,25 @@ function getActiveBlock(r: Routine): DayBlock | null {
 // ─── Video helpers ────────────────────────────────────────────────────────────
 
 function parseVideoEmbed(url: string): {
-  type: 'youtube' | 'vimeo' | 'external';
+  type: 'youtube' | 'vimeo' | 'file' | 'external';
   embedUrl?: string;
   thumbUrl?: string;
   videoId?: string;
 } {
   if (!url) return { type: 'external' };
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  // Videos subidos a la biblioteca (archivo directo): se reproducen dentro de la app
+  if (/\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(url) || /\/storage\/v1\/object\//.test(url)) return { type: 'file' };
+  // watch?v=, youtu.be/, shorts/, embed/, live/ (también m.youtube.com y parámetros extra)
+  const yt = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (yt) return {
     type: 'youtube',
     videoId: yt[1],
-    embedUrl: `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1`,
+    // playsinline: en iPhone se reproduce dentro de la tarjeta, sin forzar pantalla completa
+    embedUrl: `https://www.youtube.com/embed/${yt[1]}?rel=0&autoplay=1&playsinline=1`,
     thumbUrl: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`,
   };
-  const vi = url.match(/vimeo\.com\/(\d+)/);
-  if (vi) return { type: 'vimeo', videoId: vi[1], embedUrl: `https://player.vimeo.com/video/${vi[1]}?autoplay=1` };
+  const vi = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vi) return { type: 'vimeo', videoId: vi[1], embedUrl: `https://player.vimeo.com/video/${vi[1]}?autoplay=1&playsinline=1` };
   return { type: 'external' };
 }
 
@@ -80,6 +84,14 @@ function ExerciseVideo({ url }: { url: string }) {
   const [playing, setPlaying] = useState(false);
   if (!url) return null;
   const embed = parseVideoEmbed(url);
+
+  if (embed.type === 'file') {
+    return (
+      <div className="mb-3 overflow-hidden rounded-xl border border-[#D8D8D8] bg-black">
+        <video src={url} controls playsInline preload="metadata" className="max-h-[60dvh] w-full" />
+      </div>
+    );
+  }
 
   if (embed.type === 'external') {
     return (
@@ -98,8 +110,9 @@ function ExerciseVideo({ url }: { url: string }) {
             <iframe
               src={embed.embedUrl}
               className="absolute inset-0 h-full w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
               allowFullScreen
+              title="Video del ejercicio"
             />
           </div>
           <button onClick={() => setPlaying(false)}
@@ -159,6 +172,46 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   const [ejLibrary,      setEjLibrary]      = useState<EjBiblioteca[]>([]);
   const [saving,         setSaving]         = useState(false);
   const lastTsRef = useRef<number>(0);
+  const draftKey  = `nexa_wr_draft_${alumno.id}`;
+  const restoredRef = useRef(false);
+
+  // Recupera un registro a medio hacer (si se cerró la app, se cambió de pestaña, etc.)
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as {
+        block: DayBlock; fechaReal: string; fechaPlaneada?: string; notas: string; ejercicios: SesionEjercicio[];
+      };
+      if (!d?.block || !Array.isArray(d.ejercicios)) return;
+      setActiveBlock(d.block);
+      setFechaReal(d.fechaReal || today);
+      setFechaPlaneada(d.fechaPlaneada);
+      setNotas(d.notas ?? '');
+      setEjercicios(d.ejercicios);
+      setIsRecording(true);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guarda el borrador en el dispositivo mientras se registra
+  useEffect(() => {
+    if (!isRecording || !activeBlock) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ block: activeBlock, fechaReal, fechaPlaneada, notas, ejercicios }));
+    } catch {}
+  }, [isRecording, activeBlock, fechaReal, fechaPlaneada, notas, ejercicios, draftKey]);
+
+  function clearDraft() { try { localStorage.removeItem(draftKey); } catch {} }
+
+  function cancelRecording() {
+    const algo = ejercicios.some(ej => ej.series.some(sr => sr.completada)) || notas.trim().length > 0;
+    if (algo && !confirm('¿Descartar este registro? Lo anotado se perderá.')) return;
+    clearDraft();
+    setIsRecording(false);
+  }
 
   useEffect(() => { setEjLibrary(getAllEjercicios()); }, []);
 
@@ -181,8 +234,8 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   function initRecording(b: DayBlock) {
     setEjercicios(b.exercises.map(ex => ({
       nombre: ex.name, grupo: '',
-      series: Array.from({ length: ex.series }, () => ({
-        reps: ex.reps.match(/^\d+/)?.[0] || '10',
+      series: Array.from({ length: Math.max(1, Number(ex.series) || 1) }, () => ({
+        reps: String(ex.reps ?? '').match(/^\d+/)?.[0] || '10',
         peso: ex.weight || '',
         completada: false,
       })),
@@ -296,11 +349,12 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
     try {
       await saveSesionDB(sesion);
     } catch {
-      alert('No se pudo guardar la sesión en el servidor. Verifica tu conexión e intenta de nuevo — quedó guardada localmente mientras tanto.');
+      alert('No se pudo guardar la sesión en el servidor. Revisa tu conexión y toca "Guardar sesión" de nuevo — lo anotado sigue aquí y no se pierde.');
       setSaving(false);
       return;
     }
     setSaving(false);
+    clearDraft();
     setIsRecording(false);
     setNotas('');
     onSaved();
@@ -315,7 +369,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
     <div className="flex h-full flex-col bg-[#F8F8F8]">
 
       {/* ── Card header ── */}
-      <div className="border-b border-[#E0E0E0] px-5 pb-0 pt-4">
+      <div className="border-b border-[#E0E0E0] px-4 pb-0 pt-4 sm:px-5">
         <div className="flex items-center gap-3 pb-3.5">
           {alumno.foto
             ? <img src={alumno.foto} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
@@ -334,13 +388,14 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
           <div className="flex shrink-0 items-center gap-1.5">
             {!isRecording && activeBlock && routine && (
               <button onClick={startRecording}
-                className="flex items-center gap-1.5 rounded-xl border border-[#D8D8D8] px-3 py-1.5 text-xs font-semibold text-[#3E3E3E] transition hover:border-[#121212]/22 hover:bg-[#121212]/8 hover:text-[#121212]">
+                className="flex items-center gap-1.5 rounded-xl border border-[#D8D8D8] px-3 py-2 text-xs font-semibold text-[#3E3E3E] transition hover:border-[#121212]/22 hover:bg-[#121212]/8 hover:text-[#121212]">
                 <CheckSquare className="h-3.5 w-3.5" /> Registrar
               </button>
             )}
             {!isRecording && hasCalendar && (
               <button onClick={onCalendarOpen}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                aria-label="Elegir día del calendario"
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
                   !activeBlock
                     ? 'border-[#121212]/22 bg-[#121212]/8 text-[#121212] hover:bg-[#121212]/10'
                     : 'border-[#E0E0E0] text-[#9B9B9B] hover:border-[#D8D8D8] hover:text-[#6E6E6E]'
@@ -349,8 +404,8 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
               </button>
             )}
             {isRecording && (
-              <button onClick={() => setIsRecording(false)}
-                className="rounded-xl border border-[#E0E0E0] p-1.5 text-[#9B9B9B] transition hover:text-[#121212]">
+              <button onClick={cancelRecording} aria-label="Cancelar registro"
+                className="rounded-xl border border-[#E0E0E0] p-2 text-[#9B9B9B] transition hover:text-[#121212]">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -367,12 +422,12 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       {/* ── Content ── */}
       {isRecording ? (
         /* ── Inline recorder ── */
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 lg:overflow-y-auto">
           {/* Fecha */}
-          <div className="flex items-center gap-3 border-b border-[#D8D8D8] px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#D8D8D8] px-4 py-2.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9B9B9B]">Fecha</span>
             <input type="date" value={fechaReal} onChange={e => setFechaReal(e.target.value)}
-              className="rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-2.5 py-1 text-xs text-[#121212] outline-none focus:border-[#121212]" />
+              className="rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-2.5 py-1.5 text-xs text-[#121212] outline-none focus:border-[#121212]" />
             {isRescheduled && (
               <span className="text-[9px] text-[#C4783A]/60">
                 Reagendada de {new Date(fechaPlaneada! + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
@@ -410,7 +465,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
               const allDone  = ej.series.length > 0 && ej.series.every(s => s.completada);
 
               return (
-                <div key={ejIdx} className={`rounded-xl border p-4 transition-colors ${allDone ? 'border-[#C8DFC8]/40 bg-[#EBF5EE]' : 'border-[#E0E0E0] bg-[#F0F0F0]'}`}>
+                <div key={ejIdx} className={`rounded-xl border p-3 transition-colors sm:p-4 ${allDone ? 'border-[#C8DFC8]/40 bg-[#EBF5EE]' : 'border-[#E0E0E0] bg-[#F0F0F0]'}`}>
 
                   {/* Header: nombre + acciones */}
                   <div className="mb-3 flex items-start justify-between gap-2">
@@ -457,7 +512,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                         </>
                       ) : (
                         <div className="flex items-center gap-1.5">
-                          <p className={`font-bold ${allDone ? 'text-[#4A8A5A]' : 'text-[#121212]'}`}>{ej.nombre}</p>
+                          <p className={`break-words font-bold ${allDone ? 'text-[#4A8A5A]' : 'text-[#121212]'}`}>{ej.nombre}</p>
                           {ej.nombreOriginal && (
                             <span className="text-[10px] text-[#9B9B9B] line-through">{ej.nombreOriginal}</span>
                           )}
@@ -478,14 +533,14 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                         <button
                           onClick={() => startRename(ejIdx)}
                           title="Cambiar ejercicio"
-                          className="rounded-lg p-1.5 text-[#C4C4C4] transition hover:bg-[#E8E8E8] hover:text-[#3E3E3E]">
-                          <RefreshCw className="h-3.5 w-3.5" />
+                          className="rounded-lg p-2 text-[#9B9B9B] transition hover:bg-[#E8E8E8] hover:text-[#3E3E3E]">
+                          <RefreshCw className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => toggleNota(ejIdx)}
                           title="Agregar nota"
-                          className={`rounded-lg p-1.5 transition ${notaOpen.has(ejIdx) || ej.notas ? 'text-[#3E3E3E] bg-[#E4E4E4]' : 'text-[#C4C4C4] hover:bg-[#E8E8E8] hover:text-[#3E3E3E]'}`}>
-                          <StickyNote className="h-3.5 w-3.5" />
+                          className={`rounded-lg p-2 transition ${notaOpen.has(ejIdx) || ej.notas ? 'text-[#3E3E3E] bg-[#E4E4E4]' : 'text-[#9B9B9B] hover:bg-[#E8E8E8] hover:text-[#3E3E3E]'}`}>
+                          <StickyNote className="h-4 w-4" />
                         </button>
                       </div>
                     )}
@@ -496,9 +551,9 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                   {/* Series */}
                   <div className="space-y-2">
                     {ej.series.map((serie, sIdx) => (
-                      <div key={sIdx} className={`flex items-center gap-2 rounded-xl px-2 py-1.5 transition ${serie.completada ? 'bg-[#EBF5EE]' : 'bg-[#F8F8F8]'}`}>
-                        <span className={`w-6 shrink-0 text-center text-[11px] font-bold ${serie.completada ? 'text-[#4A8A5A]/40' : 'text-[#D8D8D8]'}`}>{sIdx + 1}</span>
-                        <div className="flex flex-1 items-center gap-1.5">
+                      <div key={sIdx} className={`flex items-center gap-1.5 rounded-xl px-1.5 py-1.5 transition sm:gap-2 sm:px-2 ${serie.completada ? 'bg-[#EBF5EE]' : 'bg-[#F8F8F8]'}`}>
+                        <span className={`w-5 shrink-0 text-center sm:w-6 text-[11px] font-bold ${serie.completada ? 'text-[#4A8A5A]/40' : 'text-[#D8D8D8]'}`}>{sIdx + 1}</span>
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
                           <input value={serie.reps} onChange={e => setSerie(ejIdx, sIdx, 'reps', e.target.value)} className={IC} placeholder="reps" inputMode="numeric" />
                           <span className="shrink-0 text-[11px] text-[#D8D8D8]">×</span>
                           <input value={serie.peso} onChange={e => setSerie(ejIdx, sIdx, 'peso', e.target.value)} className={IC} placeholder="kg" inputMode="decimal" />
@@ -508,15 +563,15 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                           {serie.completada ? '✓' : '·'}
                         </button>
                         {ej.series.length > 1 && (
-                          <button onClick={() => removeSerie(ejIdx, sIdx)} className="shrink-0 rounded-lg p-1.5 text-[#E0E0E0] transition hover:text-[#B44040]">
-                            <Minus className="h-3 w-3" />
+                          <button onClick={() => removeSerie(ejIdx, sIdx)} aria-label="Quitar serie" className="shrink-0 rounded-lg p-2 text-[#C8C8C8] transition hover:text-[#B44040]">
+                            <Minus className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </div>
                     ))}
                   </div>
 
-                  <button onClick={() => addSerie(ejIdx)} className="mt-2 flex items-center gap-1 text-[11px] text-[#9B9B9B] transition hover:text-[#121212]">
+                  <button onClick={() => addSerie(ejIdx)} className="mt-2 flex items-center gap-1 rounded-lg px-2 py-1.5 text-[12px] text-[#777777] transition hover:text-[#121212]">
                     <Plus className="h-3 w-3" /> Serie
                   </button>
 
@@ -545,15 +600,17 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                 className="w-full resize-none rounded-xl border border-[#D8D8D8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none focus:border-[#121212]" />
             </div>
 
+            <div className="sticky bottom-0 -mx-4 bg-gradient-to-t from-[#F8F8F8] via-[#F8F8F8] to-transparent px-4 pt-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             <button onClick={handleSave} disabled={saving}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-60">
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-60">
               <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar sesión'}
             </button>
+            </div>
           </div>
         </div>
       ) : (
         /* ── Exercise preview ── */
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           {!activeBlock ? (
             <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0F0F0]">
@@ -576,12 +633,17 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
           ) : (
             <div className="space-y-2.5">
               {activeBlock.exercises.map((ex, i) => (
-                <div key={ex.id} className="relative overflow-hidden rounded-xl border border-[#E0E0E0] bg-[#F0F0F0] px-5 py-4">
+                <div key={ex.id ?? i} className="relative overflow-hidden rounded-xl border border-[#E0E0E0] bg-[#F0F0F0] px-4 py-4 sm:px-5">
                   <div className="absolute left-0 top-0 h-full w-[3px] bg-[#121212]/22" />
                   <div className="flex items-baseline gap-2.5">
-                    <span className="text-xs font-bold text-[#D8D8D8]">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="text-base font-bold text-[#121212]">{ex.name}</span>
+                    <span className="text-xs font-bold text-[#BBBBBB]">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="min-w-0 break-words text-base font-bold text-[#121212]">{ex.name}</span>
                   </div>
+                  {(ex.tempo || ex.notes) && (
+                    <p className="mt-1 break-words text-xs text-[#777777]">
+                      {[ex.tempo && `Tempo ${ex.tempo}`, ex.notes].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {[
                       { val: String(ex.series), label: 'series' },
@@ -594,6 +656,10 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
                       </div>
                     ))}
                   </div>
+                  {(() => {
+                    const url = getVideoUrlForExercise(ex.exerciseLibraryId, ex.name) || (ex as Exercise & { youtubeUrl?: string }).youtubeUrl || '';
+                    return url ? <div className="mt-3"><ExerciseVideo url={url} /></div> : null;
+                  })()}
                 </div>
               ))}
             </div>
@@ -651,6 +717,15 @@ export default function WeightroomPage() {
     loadData();
   }, []);
 
+  // Si quedó un registro a medio hacer, se vuelve a mostrar ese alumno
+  useEffect(() => {
+    if (alumnos.length === 0) return;
+    try {
+      const conBorrador = alumnos.filter(a => localStorage.getItem(`nexa_wr_draft_${a.id}`));
+      if (conBorrador.length) setSelected(prev => new Set([...prev, ...conBorrador.map(a => a.id)]));
+    } catch {}
+  }, [alumnos]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -687,7 +762,7 @@ export default function WeightroomPage() {
         <div className="flex items-center gap-3">
 
           {/* Search + dropdown */}
-          <div ref={searchRef} className="relative">
+          <div ref={searchRef} className="relative min-w-0 shrink">
             <div className="flex items-center gap-2 rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] px-3 py-2 transition focus-within:border-[#9B9B9B]">
               <Search className="h-3.5 w-3.5 shrink-0 text-[#9B9B9B]" />
               <input
@@ -695,7 +770,7 @@ export default function WeightroomPage() {
                 onChange={e => setSearchQ(e.target.value)}
                 onFocus={() => setDropOpen(true)}
                 placeholder="Buscar atleta..."
-                className="w-36 bg-transparent text-[13px] text-[#121212] placeholder-[#BBBBBB] outline-none sm:w-48"
+                className="w-32 min-w-0 bg-transparent text-[13px] text-[#121212] placeholder-[#BBBBBB] outline-none sm:w-48"
               />
               {searchQ && (
                 <button onClick={() => setSearchQ('')} className="shrink-0 text-[#BBBBBB] hover:text-[#9B9B9B]">
@@ -706,7 +781,7 @@ export default function WeightroomPage() {
 
             {/* Dropdown list */}
             {dropOpen && (
-              <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-56 overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#FFFFFF] shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
+              <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[#E8E8E8] bg-[#FFFFFF] shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
                 {alumnos.length === 0 ? (
                   <div className="px-4 py-3 text-[13px] text-[#9B9B9B]">
                     Sin alumnos —{' '}
@@ -723,7 +798,7 @@ export default function WeightroomPage() {
                         <li key={a.id}>
                           <button
                             onMouseDown={e => { e.preventDefault(); toggle(a.id); }}
-                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[#F5F5F5]"
+                            className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-[#F5F5F5]"
                           >
                             {a.foto
                               ? <img src={a.foto} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
@@ -773,22 +848,23 @@ export default function WeightroomPage() {
       </div>
 
       {/* ── Cards area ── */}
-      <div className="overflow-hidden h-[calc(100vh-177px)] lg:h-[calc(100vh-57px)]">
+      {/* Celular: las tarjetas van una debajo de otra y la página hace scroll normal
+          (la altura fija con 100vh dejaba "Guardar sesión" escondido bajo la barra de Safari) */}
+      <div className="lg:h-[calc(100dvh-57px)] lg:overflow-hidden">
         {visibles.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3">
+          <div className="flex min-h-[50dvh] flex-col items-center justify-center gap-3 px-6 text-center lg:h-full">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E8E8E8] bg-[#F0F0F0]">
               <CheckSquare className="h-6 w-6 text-[#D8D8D8]" />
             </div>
             <p className="text-[13px] text-[#9B9B9B]">Selecciona un atleta arriba para ver su entrenamiento</p>
           </div>
         ) : (
-          <div className="h-full overflow-x-auto">
+          <div className="lg:h-full lg:overflow-x-auto">
             <div
-              className="h-full"
+              className="wr-grid divide-y divide-[#E8E8E8] lg:h-full lg:divide-y-0"
               style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${visibles.length}, minmax(320px, 1fr))`,
-                minWidth: visibles.length > 1 ? `${visibles.length * 320}px` : undefined,
+                ['--wr-cols' as string]: String(visibles.length),
+                ['--wr-minw' as string]: visibles.length > 1 ? `${visibles.length * 320}px` : 'auto',
               }}
             >
             {visibles.map((a, idx) => {
@@ -797,7 +873,7 @@ export default function WeightroomPage() {
               return (
                 <div
                   key={a.id}
-                  className={`h-full overflow-y-auto ${idx < visibles.length - 1 ? 'border-r border-[#E8E8E8]' : ''}`}
+                  className={`lg:h-full lg:overflow-y-auto ${idx < visibles.length - 1 ? 'lg:border-r lg:border-[#E8E8E8]' : ''}`}
                 >
                   <AlumnoCard
                     alumno={a}

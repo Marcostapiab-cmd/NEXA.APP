@@ -1,5 +1,5 @@
 'use client';
-import { hoyLocal } from '@/lib/format';
+import { hoyLocal, fechaLocal } from '@/lib/format';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -38,7 +38,7 @@ function getWeekDates(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().slice(0, 10);
+    return fechaLocal(d);
   });
 }
 
@@ -168,7 +168,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 
       {/* ── Banner datos en caché ── */}
       {staleData && (

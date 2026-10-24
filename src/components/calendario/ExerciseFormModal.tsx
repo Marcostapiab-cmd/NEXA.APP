@@ -114,7 +114,7 @@ export default function ExerciseFormModal({ initial, mode, onSubmit, onClose }: 
         </div>
 
         {/* ── Body ── */}
-        <div className="max-h-[68vh] overflow-y-auto">
+        <div className="max-h-[68dvh] overflow-y-auto">
           <div className="space-y-5 p-5">
 
             {/* Exercise search */}

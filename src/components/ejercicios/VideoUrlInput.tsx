@@ -59,17 +59,17 @@ export default function VideoUrlInput({ value, onChange, className }: Props) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="https://youtube.com/watch?v=... (opcional)"
-          className="flex-1 bg-transparent py-2.5 pr-2 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none"
+          className="min-w-0 flex-1 bg-transparent py-2.5 pr-2 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none"
         />
 
         {/* Actions */}
-        <div className="flex items-center gap-1 pr-2">
+        <div className="flex shrink-0 items-center gap-1 pr-2">
           {hasUrl && valid && (
             <a href={value} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-lg border border-[#C8C8C8] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]"
               onClick={e => e.stopPropagation()}>
               <ExternalLink className="h-3 w-3" />
-              Ver{platform ? ` (${platform})` : ''}
+              Ver<span className="hidden sm:inline">{platform ? ` (${platform})` : ''}</span>
             </a>
           )}
           {hasUrl && (
