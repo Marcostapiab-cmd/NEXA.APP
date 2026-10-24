@@ -15,6 +15,9 @@ const GRUPALES_AUTH = ['/grupales-alumno/login', '/grupales-alumno/registro'];
 // Rutas de auth admin/portal (redirigen si ya hay sesión)
 const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login', '/portal/sin-cuenta'];
 
+// Rutas de acceso del staff que se muestran aunque haya una sesión de alumno abierta
+const STAFF_LOGIN_ROUTES = ['/login', '/recuperar-contrasena'];
+
 // Rutas que solo puede acceder el staff (cualquier rol distinto de alumno)
 const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
@@ -103,10 +106,20 @@ export async function middleware(request: NextRequest) {
       if (pathname === '/portal/login') {
         return NextResponse.redirect(new URL('/portal', request.url));
       }
+      // Login/registro del staff: si la sesión abierta es de un alumno (grupal o
+      // personal), se muestra igual el formulario para entrar con la cuenta de
+      // staff. Antes se redirigía a la cuenta del alumno y no había forma de
+      // llegar al login del staff desde ese dispositivo.
+      const esStaff = !!rol && rol !== 'alumno' && rol !== 'grupales';
+      if (!esStaff && STAFF_LOGIN_ROUTES.includes(pathname)) {
+        return response;
+      }
       if (rol === 'grupales') {
         return NextResponse.redirect(new URL('/grupales-alumno/dashboard', request.url));
       }
-      const dest = rol === 'alumno' ? '/portal' : '/dashboard';
+      const dest = rol === 'alumno' ? '/portal'
+                 : rol === 'profesor' || rol === 'recepcionista' ? '/horario'
+                 : '/dashboard';
       return NextResponse.redirect(new URL(dest, request.url));
     }
     return response;
