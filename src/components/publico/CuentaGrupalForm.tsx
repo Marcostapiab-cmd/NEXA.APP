@@ -44,7 +44,8 @@ export default function CuentaGrupalForm({ modoInicial = 'login', onListo, compa
     if (modo === 'registro') {
       if (!f.nombre.trim() || !f.apellido.trim()) { setError('Ingresa tu nombre y apellido.'); return; }
       if (f.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
-      if (f.rut.trim() && !validarRut(f.rut)) { setError('El RUT no es válido.'); return; }
+      if (!f.rut.trim()) { setError('Ingresa tu RUT.'); return; }
+      if (!validarRut(f.rut)) { setError('El RUT no es válido.'); return; }
     } else if (!f.password) { setError('Ingresa tu contraseña.'); return; }
 
     setEnv(true);
@@ -55,7 +56,7 @@ export default function CuentaGrupalForm({ modoInicial = 'login', onListo, compa
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             nombre: f.nombre.trim(), apellido: f.apellido.trim(), email,
-            telefono: f.telefono.trim() || null, rut: f.rut.trim() || null, password: f.password,
+            telefono: f.telefono.trim() || null, rut: formatearRut(f.rut), password: f.password,
           }),
         });
         const json = await res.json().catch(() => ({})) as { error?: string };
@@ -112,8 +113,8 @@ export default function CuentaGrupalForm({ modoInicial = 'login', onListo, compa
                 value={f.telefono} onChange={set('telefono')} />
             </div>
             <div>
-              <label htmlFor="cg-rut" className="nx-label">RUT <span style={{ color: 'var(--nx-muted)' }}>(opcional)</span></label>
-              <input id="cg-rut" className="nexa-input" placeholder="12.345.678-9" value={f.rut}
+              <label htmlFor="cg-rut" className="nx-label">RUT</label>
+              <input id="cg-rut" className="nexa-input" placeholder="12.345.678-9" value={f.rut} required
                 onChange={e => setF(p => ({ ...p, rut: e.target.value }))}
                 onBlur={() => f.rut.trim() && setF(p => ({ ...p, rut: formatearRut(p.rut) }))} />
             </div>
