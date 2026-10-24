@@ -237,6 +237,7 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
   const [saving,  setSaving]  = useState(false);
   const [tipo,    setTipo]    = useState<TipoClase>(slot.tipo);
   const [error,   setError]   = useState('');
+  const [editarTipo, setEditarTipo] = useState(false);
 
   const activos      = slot.alumnos.filter(a => esActiva(a.status));
   const esIndividual = slot.tipo !== 'Grupal';
@@ -331,7 +332,15 @@ function EditModal({ slot, coachNombre, isPast, onClose, onSaved, onAgregar }: {
         </div>
 
         <div className="p-4 space-y-5">
-          {esIndividual && (
+          {esIndividual && !editarTipo && (
+            <button type="button" onClick={() => setEditarTipo(true)}
+              className="-mb-2 text-[11px] font-semibold underline underline-offset-2"
+              style={{ color: 'var(--nexa-muted)' }}>
+              Cambiar tipo de clase
+            </button>
+          )}
+
+          {esIndividual && editarTipo && (
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider mb-2"
                 style={{ color: 'var(--nexa-muted)' }}>Tipo de clase</p>
