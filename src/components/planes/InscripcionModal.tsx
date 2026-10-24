@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Save, Repeat, Trash2, CalendarRange } from 'lucide-react';
+import { X, Save, Repeat, Trash2, CalendarRange, CalendarCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import {
   type Plan, type PlanTipo, type PlanModalidad,
@@ -13,7 +13,7 @@ import { DEFAULT_HORARIO_CONFIG, getBloqueos, getHorarioConfig, generateHours, t
 import {
   DIAS_PLAN, alternarSesion, conflictosSesiones, diaSemana, fechasDelDia, fechasSemana, lunesDe,
   moverSesion, quitarSesion, repetirDia, repetirSemana, tipoClaseDeModalidad,
-  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan,
+  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan, agendarDiasFijos,
   type Bloqueo, type Ocupacion, type SesionPlan,
 } from '@/lib/agenda-plan';
 import { FRECUENCIAS } from '@/lib/catalogo';
@@ -73,6 +73,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
   const [cargandoOc,setCargOc]    = useState(false);
   const [lunes,     setLunes]     = useState(lunesDe(todayStr()));
   const [sesiones,  setSesiones]  = useState<SesionPlan[]>([]);
+  const [diasFijos, setDiasFijos] = useState<Record<number, string>>({}); // día (1=lun) → hora
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
 
@@ -143,6 +144,45 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
     }
     cambiarSesiones(prev => alternarSesion(prev, fecha, hora));
   }
+
+  // Horas disponibles para un día de la semana (según el primer día así dentro del plan)
+  const horasDeDiaSemana = (dia: number) => {
+    const f = fechasDelDia(dia, startDate, endDate, 1)[0];
+    return f ? horasDia(f) : [];
+  };
+
+  function elegirFrecuencia(n: number) {
+    setFrecuencia(n);
+    setError('');
+    // Si bajó la frecuencia, quita los días fijos que sobran
+    setDiasFijos(prev => Object.fromEntries(Object.entries(prev).slice(0, n)));
+  }
+
+  function alternarDiaFijo(dia: number) {
+    if (!frecuencia) return;
+    if (diasFijos[dia]) {
+      setDiasFijos(Object.fromEntries(Object.entries(diasFijos).filter(([d]) => Number(d) !== dia)));
+      return;
+    }
+    if (Object.keys(diasFijos).length >= frecuencia) {
+      setError(`El plan es de ${frecuencia} ${frecuencia === 1 ? 'día' : 'días'} por semana. Quita un día para elegir otro.`);
+      return;
+    }
+    setError('');
+    const horas = horasDeDiaSemana(dia);
+    const ultima = Object.values(diasFijos).at(-1);
+    setDiasFijos({ ...diasFijos, [dia]: ultima && horas.includes(ultima) ? ultima : (horas[0] ?? '') });
+  }
+
+  function aplicarDiasFijos() {
+    const dias = Object.entries(diasFijos).map(([d, hora]) => ({ dia: Number(d), hora })).sort((a, b) => a.dia - b.dia);
+    const nuevas = agendarDiasFijos(dias, startDate, endDate, semanas);
+    setSesiones(nuevas);
+    setError('');
+    if (nuevas[0]) setLunes(lunesDe(nuevas[0].fecha));
+  }
+
+  const nDiasFijos = Object.keys(diasFijos).length;
 
   function elegirProfesor(id: string) {
     setCoachId(prev => prev === id ? prev : id);
@@ -278,7 +318,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
               <label className={LC}>Veces por semana</label>
               <div className="grid grid-cols-5 gap-1.5">
                 {FRECUENCIAS.map(f => (
-                  <button key={f} type="button" onClick={() => { setFrecuencia(f); setError(''); }} aria-pressed={frecuencia === f}
+                  <button key={f} type="button" onClick={() => elegirFrecuencia(f)} aria-pressed={frecuencia === f}
                     className={`rounded-xl border py-2.5 text-center transition ${frecuencia === f ? 'border-[#121212] bg-[#121212] text-white' : 'border-[#C8C8C8] text-[#777777] hover:border-[#9B9B9B]'}`}>
                     <p className="text-sm font-bold">{f}x</p>
                     <p className="text-[9px] opacity-70">{semanas ? `${totalClasesPlan(f, semanas)} clases` : 'por sem'}</p>
@@ -328,7 +368,49 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
             {/* Semana del profesor */}
             {coach && frecuencia && (
               <div className="space-y-3">
-                <p className="text-xs text-[#5E5E5E]">
+                {/* Días fijos: agenda todo el plan de una vez */}
+                <div className="rounded-xl border border-[#C8C8C8] bg-white p-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]">
+                    Días fijos · elige {frecuencia} ({nDiasFijos}/{frecuencia})
+                  </p>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {DIAS_PLAN.map(d => {
+                      const on = !!diasFijos[d.n];
+                      const cerrado = horasDeDiaSemana(d.n).length === 0;
+                      return (
+                        <button key={d.n} type="button" onClick={() => alternarDiaFijo(d.n)} aria-pressed={on}
+                          disabled={cerrado || (!on && nDiasFijos >= frecuencia)}
+                          className={`rounded-lg border py-2 text-xs font-bold transition disabled:opacity-30 ${on ? 'border-[#121212] bg-[#121212] text-white' : 'border-[#C8C8C8] text-[#5E5E5E] hover:border-[#121212]'}`}>
+                          {d.corto}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {nDiasFijos > 0 && (
+                    <div className="mt-2.5 space-y-1.5">
+                      {DIAS_PLAN.filter(d => diasFijos[d.n]).map(d => (
+                        <div key={d.n} className="flex items-center gap-2">
+                          <span className="w-20 text-xs font-semibold text-[#121212]">{d.largo}</span>
+                          <select value={diasFijos[d.n]} aria-label={`Hora del ${d.largo}`}
+                            onChange={e => setDiasFijos(prev => ({ ...prev, [d.n]: e.target.value }))}
+                            className="rounded-lg border border-[#D8D8D8] bg-[#F8F8F8] px-2 py-1.5 text-xs text-[#121212]">
+                            {horasDeDiaSemana(d.n).map(h => <option key={h} value={h}>{h}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" onClick={aplicarDiasFijos} disabled={nDiasFijos !== frecuencia}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#121212] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[#3E3E3E] disabled:opacity-40">
+                    <CalendarCheck className="h-4 w-4" />
+                    {nDiasFijos === frecuencia
+                      ? `Agendar ${DIAS_PLAN.filter(d => diasFijos[d.n]).map(d => d.corto).join(', ')} hasta el ${fmtFecha(endDate)}`
+                      : `Elige ${frecuencia - nDiasFijos} ${frecuencia - nDiasFijos === 1 ? 'día' : 'días'} más`}
+                  </button>
+                  <p className="mt-1.5 text-[10px] text-[#888888]">Reemplaza lo que hayas marcado antes. Después puedes mover clases sueltas en el calendario o en la lista.</p>
+                </div>
+
+                <p className="text-xs text-[#5E5E5E]">O elige a mano: 
                   Elige <strong>{frecuencia} {frecuencia === 1 ? 'día' : 'días'}</strong> en la semana de <strong>{coach.nombre}</strong>. Cada día puede tener una hora distinta.
                   {' '}<span className="font-semibold text-[#121212]">Esta semana: {sesionesSemana.length}/{frecuencia}</span>
                 </p>

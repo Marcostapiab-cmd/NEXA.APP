@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   alternarSesion, conflictosSesiones, evaluarCelda, fechasDelDia, lunesDe, moverSesion,
   repetirDia, repetirSemana, tipoClaseDeModalidad, type SesionPlan,
-  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan,
+  clasesEnSemana, puedeAgregarEnSemana, semanasExcedidas, totalClasesPlan, agendarDiasFijos,
 } from './agenda-plan';
 
 // Plan mensual que parte el lunes 2 de noviembre de 2026 (30 días → hasta 2 dic)
@@ -118,5 +118,24 @@ describe('frecuencia semanal', () => {
     out = repetirSemana(out, '2026-11-02', INICIO, FIN, 4);
     expect(out).toHaveLength(totalClasesPlan(3, 4));
     expect(semanasExcedidas(out, 3)).toEqual([]);
+  });
+});
+
+describe('días fijos hasta el fin del plan', () => {
+  it('trimestral lun/mié/vie desde un viernes = 36 clases, 3 por semana', () => {
+    // Inicio viernes 23 oct 2026, vence 21 ene 2027 (12 semanas)
+    const s = agendarDiasFijos(
+      [{ dia: 1, hora: '07:00' }, { dia: 3, hora: '07:00' }, { dia: 5, hora: '18:00' }],
+      '2026-10-23', '2027-01-21', 12,
+    );
+    expect(s).toHaveLength(36);
+    expect(s[0]).toEqual({ fecha: '2026-10-23', hora: '18:00', origen: 'repetida' });
+    expect(semanasExcedidas(s, 3)).toEqual([]);
+    expect(s.every(x => x.fecha >= '2026-10-23' && x.fecha <= '2027-01-21')).toBe(true);
+  });
+
+  it('reemplaza lo agendado antes (parte de cero)', () => {
+    const s = agendarDiasFijos([{ dia: 2, hora: '09:00' }], INICIO, FIN, 4);
+    expect(s.map(x => x.fecha)).toEqual(['2026-11-03', '2026-11-10', '2026-11-17', '2026-11-24']);
   });
 });
