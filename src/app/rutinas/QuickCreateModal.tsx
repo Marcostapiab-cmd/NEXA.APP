@@ -339,7 +339,7 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
 
   if (step === 'input') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
+      <div className="nx-overlay fixed inset-0 z-50 flex justify-center bg-black/35 p-4 backdrop-blur-sm">
         <div className="w-full max-w-xl rounded-2xl border border-[#E0E0E0] bg-[#F5F5F5] shadow-2xl">
 
           {/* Header */}
@@ -452,7 +452,7 @@ export default function QuickCreateModal({ onAdd, onClose }: QuickCreateModalPro
         )}
 
         {/* Rows */}
-        <div className="max-h-[55vh] overflow-y-auto px-5">
+        <div className="max-h-[55dvh] overflow-y-auto px-5">
           {rows.length === 0 ? (
             <p className="py-10 text-center text-sm text-[#9B9B9B]">
               Sin ejercicios interpretados

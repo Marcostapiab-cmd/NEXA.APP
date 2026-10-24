@@ -279,7 +279,7 @@ export default function InscripcionModal({ alumnoId, alumnoNombre, modalidadInic
           </button>
         </div>
 
-        <div className="max-h-[78vh] overflow-y-auto">
+        <div className="max-h-[78dvh] overflow-y-auto">
           <div className="space-y-5 p-4 sm:p-5">
 
             {/* Modalidad */}

@@ -86,7 +86,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
   // que prefieras (no se envía nada automáticamente desde acá).
   if (inviteDone) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
         style={{ background: 'rgba(0,0,0,0.75)' }}>
         <div className="w-full max-w-md rounded-2xl overflow-hidden"
           style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
@@ -142,7 +142,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl overflow-hidden"
         style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}

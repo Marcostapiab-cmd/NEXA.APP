@@ -72,7 +72,7 @@ function VoiceParsingPreview({ parsed, onChange }: PreviewProps) {
             No se detectaron series. Edita el nombre o agrega manualmente.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[#C8C8C8]">
+          <div className="overflow-x-auto rounded-xl border border-[#C8C8C8]">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[#C8C8C8] bg-[#F5F5F5]">

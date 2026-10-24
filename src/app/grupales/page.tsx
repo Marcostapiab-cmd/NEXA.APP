@@ -499,7 +499,7 @@ function PlanesTab() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+        <div className="nx-overlay fixed inset-0 z-50 flex justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={e => { if (e.target === e.currentTarget) setModal(false); }}>
           <div className="w-full max-w-md rounded-2xl p-6"

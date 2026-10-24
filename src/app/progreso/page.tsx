@@ -1,4 +1,5 @@
 'use client';
+import { fechaLocal } from '@/lib/format';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -21,8 +22,8 @@ function getWeekRange(): { start: string; end: string } {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return {
-    start: monday.toISOString().slice(0, 10),
-    end:   sunday.toISOString().slice(0, 10),
+    start: fechaLocal(monday),
+    end:   fechaLocal(sunday),
   };
 }
 

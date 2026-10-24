@@ -65,6 +65,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--nexa-bg);
   color: var(--nexa-text);
   font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -79,6 +80,21 @@ body {
 /* ── Form elements ───────────────────────────────────────────────────────────── */
 
 button, input, textarea, select { font: inherit; letter-spacing: inherit; }
+
+/* ── Celular ─────────────────────────────────────────────────────────────────
+   iPhone hace zoom automático al tocar un campo con letra < 16px y la página
+   queda descuadrada. En pantallas chicas los campos usan 16px. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select { font-size: 16px !important; }
+}
+
+/* Evita que algo más ancho que la pantalla genere scroll horizontal */
+html, body { overflow-x: clip; max-width: 100%; }
+
+/* Videos e iframes embebidos nunca más anchos que su contenedor */
+iframe, video { max-width: 100%; }
 input, textarea, select { -webkit-appearance: none; appearance: none; }
 button { cursor: pointer; }
 
@@ -489,4 +505,26 @@ input[type="checkbox"]:indeterminate::after {
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Weightroom: tarjetas apiladas en el celular, columnas en escritorio */
+@media (min-width: 1024px) {
+  .wr-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--wr-cols, 1), minmax(320px, 1fr));
+    min-width: var(--wr-minw, auto);
+  }
+}
+
+/* Ventanas emergentes: centradas, pero si son más altas que la pantalla
+   (celular, teclado abierto) se puede hacer scroll y no quedan cortadas. */
+.nx-overlay {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.nx-overlay > :not(.absolute):not(.fixed) {
+  margin-top: auto;
+  margin-bottom: auto;
 }

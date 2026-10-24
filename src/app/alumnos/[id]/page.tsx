@@ -32,7 +32,7 @@ const SL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E5E5E]
 
 function isActive(r: RutinaDB) {
   if (!r.start_date || !r.end_date) return false;
-  const t = new Date().toISOString().slice(0,10);
+  const t = hoyLocal();
   return t >= r.start_date && t <= r.end_date;
 }
 
@@ -476,21 +476,21 @@ export default function AlumnoPerfilPage() {
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
       {/* Back + header */}
-      <div className="mb-6 flex items-start gap-4">
-        <button onClick={() => router.back()}
-          className="mt-0.5 rounded-lg border border-[#CACACA] p-2 text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
+      <div className="mb-6 flex items-start gap-3 sm:gap-4">
+        <button onClick={() => router.back()} aria-label="Volver"
+          className="mt-0.5 shrink-0 rounded-lg border border-[#CACACA] p-2 text-[#5E5E5E] transition hover:border-[#121212] hover:text-[#121212]">
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="flex flex-1 items-center gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
           {alumno.foto
-            ? <img src={alumno.foto} alt="" className="h-16 w-16 rounded-xl object-cover" />
-            : <div className="flex h-16 w-16 items-center justify-center rounded-xl text-2xl font-black" style={{ background: '#121212', color: '#FFFFFF' }}>
+            ? <img src={alumno.foto} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover sm:h-16 sm:w-16" />
+            : <div className="flex h-12 w-12 shrink-0 items-center sm:h-16 sm:w-16 justify-center rounded-xl text-2xl font-black" style={{ background: '#121212', color: '#FFFFFF' }}>
                 {alumno.nombre[0]?.toUpperCase()}
               </div>}
-          <div>
-            <h1 className="text-xl font-bold text-[#121212]">{alumno.nombre} {alumno.apellido}</h1>
-            <div className="mt-0.5 flex flex-wrap gap-3 text-xs text-[#5E5E5E]">
-              {alumno.email && <span>{alumno.email}</span>}
+          <div className="min-w-0">
+            <h1 className="break-words text-lg font-bold text-[#121212] sm:text-xl">{alumno.nombre} {alumno.apellido}</h1>
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#5E5E5E]">
+              {alumno.email && <span className="break-all">{alumno.email}</span>}
               {edad && <span>{edad} años</span>}
               {alumno.altura && <span>{alumno.altura} cm</span>}
               {ultimaPeso && <span>{ultimaPeso.peso} kg (último registro)</span>}
@@ -529,8 +529,15 @@ export default function AlumnoPerfilPage() {
                   <div key={r.id} className="rounded-[8px] border border-[#CACACA] bg-[#E4E4E4] p-3">
                     <p className="font-semibold text-[#121212]">{r.nombre}</p>
                     <p className="text-xs text-[#5E5E5E]">{r.start_date} → {r.end_date}</p>
+                    {(() => {
+                      const dias = Object.values((r.sessions ?? {}) as Record<string, { exercises?: unknown[] }>)
+                        .filter(x => (x?.exercises?.length ?? 0) > 0).length;
+                      return dias > 0 ? (
+                        <p className="mt-1 text-xs text-[#5E5E5E]">{dias} día{dias !== 1 ? 's' : ''} planificado{dias !== 1 ? 's' : ''}</p>
+                      ) : null;
+                    })()}
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {(r.blocks as { id?: string; nombre?: string; name?: string }[]).map((b, i) => (
+                      {((r.blocks ?? []) as { id?: string; nombre?: string; name?: string }[]).map((b, i) => (
                         <span key={b.id ?? i} className="rounded-md border border-[#CACACA] px-2 py-0.5 text-xs text-[#5E5E5E]">
                           {b.nombre ?? b.name ?? `Bloque ${i + 1}`}
                         </span>
@@ -1262,7 +1269,7 @@ export default function AlumnoPerfilPage() {
 
       {/* ── Modal generar cobro Flow ── */}
       {showPagoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="nx-overlay fixed inset-0 z-50 flex justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#D8D8D8] bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold text-[#121212]">Generar cobro</h2>

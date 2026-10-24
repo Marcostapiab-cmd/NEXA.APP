@@ -143,7 +143,7 @@ function AlumnoModal({ initial, onSave, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="nx-overlay fixed inset-0 z-50 flex justify-center bg-black/40 p-4">
       <div
         className="w-full max-w-md rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] shadow-2xl"
         style={{ animation: 'scale-in 0.18s ease-out forwards' }}
@@ -287,7 +287,7 @@ function PagoModal({ alumno, onClose, onMarcarAlDia }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="nx-overlay fixed inset-0 z-50 flex justify-center bg-black/40 p-4">
       <div
         className="w-full max-w-sm rounded-xl border border-[#D8D8D8] bg-[#F0F0F0] shadow-2xl"
         style={{ animation: 'scale-in 0.18s ease-out forwards' }}
