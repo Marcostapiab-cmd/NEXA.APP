@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail]       = useState('');
+  // Sesión de alumno abierta en este dispositivo (se reemplaza al entrar como staff)
+  const [sesionAlumno, setSesionAlumno] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const u = data.session?.user;
+      const r = u?.user_metadata?.rol;
+      if (u && (r === 'alumno' || r === 'grupales')) setSesionAlumno(u.email ?? 'cuenta de alumno');
+    });
+  }, []);
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -24,6 +32,8 @@ export default function LoginPage() {
     }
 
     try {
+      // Si había una sesión de alumno, se cierra antes de entrar como staff
+      if (sesionAlumno) await supabase.auth.signOut();
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
 
       if (err) {
@@ -32,10 +42,13 @@ export default function LoginPage() {
         return;
       }
 
-      setLoading(false);
       const rol = data.user?.user_metadata?.rol;
-      const destino = rol === 'alumno' ? '/mi-cuenta' : rol === 'profesor' ? '/horario' : '/dashboard';
-      router.push(destino);
+      const destino = rol === 'alumno' ? '/portal'
+                    : rol === 'grupales' ? '/grupales-alumno/dashboard'
+                    : rol === 'profesor' || rol === 'recepcionista' ? '/horario'
+                    : '/dashboard';
+      // Navegación completa para que el servidor lea la sesión nueva
+      window.location.assign(destino);
     } catch {
       setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
       setLoading(false);
@@ -50,7 +63,7 @@ export default function LoginPage() {
       }}
     >
       <div
-        className="w-full max-w-[400px] rounded-2xl p-12"
+        className="w-full max-w-[400px] rounded-2xl p-6 sm:p-12"
         style={{
           background: 'var(--nexa-card)',
           border: '1px solid var(--nexa-border)',
@@ -86,6 +99,14 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
+        {sesionAlumno && (
+          <div className="mb-5 rounded-xl px-4 py-3 text-[12px] leading-relaxed"
+            style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text-sub)' }}>
+            Este dispositivo tiene abierta la cuenta de alumno <strong className="break-all">{sesionAlumno}</strong>.
+            Al entrar con tu cuenta de staff se cerrará esa sesión.
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label
