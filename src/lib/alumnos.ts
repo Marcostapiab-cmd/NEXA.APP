@@ -2,6 +2,12 @@ import { supabase } from './supabaseClient';
 import { hoyLocal } from './format';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 
+// Acepta "72,5" (coma decimal chilena) y "72.5"
+function num(v: string): number | null {
+  const n = parseFloat(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
 const SELECT_FIELDS = `
   id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado,
   rut, telefono,
@@ -35,6 +41,14 @@ function toAlumno(r: Record<string, unknown>): Alumno {
     contratoFechaFirma: r.contrato_fecha_firma ? String(r.contrato_fecha_firma).slice(0, 10) : undefined,
     estadoPago:         (r.estado_pago as 'al_dia' | 'debe') ?? 'al_dia',
   };
+}
+
+// La DB rechaza un RUT que ya tiene otro alumno (índice atletas_rut_unico)
+function errorRutDuplicado(error: { code?: string; message?: string }): Error | null {
+  if (error.code === '23505' && /atletas_rut_unico/.test(error.message ?? '')) {
+    return new Error('Ya existe otro alumno con ese RUT.');
+  }
+  return null;
 }
 
 export async function getAlumnos(): Promise<Alumno[]> {
@@ -74,8 +88,8 @@ export async function createAlumno(a: Omit<Alumno, 'id'>): Promise<Alumno> {
       apellido:         a.apellido || '',
       email:            a.email    || null,
       fecha_nacimiento: a.fechaNacimiento || null,
-      peso:             a.peso   ? parseFloat(a.peso)   : null,
-      altura:           a.altura ? parseFloat(a.altura) : null,
+      peso:             a.peso   ? num(a.peso)   : null,
+      altura:           a.altura ? num(a.altura) : null,
       foto_url:         a.foto   || null,
       estado:           a.estado,
       activo:           a.estado !== 'archivado',
@@ -85,7 +99,7 @@ export async function createAlumno(a: Omit<Alumno, 'id'>): Promise<Alumno> {
     })
     .select(SELECT_FIELDS)
     .single();
-  if (error) throw error;
+  if (error) throw errorRutDuplicado(error) ?? error;
   return toAlumno(data as unknown as Record<string, unknown>);
 }
 
@@ -95,8 +109,8 @@ export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): 
   if (a.apellido         !== undefined) payload.apellido         = a.apellido || '';
   if (a.email            !== undefined) payload.email            = a.email || null;
   if (a.fechaNacimiento  !== undefined) payload.fecha_nacimiento = a.fechaNacimiento || null;
-  if (a.peso             !== undefined) payload.peso             = a.peso ? parseFloat(a.peso) : null;
-  if (a.altura           !== undefined) payload.altura           = a.altura ? parseFloat(a.altura) : null;
+  if (a.peso             !== undefined) payload.peso             = a.peso ? num(a.peso) : null;
+  if (a.altura           !== undefined) payload.altura           = a.altura ? num(a.altura) : null;
   if (a.foto             !== undefined) payload.foto_url         = a.foto || null;
   if (a.estado           !== undefined) { payload.estado = a.estado; payload.activo = a.estado !== 'archivado'; }
   if (a.rut              !== undefined) payload.rut              = a.rut || null;
@@ -117,7 +131,7 @@ export async function updateAlumno(id: string, a: Partial<Omit<Alumno, 'id'>>): 
     .eq('id', id)
     .select(SELECT_FIELDS)
     .single();
-  if (error) throw error;
+  if (error) throw errorRutDuplicado(error) ?? error;
 
   // La ficha y el plan van enlazados: si cambia el tipo de sesión,
   // los planes vigentes del alumno pasan a esa misma modalidad.

@@ -4,6 +4,7 @@ import { hoyLocal } from '@/lib/format';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getAtletaPortal, soloFecha } from '@/lib/portal';
 import { ArrowLeft, CheckCircle2, Clock, XCircle, RefreshCw, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
@@ -49,21 +50,26 @@ export default function PortalClasesPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/portal/login'); return; }
+      const atleta = await getAtletaPortal();
+      if (atleta === undefined) { router.push('/portal/login'); return; }
+      if (!atleta) { router.push('/portal/sin-cuenta'); return; }
 
-      const { data: atletaData } = await supabase
-        .from('atletas').select('id').eq('user_id', user.id).single();
-      if (!atletaData) { router.push('/portal/sin-cuenta'); return; }
-
-      const { data } = await supabase
-        .from('reservas')
-        .select('id, fecha, hora, estado, descripcion')
-        .eq('alumno_id', (atletaData as { id: string }).id)
-        .order('fecha', { ascending: false })
-        .limit(100);
-
-      setReservas((data ?? []) as Reserva[]);
+      // Próximas (todas) + historial reciente, por separado: si se piden las
+      // 100 más nuevas, un plan largo agendado a futuro deja fuera el historial.
+      const hoy = hoyLocal();
+      const [{ data: futuras }, { data: pasadas }] = await Promise.all([
+        supabase.from('reservas').select('id, fecha, hora, estado, descripcion, tipo_clase')
+          .eq('alumno_id', atleta.id).gte('fecha', hoy).order('fecha', { ascending: true }).limit(200),
+        supabase.from('reservas').select('id, fecha, hora, estado, descripcion, tipo_clase')
+          .eq('alumno_id', atleta.id).lt('fecha', hoy).order('fecha', { ascending: false }).limit(100),
+      ]);
+      setReservas([...(futuras ?? []), ...(pasadas ?? [])].map((r: Record<string, unknown>) => ({
+        id:          String(r.id),
+        fecha:       soloFecha(r.fecha),
+        hora:        r.hora ? String(r.hora).slice(0, 5) : undefined,
+        estado:      String(r.estado ?? 'pendiente'),
+        descripcion: r.descripcion ? String(r.descripcion) : r.tipo_clase ? `Clase ${String(r.tipo_clase)}` : undefined,
+      })));
       setLoading(false);
     }
     load();
@@ -88,7 +94,7 @@ export default function PortalClasesPage() {
   // Próximas van en orden ascendente, historial en descendente
   const ordenadas = filtro === 'proximas'
     ? [...filtradas].sort((a, b) => a.fecha.localeCompare(b.fecha))
-    : filtradas;
+    : [...filtradas].sort((a, b) => b.fecha.localeCompare(a.fecha));
 
   const grupos = agruparPorMes(ordenadas);
   const meses  = Object.keys(grupos).sort((a, b) =>

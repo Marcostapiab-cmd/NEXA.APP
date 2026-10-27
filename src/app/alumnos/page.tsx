@@ -134,11 +134,27 @@ function AlumnoModal({ initial, onSave, onClose }: {
     }
   }
 
+  // La foto se guarda en la ficha: se achica a 320 px para no guardar
+  // imágenes de varios MB (harían lenta la lista de alumnos).
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => set('foto', reader.result as string);
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 320;
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+        set('foto', c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => alert('No se pudo leer la imagen. Prueba con una foto JPG o PNG.');
+      img.src = reader.result as string;
+    };
     reader.readAsDataURL(file);
   }
 
@@ -498,14 +514,27 @@ export default function AlumnosPage() {
         const nuevo = await createAlumno(data);
         updated = [nuevo, ...alumnos];
       } else if (modal && typeof modal === 'object') {
-        const editado = await updateAlumno(modal.id, data);
+        // Solo los campos que muestra este formulario: la lista no carga el
+        // contrato, notas, etc., y mandarlos los borraría.
+        const editado = await updateAlumno(modal.id, {
+          nombre: data.nombre, apellido: data.apellido, email: data.email,
+          fechaNacimiento: data.fechaNacimiento, estado: data.estado,
+          tipoSesion: data.tipoSesion ?? ('' as unknown as Alumno['tipoSesion']),
+          peso: data.peso, altura: data.altura, foto: data.foto,
+          rut: data.rut ?? '', telefono: data.telefono ?? '',
+        });
         updated = alumnos.map(a => a.id === modal.id ? editado : a);
       } else return;
       setAlumnos(updated);
       syncLocal(updated);
       setModal(null);
-    } catch {
-      alert('Error al guardar. Verifica tu conexión a internet.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message
+        : (typeof e === 'object' && e !== null && 'message' in e) ? String((e as { message: unknown }).message) : '';
+      alert(msg.startsWith('Ya existe') ? msg
+        : /duplicate|unique/i.test(msg)
+        ? 'Ya existe otro alumno con ese RUT o email.'
+        : 'Error al guardar. Verifica tu conexión a internet.');
     }
   }
 
@@ -533,14 +562,34 @@ export default function AlumnosPage() {
     }
   }
 
+  const [accionMasiva, setAccionMasiva] = useState(false);
+  async function cambiarEstadoSeleccionados(estado: Alumno['estado']) {
+    const ids = [...selected];
+    if (!ids.length) return;
+    const verbo = estado === 'archivado' ? 'Archivar' : 'Reactivar';
+    if (!confirm(`¿${verbo} ${ids.length} alumno${ids.length !== 1 ? 's' : ''}?`)) return;
+    setAccionMasiva(true);
+    const res = await Promise.allSettled(ids.map(id => updateAlumno(id, { estado })));
+    const ok = new Set(ids.filter((_, i) => res[i].status === 'fulfilled'));
+    const updated = alumnos.map(a => ok.has(a.id) ? { ...a, estado } : a);
+    setAlumnos(updated);
+    syncLocal(updated);
+    setSelected(new Set());
+    setAccionMasiva(false);
+    if (ok.size < ids.length) alert(`${ids.length - ok.size} alumno(s) no se pudieron actualizar.`);
+  }
+
   const porTab = alumnos.filter(a =>
     tab === 'archivados' ? a.estado === 'archivado' : a.estado !== 'archivado'
   );
+  const q = busqueda.trim().toLowerCase();
+  const qRut = q.replace(/[.\-\s]/g, '');
   const filtrados = porTab.filter(a =>
-    `${a.nombre} ${a.apellido} ${a.email}`.toLowerCase().includes(busqueda.toLowerCase())
+    `${a.nombre} ${a.apellido} ${a.email} ${a.telefono ?? ''}`.toLowerCase().includes(q) ||
+    (!!qRut && (a.rut ?? '').toLowerCase().replace(/[.\-\s]/g, '').includes(qRut))
   );
 
-  const allChecked = filtrados.length > 0 && selected.size === filtrados.length;
+  const allChecked = filtrados.length > 0 && filtrados.every(a => selected.has(a.id));
   const someChecked = selected.size > 0 && !allChecked;
 
   function toggleAll() {
@@ -603,7 +652,7 @@ export default function AlumnosPage() {
         <input
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre, apellido o email..."
+          placeholder="Buscar por nombre, email, RUT o teléfono..."
           className="w-full rounded-xl border border-[#E0E0E0] bg-[#F5F5F5] py-2.5 pl-10 pr-4 text-sm text-[#121212] placeholder-[#9B9B9B] outline-none transition focus:border-[#D8D8D8]"
         />
       </div>
@@ -694,9 +743,20 @@ export default function AlumnosPage() {
               {busqueda && ` · filtrado de ${porTab.length}`}
             </span>
             {selected.size > 0 && (
-              <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#121212' }}>
-                {selected.size} seleccionados
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold tabular-nums" style={{ color: '#121212' }}>
+                  {selected.size} seleccionado{selected.size !== 1 ? 's' : ''}
+                </span>
+                <button type="button" disabled={accionMasiva}
+                  onClick={() => cambiarEstadoSeleccionados(tab === 'archivados' ? 'activo' : 'archivado')}
+                  className="rounded-lg bg-[#121212] px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-[#2A2A2A] disabled:opacity-50">
+                  {accionMasiva ? 'Guardando…' : tab === 'archivados' ? 'Reactivar' : 'Archivar'}
+                </button>
+                <button type="button" onClick={() => setSelected(new Set())}
+                  className="rounded-lg border border-[#D8D8D8] px-3 py-1 text-[11px] text-[#5E5E5E] transition hover:text-[#121212]">
+                  Quitar selección
+                </button>
+              </div>
             )}
           </div>
         </div>

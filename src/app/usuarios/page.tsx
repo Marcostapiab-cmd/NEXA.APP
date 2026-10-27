@@ -150,8 +150,8 @@ export default function UsuariosPage() {
         rol:        form.rol,
         ...(form.rol === 'profesor' && {
           especialidad: form.especialidad.trim() || undefined,
-          tarifa_1a1:   form.tarifa_1a1 ? parseInt(form.tarifa_1a1) : undefined,
-          tarifa_2a1:   form.tarifa_2a1 ? parseInt(form.tarifa_2a1) : undefined,
+          tarifa_1a1:   form.tarifa_1a1 ? parseInt(form.tarifa_1a1.replace(/\D/g, ''), 10) || 0 : undefined,
+          tarifa_2a1:   form.tarifa_2a1 ? parseInt(form.tarifa_2a1.replace(/\D/g, ''), 10) || 0 : undefined,
         }),
       };
       const res  = await fetch('/api/admin/crear-profesor', {
@@ -508,7 +508,7 @@ export default function UsuariosPage() {
               <p className="text-[10px]" style={{ color: 'var(--nexa-faint)' }}>
                 El usuario recibirá acceso inmediato con esta contraseña. Rol:{' '}
                 <strong style={{ color: 'var(--nexa-muted)' }}>
-                  {form.rol === 'profesor' ? 'Profesor' : 'Host'}
+                  {ROL_LABEL[form.rol]}
                 </strong>.
               </p>
 

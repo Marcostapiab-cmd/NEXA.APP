@@ -4,6 +4,7 @@ import { hoyLocal } from '@/lib/format';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getAtletaPortal } from '@/lib/portal';
 import { ArrowLeft, ChevronDown, ChevronUp, Dumbbell, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -82,22 +83,17 @@ export default function PortalRutinasPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/portal/login'); return; }
+      const atleta = await getAtletaPortal();
+      if (atleta === undefined) { router.push('/portal/login'); return; }
+      if (!atleta) { router.push('/portal/sin-cuenta'); return; }
 
-      const { data: atletaData } = await supabase
-        .from('atletas')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-      if (!atletaData) { router.push('/portal/sin-cuenta'); return; }
-
-      const aid = (atletaData as { id: string }).id;
+      const aid = atleta.id;
 
       const { data: rutinasData, error: err } = await supabase
         .from('rutinas')
         .select('id, nombre, start_date, end_date, sessions, blocks')
-        .contains('alumno_ids', [aid])
+        // alumno_ids es jsonb: el filtro necesita JSON ("[...]"), no el formato {..} de arreglos
+        .filter('alumno_ids', 'cs', JSON.stringify([aid]))
         .order('created_at', { ascending: false });
 
       if (err) { setError(true); setLoading(false); return; }

@@ -172,6 +172,9 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   const [ejLibrary,      setEjLibrary]      = useState<EjBiblioteca[]>([]);
   const [saving,         setSaving]         = useState(false);
   const lastTsRef = useRef<number>(0);
+  // Mismo id en cada reintento: si el primer envío llegó pero falló la
+  // respuesta, reintentar no crea una sesión duplicada.
+  const sesionIdRef = useRef<string | null>(null);
   const draftKey  = `nexa_wr_draft_${alumno.id}`;
   const restoredRef = useRef(false);
 
@@ -333,8 +336,9 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
 
   async function handleSave() {
     if (!routine || !activeBlock || saving) return;
+    if (!sesionIdRef.current) sesionIdRef.current = crypto.randomUUID();
     const sesion: Sesion = {
-      id: crypto.randomUUID(),
+      id: sesionIdRef.current,
       alumnoId: alumno.id,
       fecha: fechaReal,
       ...(fechaPlaneada && fechaPlaneada !== fechaReal ? { fechaPlaneada } : {}),
@@ -354,6 +358,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       return;
     }
     setSaving(false);
+    sesionIdRef.current = null;
     clearDraft();
     setIsRecording(false);
     setNotas('');

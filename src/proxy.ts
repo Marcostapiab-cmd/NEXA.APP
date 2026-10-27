@@ -7,6 +7,11 @@ const PUBLIC_OPEN = [
   '/api/grupales-alumno', // webhook de Flow, registro y estado del pago (cada ruta valida su propio acceso)
   '/grupales-alumno/comprar', '/grupales-alumno/retorno',
   '/manifest.webmanifest', '/api/pwa-icon', '/sw.js', // PWA: sin datos, deben cargar sin sesión
+  // Pagos Flow de alumnos: el aviso de Flow (servidor a servidor) y la vuelta
+  // del alumno llegan sin sesión. Cada ruta valida el token con Flow.
+  '/api/pagos/flow-confirmation', '/api/pagos/retorno', '/api/pagos/estado', '/pagos/confirmado',
+  '/api/registro',  // registro público de alumnos (valida RUT/email por su cuenta)
+  '/api/cron',      // cron de Vercel: se protege con CRON_SECRET
 ];
 
 // Login/registro del portal de clases grupales (redirigen si ya hay sesión grupal)
@@ -26,7 +31,7 @@ const STAFF_PREFIXES = [
   '/grupales',
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   // Landing pública (portada con planes y "Reservar clase"): accesible para
@@ -43,7 +48,7 @@ export async function middleware(request: NextRequest) {
   // entorno Preview en Vercel), no se tumba todo el sitio con un 500: las
   // páginas públicas se muestran y el resto va al login, sin dar acceso.
   if (!supabaseUrl || !supabaseKey) {
-    console.error('[middleware] Faltan NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY en este entorno');
+    console.error('[proxy] Faltan NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY en este entorno');
     if (PUBLIC_OPEN.some(p => pathname.startsWith(p)) || AUTH_ROUTES.includes(pathname) || GRUPALES_AUTH.includes(pathname)) {
       return response;
     }

@@ -61,8 +61,10 @@ export default function ProgresoPage() {
   const sesionesEsSemana = sesiones.filter(s => s.fecha >= week.start && s.fecha <= week.end);
   const sesionesEsMes    = sesiones.filter(s => s.fecha >= monthStart);
 
+  // Asistencia sobre clases ya resueltas (como en la ficha del alumno): las
+  // futuras o canceladas a tiempo no deben bajar el porcentaje.
   const totalReservasActivas = reservas.filter(r =>
-    r.estado !== 'cancelada_nexa' && r.estado !== 'bloqueada' && r.estado !== 'reagendada'
+    r.estado === 'presente' || r.estado === 'no_show' || r.estado === 'cancelada_tarde'
   ).length;
   const totalPresentes = reservas.filter(r => r.estado === 'presente').length;
   const tasaAsistencia = totalReservasActivas > 0

@@ -7,7 +7,7 @@ import { Printer, ArrowLeft, CheckCircle, Save } from 'lucide-react';
 import { getAlumnoById, getAtletaSaludDB, updateAlumno } from '@/lib/alumnos';
 import { getPlanesAlumnoDB } from '@/lib/planes-supabase';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
-import type { Plan } from '@/lib/planes';
+import { PLAN_SEMANAS, type Plan } from '@/lib/planes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ function tipoLabel(tipo: string) {
 
 function semanas(start: string, end: string): number {
   if (!start || !end) return 0;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const ms = new Date(end + 'T12:00:00').getTime() - new Date(start + 'T12:00:00').getTime();
   return Math.round(ms / (7 * 24 * 60 * 60 * 1000));
 }
 
@@ -50,7 +50,8 @@ function ContratoDoc({ a, salud, plan, extra }: {
   plan: Plan | null;
   extra: Extra;
 }) {
-  const sw = plan ? semanas(plan.startDate, plan.endDate) : 0;
+  // Semanas del plan: las del tipo (4/12/24); si es personalizado, por fechas
+  const sw = plan ? (PLAN_SEMANAS[plan.tipo] || semanas(plan.startDate, plan.endDate)) : 0;
   const clasesSemana = extra.clasesSemana || (sw > 0 && plan ? Math.round(plan.totalClases / sw) : 0);
 
   return (
@@ -403,7 +404,7 @@ export default function ContratoPage() {
             <Field label="Clases por semana">
               <input type="text" inputMode="numeric" pattern="[0-9]*"
                 value={extra.clasesSemana || ''}
-                onChange={e => setExtra(x => ({ ...x, clasesSemana: Number(e.target.value) }))}
+                onChange={e => setExtra(x => ({ ...x, clasesSemana: Number(e.target.value.replace(/\D/g, '')) || 0 }))}
                 placeholder="3"
                 className="w-full rounded-xl border border-[#CACACA] bg-white px-3 py-2 text-sm text-[#121212] placeholder-[#AAAAAA] outline-none focus:border-[#121212]" />
             </Field>

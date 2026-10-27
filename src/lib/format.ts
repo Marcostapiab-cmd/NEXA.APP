@@ -22,3 +22,9 @@ export function fechaLocal(d: Date = new Date()): string {
 export function hoyLocal(): string {
   return fechaLocal();
 }
+
+/** Limpia un texto de búsqueda para usarlo dentro de un filtro `.or()` de Supabase
+ *  (las comas, paréntesis y comodines rompen o alteran el filtro). */
+export function textoBusqueda(q: string): string {
+  return q.replace(/[,()%*\\:"]/g, ' ').replace(/\s+/g, ' ').trim();
+}

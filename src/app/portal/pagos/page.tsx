@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getAtletaPortal } from '@/lib/portal';
 import { ArrowLeft, CheckCircle2, Clock, XCircle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
@@ -30,14 +31,11 @@ export default function PortalPagosPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/portal/login'); return; }
+      const atleta = await getAtletaPortal();
+      if (atleta === undefined) { router.push('/portal/login'); return; }
+      if (!atleta) { router.push('/portal/sin-cuenta'); return; }
 
-      const { data: atletaData } = await supabase
-        .from('atletas').select('id').eq('user_id', user.id).single();
-      if (!atletaData) { router.push('/portal/sin-cuenta'); return; }
-
-      const aid = (atletaData as { id: string }).id;
+      const aid = atleta.id;
       const { data } = await supabase
         .from('pagos')
         .select('id, monto, estado, descripcion, checkout_url, fecha_pago, created_at')
@@ -50,7 +48,7 @@ export default function PortalPagosPage() {
         estado:      String(p.estado),
         descripcion: p.descripcion ? String(p.descripcion) : undefined,
         checkoutUrl: p.checkout_url ? String(p.checkout_url) : undefined,
-        fechaPago:   p.fecha_pago ? String(p.fecha_pago).slice(0, 10) : undefined,
+        fechaPago:   p.fecha_pago ? String(p.fecha_pago) : undefined,
         createdAt:   String(p.created_at),
       })));
       setLoading(false);

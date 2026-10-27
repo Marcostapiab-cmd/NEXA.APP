@@ -17,13 +17,13 @@ export default function RecuperarContrasenaPage() {
 
     try {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/actualizar-contrasena`,
+        redirectTo: `${window.location.origin}/actualizar-contrasena`,
       });
 
       setLoading(false);
 
       if (err) {
-        setError('No se pudo enviar el correo. Intentá de nuevo.');
+        setError('No se pudo enviar el correo. Intenta de nuevo.');
         return;
       }
 
@@ -56,7 +56,7 @@ export default function RecuperarContrasenaPage() {
             Correo enviado
           </h2>
           <p className="mb-6 text-[13px]" style={{ color: 'var(--nexa-text-sub)' }}>
-            Revisá tu bandeja de entrada y hacé clic en el link para crear una nueva contraseña.
+            Revisa tu bandeja de entrada y haz clic en el link para crear una nueva contraseña.
           </p>
           <Link
             href="/login"
@@ -97,7 +97,7 @@ export default function RecuperarContrasenaPage() {
         </div>
 
         <p className="mb-6 text-center text-[13px]" style={{ color: 'var(--nexa-text-sub)' }}>
-          Ingresá tu correo y te enviamos un link para crear una nueva contraseña.
+          Ingresa tu correo y te enviamos un link para crear una nueva contraseña.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

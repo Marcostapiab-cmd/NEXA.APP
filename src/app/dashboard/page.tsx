@@ -144,6 +144,8 @@ export default function DashboardPage() {
     }
   }
   const planesRenovar = [...ultimoPlanPorAlumno.values()]
+    // Los alumnos archivados ya no necesitan renovar
+    .filter(p => alumnoMap[p.alumnoId]?.estado !== 'archivado')
     .map(p => ({ plan: p, estado: getPlanEstado(p) }))
     .filter(({ estado }) => estado !== 'activo')
     .sort((a, b) => {
@@ -313,9 +315,9 @@ export default function DashboardPage() {
                 {/* Reservas de hoy */}
                 {reservasPendientesHoy.map(r => {
                   const a = alumnoMap[r.alumnoId];
-                  const lbl = RESERVA_LABEL[r.estado];
+                  const lbl = RESERVA_LABEL[r.estado] ?? { label: String(r.estado), color: '#888888', quema: false };
                   return (
-                    <Link key={r.id} href={`/alumnos/${r.alumnoId}`}
+                    <Link key={r.id} href={r.alumnoId ? `/alumnos/${r.alumnoId}` : '/horario'}
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-[#EBEBEB]">
                       {a?.foto
                         ? <img src={a.foto} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />

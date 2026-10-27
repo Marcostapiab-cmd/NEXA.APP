@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       subject:         `${descripcion} — ${alumnoNombre}`,
       amount:          monto,
       email:           alumnoEmail,
-      urlReturn:       `${baseUrl}/pagos/confirmado`,
+      urlReturn:       `${baseUrl}/api/pagos/retorno`,
       urlConfirmation: `${baseUrl}/api/pagos/flow-confirmation`,
     });
 

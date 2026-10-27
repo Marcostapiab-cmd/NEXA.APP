@@ -61,12 +61,15 @@ export async function POST(req: NextRequest) {
 
     const rutNormalizado = normalizarRUT(rut);
 
-    // Verificar RUT duplicado en atletas
-    const { data: existente } = await admin
+    // Verificar RUT duplicado en atletas. Los RUT pueden estar guardados con o
+    // sin puntos/guion: se comparan normalizados (igual que el índice único).
+    const clave = (r: string) => r.replace(/[^0-9kK]/g, '').toUpperCase();
+    const { data: conRut, error: rutErr } = await admin
       .from('atletas')
-      .select('id')
-      .eq('rut', rutNormalizado)
-      .maybeSingle();
+      .select('rut')
+      .not('rut', 'is', null);
+    if (rutErr) throw rutErr;
+    const existente = (conRut ?? []).some(a => clave(String(a.rut)) === clave(rutNormalizado));
 
     if (existente) {
       return NextResponse.json({ error: 'Este RUT ya está registrado.' }, { status: 409 });
@@ -76,7 +79,9 @@ export async function POST(req: NextRequest) {
     const { data: userData, error: createErr } = await admin.auth.admin.createUser({
       email:         email.trim(),
       password,
-      email_confirm: false,
+      // createUser no envía correo de confirmación: si quedara sin confirmar,
+      // el alumno nunca podría iniciar sesión.
+      email_confirm: true,
       user_metadata: {
         nombre:   nombre.trim(),
         apellido: '',
@@ -106,8 +111,15 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (atletaRow) {
-        await admin.from('atletas').update({ rut: rutNormalizado }).eq('perfil_id', userId);
-        rutGuardado = true;
+        const { error: updErr } = await admin.from('atletas')
+          .update({ rut: rutNormalizado, user_id: userId }).eq('perfil_id', userId);
+        if (updErr?.code === '23505') {
+          // Otro alumno se registró con el mismo RUT entre el chequeo y ahora: deshacer
+          await admin.from('atletas').delete().eq('perfil_id', userId);
+          await admin.auth.admin.deleteUser(userId);
+          return NextResponse.json({ error: 'Este RUT ya está registrado.' }, { status: 409 });
+        }
+        rutGuardado = !updErr;
         break;
       }
       await new Promise(r => setTimeout(r, 300));

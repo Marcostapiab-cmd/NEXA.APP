@@ -206,8 +206,10 @@ export default function CheckinTab() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silencioso`: recarga sin mostrar el esqueleto (cambios en tiempo real),
+  // así la lista no parpadea ni pierde el scroll al marcar asistencia.
+  const load = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
     try {
       const { data: roleData } = await supabase.rpc('get_my_role');
       const currentRole = roleData as string | null;
@@ -302,6 +304,9 @@ export default function CheckinTab() {
       });
 
       setRows(parsed);
+    } catch (e) {
+      console.error('check-in load error', e);
+      if (!silencioso) showToast('No se pudieron cargar las clases de hoy');
     } finally {
       setLoading(false);
     }
@@ -318,7 +323,7 @@ export default function CheckinTab() {
     let debounceId: ReturnType<typeof setTimeout> | null = null;
     const scheduleReload = () => {
       if (debounceId) clearTimeout(debounceId);
-      debounceId = setTimeout(load, 300);
+      debounceId = setTimeout(() => load(true), 300);
     };
 
     const channel = supabase
@@ -417,7 +422,7 @@ export default function CheckinTab() {
             </div>
           ))}
         </div>
-        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--nexa-border)', background: 'var(--nexa-surface)', color: 'var(--nexa-muted)', cursor: 'pointer' }}>
+        <button onClick={() => load()} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--nexa-border)', background: 'var(--nexa-surface)', color: 'var(--nexa-muted)', cursor: 'pointer' }}>
           <RefreshCw size={12} /> Actualizar
         </button>
       </div>

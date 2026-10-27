@@ -46,7 +46,7 @@ export default function PortalLoginPage() {
 
         <div className="rounded-2xl border border-[#D8D8D8] bg-white p-6 shadow-sm">
           <h2 className="mb-1 font-bold text-[#121212]">Ingresar</h2>
-          <p className="mb-5 text-sm text-[#5E5E5E]">Ingresá tu email y contraseña.</p>
+          <p className="mb-5 text-sm text-[#5E5E5E]">Ingresa tu email y contraseña.</p>
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <input

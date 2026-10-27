@@ -5,7 +5,7 @@ import { hoyLocal } from './format';
 // Estados que SÍ queman clase del plan
 export const ESTADOS_QUE_QUEMAN: string[] = ['presente', 'no_show', 'cancelada_tarde'];
 // Estados que NO ocupan una clase del plan (se devolvió o se movió a otra fecha)
-export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada'];
+export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada', 'cancelada'];
 
 // Cómo cuenta una reserva en su plan:
 //  - 'usada'    → realizada o perdida (presente, no-show, cancelación tardía)
@@ -111,26 +111,14 @@ export async function getReservasAlumnoDB(alumnoId: string): Promise<Reserva[]> 
     .eq('alumno_id', alumnoId)
     .order('fecha', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    id:          String(r.id),
-    alumnoId:    String(r.alumno_id),
-    planId:      String(r.plan_id),
-    fecha:       String(r.fecha).slice(0, 10),
-    hora:        r.hora ? String(r.hora).slice(0, 5) : undefined,
-    descripcion: r.descripcion ? String(r.descripcion) : undefined,
-    estado:      String(r.estado) as Reserva['estado'],
-    reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
-    tipoClase:   r.tipo_clase ? String(r.tipo_clase) : undefined,
-    coachId:     r.coach_id ? String(r.coach_id) : undefined,
-    creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
-  }));
+  return (data ?? []).map(mapReserva);
 }
 
 export async function upsertReservaDB(reserva: Reserva): Promise<void> {
   const { error } = await supabase.from('reservas').upsert({
     id:          reserva.id,
     alumno_id:   reserva.alumnoId,
-    plan_id:     reserva.planId,
+    plan_id:     reserva.planId || null,
     fecha:       reserva.fecha,
     hora:        reserva.hora       || null,
     estado:      reserva.estado,
@@ -140,6 +128,22 @@ export async function upsertReservaDB(reserva: Reserva): Promise<void> {
     ...(reserva.coachId   ? { coach_id:   reserva.coachId }   : {}),
   });
   if (error) throw error;
+}
+
+// Crea una reserva nueva: el id lo genera la DB (es numérico, no un UUID)
+export async function insertReservaDB(reserva: Omit<Reserva, 'id' | 'creadaAt'>): Promise<Reserva> {
+  const { data, error } = await supabase.from('reservas').insert({
+    alumno_id:   reserva.alumnoId,
+    plan_id:     reserva.planId || null,
+    fecha:       reserva.fecha,
+    hora:        reserva.hora       || null,
+    estado:      reserva.estado,
+    reagenda_id: reserva.reagendaId || null,
+    tipo_clase:  reserva.tipoClase  || null,
+    coach_id:    reserva.coachId    || null,
+  }).select('id').single();
+  if (error) throw error;
+  return { ...reserva, id: String(data.id), creadaAt: new Date().toISOString() };
 }
 
 export async function deleteReservaDB(reservaId: string): Promise<void> {
@@ -174,24 +178,37 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
   }));
 }
 
-// Todas las reservas (para estadísticas de progreso)
-export async function getAllReservasDB(): Promise<Reserva[]> {
-  const { data, error } = await supabase
-    .from('reservas')
-    .select('*')
-    .order('fecha', { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+function mapReserva(r: Record<string, unknown>): Reserva {
+  return {
     id:          String(r.id),
-    alumnoId:    String(r.alumno_id),
-    planId:      String(r.plan_id),
-    fecha:       String(r.fecha),
-    hora:        r.hora ? String(r.hora) : undefined,
+    alumnoId:    r.alumno_id ? String(r.alumno_id) : '',
+    planId:      r.plan_id ? String(r.plan_id) : '',
+    fecha:       String(r.fecha).slice(0, 10),   // en la DB es timestamp: solo el día
+    hora:        r.hora ? String(r.hora).slice(0, 5) : undefined,
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     estado:      String(r.estado) as Reserva['estado'],
     reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
+    tipoClase:   r.tipo_clase ? String(r.tipo_clase) : undefined,
+    coachId:     r.coach_id ? String(r.coach_id) : undefined,
     creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
-  }));
+  };
+}
+
+// Todas las reservas (para estadísticas de progreso), por páginas de 1000
+export async function getAllReservasDB(): Promise<Reserva[]> {
+  const out: Reserva[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('*')
+      .order('fecha', { ascending: false })
+      .order('id')
+      .range(desde, desde + 999);
+    if (error) throw error;
+    out.push(...(data ?? []).map(mapReserva));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
 }
 
 // Reservas de una fecha específica (para el dashboard)
@@ -202,17 +219,7 @@ export async function getReservasFechaDB(fecha: string): Promise<Reserva[]> {
     .eq('fecha', fecha)
     .order('hora', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    id:          String(r.id),
-    alumnoId:    String(r.alumno_id),
-    planId:      String(r.plan_id),
-    fecha:       String(r.fecha),
-    hora:        r.hora ? String(r.hora) : undefined,
-    descripcion: r.descripcion ? String(r.descripcion) : undefined,
-    estado:      String(r.estado) as Reserva['estado'],
-    reagendaId:  r.reagenda_id ? String(r.reagenda_id) : undefined,
-    creadaAt:    String(r.created_at ?? r.creada_at ?? new Date().toISOString()),
-  }));
+  return (data ?? []).map(mapReserva);
 }
 
 // ─── Reagendas ────────────────────────────────────────────────────────────────
@@ -247,7 +254,8 @@ export async function upsertReagendaDB(reagenda: Reagenda): Promise<void> {
     fecha_limite:        reagenda.fechaLimite,
     estado:              reagenda.estado,
     motivo:              reagenda.motivo          || null,
-    // no enviamos created_at — el DB usa DEFAULT now()
+    // creada_at es obligatoria en la DB (sin valor por defecto)
+    creada_at:           reagenda.creadaAt        || new Date().toISOString(),
   });
   if (error) throw error;
 }
