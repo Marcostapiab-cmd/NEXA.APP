@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ActualizarContrasenaPage() {
-  const router = useRouter();
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
   const [loading, setLoading]     = useState(false);
@@ -26,7 +24,7 @@ export default function ActualizarContrasenaPage() {
 
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.updateUser({ password });
+      const { data, error: err } = await supabase.auth.updateUser({ password });
       setLoading(false);
 
       if (err) {
@@ -34,7 +32,14 @@ export default function ActualizarContrasenaPage() {
         return;
       }
 
-      router.push('/login?reset=ok');
+      // La sesión del link ya está activa: cada uno vuelve a su propia cuenta
+      const rol = data.user?.user_metadata?.rol;
+      const destino = rol === 'grupales' ? '/grupales-alumno/dashboard'
+                    : rol === 'alumno' ? '/portal'
+                    : rol === 'profesor' || rol === 'recepcionista' ? '/horario'
+                    : rol ? '/dashboard'
+                    : '/login?reset=ok';
+      window.location.assign(destino);
     } catch {
       setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
       setLoading(false);

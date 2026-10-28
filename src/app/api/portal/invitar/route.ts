@@ -42,40 +42,48 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
 
+    const emailNorm = email.trim().toLowerCase();
+
     // 1. Buscar si ya existe un usuario con este email
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === emailNorm);
 
     let userId: string;
 
     if (existingUser) {
       userId = existingUser.id;
     } else {
-      // 2. Crear usuario nuevo (sin contraseña — usará magic link)
+      // 2. Crear usuario nuevo (sin contraseña: la fija con el link de abajo)
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
+        email:         emailNorm,
         email_confirm: true,
+        user_metadata: { rol: 'alumno', nombre: nombre ?? '' },
       });
       if (createErr || !newUser.user) throw createErr ?? new Error('No se pudo crear el usuario');
       userId = newUser.user.id;
+
+      // El trigger de registro crea una ficha nueva para toda cuenta de alumno.
+      // Aquí el alumno ya tiene ficha: se borra la recién creada para no duplicarlo.
+      await supabaseAdmin.from('atletas').delete().eq('perfil_id', userId).neq('id', alumnoId);
     }
 
-    // 3. Vincular user_id con el atleta
+    // 3. Vincular la cuenta con la ficha del alumno
     const { error: updateErr } = await supabaseAdmin
       .from('atletas')
       .update({ user_id: userId })
       .eq('id', alumnoId);
     if (updateErr) throw updateErr;
 
-    // 4. Enviar magic link al email del alumno
-    const { error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-      type:       'magiclink',
-      email,
-      options:    { redirectTo: `${baseUrl}/portal` },
+    // 4. Link para que el alumno fije su contraseña. generateLink no envía
+    //    correo: se devuelve para que el staff lo comparta (WhatsApp, correo…).
+    const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type:    'recovery',
+      email:   emailNorm,
+      options: { redirectTo: `${baseUrl}/actualizar-contrasena` },
     });
     if (linkErr) throw linkErr;
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, link: linkData?.properties?.action_link ?? null });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
     return NextResponse.json({ error: msg }, { status: 500 });

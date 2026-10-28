@@ -1,5 +1,5 @@
 'use client';
-import { hoyLocal, fechaLocal } from '@/lib/format';
+import { hoyLocal, fechaLocal, textoBusqueda } from '@/lib/format';
 
 import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus, ClipboardCheck } from 'lucide-react';
@@ -18,7 +18,7 @@ import {
 
 const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 // Reservas que ya no ocupan cupo en el horario
-const ESTADOS_INACTIVOS   = ['cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
+const ESTADOS_INACTIVOS   = ['cancelada', 'cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
 const esActiva = (status: string) => !ESTADOS_INACTIVOS.includes((status || '').toLowerCase());
 
 const ESTADOS_ASISTENCIA = [
@@ -218,8 +218,12 @@ function getSlotsForCell(slotMap: Map<string, Slot>, fecha: string, hora: string
   const prefix = `${fecha}|${hora}|`;
   const slots: Slot[] = [];
   slotMap.forEach((slot, key) => { if (key.startsWith(prefix)) slots.push(slot); });
-  // Si hay slots con coach real, ocultar los sin coach (son reservas huérfanas)
-  if (slots.some(s => s.coachId !== null)) return slots.filter(s => s.coachId !== null);
+  // Si hay slots con coach, se ocultan los sin coach que no tienen a nadie
+  // activo. Los sin coach con alumnos (ej. planes comprados en la web, que
+  // aún no tienen profesor asignado) se muestran para no perderlos de vista.
+  if (slots.some(s => s.coachId !== null)) {
+    return slots.filter(s => s.coachId !== null || s.alumnos.some(a => esActiva(a.status)));
+  }
   return slots;
 }
 
@@ -462,25 +466,32 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
   const [rutWalkIn, setRutWalkIn] = useState('');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seleccionRef = useRef('');   // evita que el plan de un alumno anterior pise al actual
 
   // Búsqueda debounced de atletas
+  // (si ya hay un alumno elegido no se busca: si no, la lista vuelve a aparecer encima)
   useEffect(() => {
-    if (walkIn || query.length < 2) { setResultados([]); return; }
+    const q = textoBusqueda(query);
+    if (walkIn || alumno || q.length < 2) { setResultados([]); setBuscando(false); return; }
+    let vigente = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setBuscando(true);
       const { data } = await supabase
         .from('atletas')
         .select('id, nombre, apellido, rut, tipo_sesion')
-        .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%,rut.ilike.%${query}%`)
+        .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,rut.ilike.%${q}%`)
         .limit(6);
+      if (!vigente) return;
       setResultados((data ?? []) as AtletaBusqueda[]);
       setBuscando(false);
     }, 300);
-  }, [query, walkIn]);
+    return () => { vigente = false; };
+  }, [query, walkIn, alumno]);
 
   // Cargar plan activo al seleccionar alumno
   async function seleccionarAlumno(a: AtletaBusqueda) {
+    seleccionRef.current = a.id;
     setAlumno(a);
     setQuery(`${a.nombre} ${a.apellido}`.trim());
     setResultados([]);
@@ -492,16 +503,21 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     const today = hoyLocal();
     const { data: planesData } = await supabase
       .from('planes')
-      .select('id, nombre, total_clases, end_date, modalidad')
+      .select('id, nombre, total_clases, end_date, extended_until, modalidad')
       .eq('alumno_id', a.id)
-      .gte('end_date', today)
+      .or(`end_date.gte.${today},extended_until.gte.${today}`)
       .order('end_date', { ascending: true })
       .limit(1);
 
-    const p = (planesData?.[0] ?? null) as {
+    const raw = (planesData?.[0] ?? null) as {
       id: string; nombre: string; total_clases: number;
-      end_date: string; modalidad?: '1:1' | '2:1' | null;
+      end_date: string; extended_until?: string | null; modalidad?: '1:1' | '2:1' | null;
     } | null;
+    // Si el admin extendió el plan, la fecha que vale es la extendida
+    const p = raw ? {
+      id: raw.id, nombre: raw.nombre, total_clases: raw.total_clases, modalidad: raw.modalidad,
+      end_date: raw.extended_until && raw.extended_until > raw.end_date ? raw.extended_until : raw.end_date,
+    } : null;
 
     // Modalidad del alumno: la del plan manda; si no, la de su ficha;
     // si no, la de sus clases individuales activas ya agendadas.
@@ -522,6 +538,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
         esActiva(String(r.estado ?? '')) && parseTipo(r.tipo_clase, r.descripcion) !== 'Grupal');
       if (previa) mod = { tipo: parseTipo(previa.tipo_clase, previa.descripcion) as '1:1' | '2:1', origen: 'sus clases agendadas' };
     }
+    if (seleccionRef.current !== a.id) return;
     setModalidad(mod);
     if (mod && !tipoFijo) setTipo(mod.tipo);
 
@@ -538,6 +555,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
       .select('estado, fecha')
       .eq('plan_id', p.id);
 
+    if (seleccionRef.current !== a.id) return;
     let usado = 0, agendadas = 0;
     for (const r of resPlan ?? []) {
       const c = cuentaEnPlan(r.estado, r.fecha, today);
@@ -573,7 +591,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
           .eq('hora', hora)
           .eq('coach_id', coachId || null)
           .not('tipo_clase', 'ilike', '%grupal%')
-          .not('estado', 'in', '(cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)');
+          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)');
 
         const resultado = validarConflictoTipo(tipo, existentes ?? []);
         if (!resultado.ok) {
@@ -960,7 +978,8 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
   );
 }
 
-function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isCerrado, bloqueado, motivoBloqueo }: {
+function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, onAgregarOtro, isCerrado, bloqueado, motivoBloqueo }: {
+  onAgregarOtro?: () => void;   // agendar con otro profesor en una hora que ya tiene clases
   slots:         Slot[];
   coachById:     Map<string, { color: string; nombre: string }>;
   isPast:        boolean;
@@ -1049,6 +1068,17 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, isC
           />
         );
       })}
+      {onAgregarOtro && (
+        <button type="button" onClick={onAgregarOtro} title="Agendar con otro profesor"
+          aria-label="Agendar con otro profesor"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            height: 16, borderRadius: 2, border: '1px dashed var(--nexa-border)',
+            color: 'var(--nexa-faint)', background: 'transparent', cursor: 'pointer',
+          }}>
+          <Plus size={10} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1573,9 +1603,14 @@ export default function HorarioPage() {
                           if (!b.horaInicio) return true;
                           return hora >= b.horaInicio && hora < (b.horaFin ?? '23:59');
                         });
+                        // Con "Todos", una hora con clases aún admite otra clase con un profesor libre
+                        const coachLibre = !isPast && !bloqueo && coachFiltro === 'all' && slots.length > 0
+                          ? coaches.find(c => !slots.some(s => s.coachId === c.id))
+                          : undefined;
                         return (
                           <HorarioCelda
                             key={`${hora}-${di}`}
+                            onAgregarOtro={coachLibre ? () => setNuevaSlot({ fecha: ds, hora, coachId: coachLibre.id }) : undefined}
                             slots={slots}
                             coachById={coachById}
                             isPast={isPast}

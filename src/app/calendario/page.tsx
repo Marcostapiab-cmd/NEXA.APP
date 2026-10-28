@@ -3,10 +3,15 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRutinasDB } from '@/lib/rutinas-supabase';
+import { getAlumnos } from '@/lib/alumnos';
+import { fechaLocal } from '@/lib/format';
 
 interface Routine {
   id: string; name: string; exercises: { id: string }[];
   startDate: string; endDate: string;
+  alumno?: string;
+  // Entrenamientos por fecha (YYYY-MM-DD), como los arma el editor de rutinas
+  sessions?: Record<string, { name?: string; exercises?: unknown[] }>;
 }
 
 const DAYS   = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -33,7 +38,8 @@ export default function CalendarioPage() {
   useEffect(() => {
     async function loadRoutines() {
       try {
-        const dbRoutines = await getRutinasDB();
+        const [dbRoutines, alumnos] = await Promise.all([getRutinasDB(), getAlumnos().catch(() => [])]);
+        const nombre = new Map(alumnos.map(a => [a.id, `${a.nombre} ${a.apellido ?? ''}`.trim()]));
         if (dbRoutines.length > 0) {
           setRoutines(dbRoutines.map(r => ({
             id:        r.id,
@@ -41,6 +47,8 @@ export default function CalendarioPage() {
             exercises: [],
             startDate: r.start_date,
             endDate:   r.end_date,
+            alumno:    (r.alumno_ids ?? []).map(id => nombre.get(id)).filter(Boolean).join(', ') || undefined,
+            sessions:  r.sessions as Routine['sessions'],
           })));
           return;
         }
@@ -58,10 +66,19 @@ export default function CalendarioPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const offset = (() => { const d = new Date(year, month, 1).getDay(); return d === 0 ? 6 : d - 1; })();
 
+  // Un día muestra la rutina si tiene un entrenamiento cargado ese día, o si
+  // cae dentro de sus fechas de inicio/fin (rutinas antiguas por bloques).
   function routinesForDay(day: Date) {
+    const ds = fechaLocal(day);
     return routines
-      .filter((r) => isBetween(day, r.startDate, r.endDate))
-      .map((r) => ({ routine: r, isLast: isLastWeek(day, r.endDate) }));
+      .map((r) => {
+        const ses = r.sessions?.[ds];
+        const n = ses?.exercises?.length ?? 0;
+        if (n > 0) return { routine: r, isLast: false, titulo: ses?.name || r.name, ejercicios: n };
+        if (isBetween(day, r.startDate, r.endDate)) return { routine: r, isLast: isLastWeek(day, r.endDate), titulo: r.name, ejercicios: r.exercises.length };
+        return null;
+      })
+      .filter((x): x is { routine: Routine; isLast: boolean; titulo: string; ejercicios: number } => x !== null);
   }
 
   const selectedRoutines = selectedDay ? routinesForDay(selectedDay) : [];
@@ -161,18 +178,21 @@ export default function CalendarioPage() {
                 <p className="mt-0.5 text-xs text-[#5E5E5E]">{selectedDay.getFullYear()}</p>
 
                 {selectedRoutines.length === 0 ? (
-                  <p className="mt-4 text-sm text-[#5E5E5E]">Sin rutinas este día.</p>
+                  <p className="mt-4 text-sm text-[#5E5E5E]">Sin entrenamientos este día.</p>
                 ) : (
                   <div className="mt-4 space-y-2">
-                    {selectedRoutines.map(({ routine, isLast }) => (
+                    {selectedRoutines.map(({ routine, isLast, titulo, ejercicios }) => (
                       <div key={routine.id}
                         className={`rounded-lg border p-3 ${
                           isLast ? 'border-[#888888] bg-[#F0F0F0]' : 'border-[#CACACA] bg-[#F0F0F0]'
                         }`}>
-                        <p className="text-sm font-semibold text-[#121212]">{routine.name}</p>
-                        <p className="text-xs text-[#5E5E5E]">
-                          {routine.exercises.length} ejercicio{routine.exercises.length !== 1 ? 's' : ''}
-                        </p>
+                        {routine.alumno && <p className="text-sm font-semibold text-[#121212]">{routine.alumno}</p>}
+                        <p className={routine.alumno ? 'text-xs text-[#5E5E5E]' : 'text-sm font-semibold text-[#121212]'}>{titulo || 'Entrenamiento'}</p>
+                        {ejercicios > 0 && (
+                          <p className="text-xs text-[#5E5E5E]">
+                            {ejercicios} ejercicio{ejercicios !== 1 ? 's' : ''}
+                          </p>
+                        )}
                         {isLast && (
                           <p className="mt-1.5 text-xs text-[#5E5E5E]">⚠ Última semana</p>
                         )}
@@ -182,7 +202,7 @@ export default function CalendarioPage() {
                 )}
               </>
             ) : (
-              <p className="text-sm text-[#5E5E5E]">Selecciona un día para ver las rutinas.</p>
+              <p className="text-sm text-[#5E5E5E]">Selecciona un día para ver los entrenamientos.</p>
             )}
           </div>
 

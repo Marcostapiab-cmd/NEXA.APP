@@ -248,6 +248,9 @@ export default function Sidebar() {
                  : role === 'recepcionista' ? SECTIONS_HOST
                  : SECTIONS_COMUN;
 
+  // El logo lleva al inicio de cada rol (no a la web pública)
+  const inicio = role === 'profesor' || role === 'recepcionista' ? '/horario' : '/dashboard';
+
   const sidebarContent = (
     <>
       <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
@@ -261,8 +264,15 @@ export default function Sidebar() {
         {sections.map(s => (
           <SectionBlock key={s.label} section={s} pathname={pathname} />
         ))}
-        {(role === 'admin' || role === 'recepcionista') && (
+        {(role === 'admin' || role === 'host') && (
           <SectionBlock section={SECTION_ADMIN} pathname={pathname} />
+        )}
+        {/* Recepción: Usuarios y Configuración son solo del admin */}
+        {role === 'recepcionista' && (
+          <SectionBlock pathname={pathname} section={{
+            ...SECTION_ADMIN,
+            items: SECTION_ADMIN.items.filter(i => i.href !== '/usuarios' && i.href !== '/configuracion'),
+          }} />
         )}
       </nav>
 
@@ -301,7 +311,7 @@ export default function Sidebar() {
         className="fixed left-0 top-0 z-30 hidden h-dvh w-[220px] flex-col lg:flex"
         style={{ background: 'var(--nexa-bg)', borderRight: '1px solid var(--nexa-border)' }}
       >
-        <Link href="/clases-grupales" className="flex h-[60px] shrink-0 items-center gap-3 px-5"
+        <Link href={inicio} className="flex h-[60px] shrink-0 items-center gap-3 px-5"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
           <NexaLogo />
         </Link>
@@ -311,7 +321,7 @@ export default function Sidebar() {
       {/* ── Mobile top header ─────────────────────────────────────────────── */}
       <header className="fixed left-0 right-0 top-0 z-30 flex h-14 items-center justify-between px-4 lg:hidden"
         style={{ background: 'var(--nexa-bg)', borderBottom: '1px solid var(--nexa-border)' }}>
-        <Link href="/clases-grupales" className="flex items-center gap-2.5">
+        <Link href={inicio} className="flex items-center gap-2.5">
           <NexaLogo />
         </Link>
         <button
@@ -339,7 +349,7 @@ export default function Sidebar() {
       >
         <div className="flex h-14 shrink-0 items-center justify-between px-4"
           style={{ borderBottom: '1px solid var(--nexa-border)' }}>
-          <Link href="/clases-grupales" className="flex items-center gap-2.5" onClick={() => setDrawerOpen(false)}>
+          <Link href={inicio} className="flex items-center gap-2.5" onClick={() => setDrawerOpen(false)}>
             <NexaLogo />
           </Link>
           <button

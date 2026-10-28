@@ -17,11 +17,12 @@ import InscripcionModal from '@/components/planes/InscripcionModal';
 import PlanStatusCard   from '@/components/planes/PlanStatusCard';
 import {
   getPlanesAlumnoDB, upsertPlanDB, deletePlanDB,
-  getReservasAlumnoDB, upsertReservaDB, deleteReservaDB,
+  getReservasAlumnoDB, upsertReservaDB, insertReservaDB, deleteReservaDB,
   getReagendasAlumnoDB, upsertReagendaDB,
 } from '@/lib/planes-supabase';
 import { getBloqueos, type HorarioBloqueo } from '@/lib/horario-config';
 import { getPagosAlumnoDB, type Pago } from '@/lib/pagos-supabase';
+import { supabase } from '@/lib/supabaseClient';
 import { getMedicionesAlumnoDB, insertMedicionDB, deleteMedicionDB, type Medicion } from '@/lib/mediciones-supabase';
 
 type AlumnoExtended = Alumno;
@@ -114,6 +115,7 @@ export default function AlumnoPerfilPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [alumno, setAlumno]     = useState<AlumnoExtended | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [routines, setRoutines] = useState<RutinaDB[]>([]);
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [mediciones,   setMediciones]  = useState<Medicion[]>([]);
@@ -145,6 +147,8 @@ export default function AlumnoPerfilPage() {
   const [invitando,    setInvitando]    = useState(false);
   const [inviteOk,     setInviteOk]     = useState(false);
   const [inviteError,  setInviteError]  = useState('');
+  const [inviteLink,   setInviteLink]   = useState<string | null>(null);
+  const [linkCopiado,  setLinkCopiado]  = useState(false);
 
   // Pagos Flow
   const [pagos,        setPagos]        = useState<Pago[]>([]);
@@ -173,7 +177,7 @@ export default function AlumnoPerfilPage() {
           }
         } catch {}
       }
-    });
+    }).catch(() => {}).finally(() => setCargando(false));
     getRutinasDB().then(setRoutines).catch(() => {});
     getSesionesAlumnoDB(id).then(setSesiones).catch(() => {});
     getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
@@ -221,6 +225,12 @@ export default function AlumnoPerfilPage() {
       setEditSec(null);
     } catch (e) {
       console.error('Error guardando:', e);
+      const msg = e instanceof Error ? e.message
+        : (typeof e === 'object' && e !== null && 'message' in e) ? String((e as { message: unknown }).message) : '';
+      alert(msg.startsWith('Ya existe') ? `No se pudo guardar: ${msg}`
+        : /duplicate|unique/i.test(msg)
+        ? 'No se pudo guardar: ya existe otro alumno con ese RUT o email.'
+        : `No se pudo guardar. ${msg || 'Verifica tu conexión e intenta de nuevo.'}`);
     } finally {
       setSaving(false);
     }
@@ -238,6 +248,7 @@ export default function AlumnoPerfilPage() {
       setMedForm({ fecha: hoyLocal(), peso: '', grasa: '', musculo: '', notas: '' });
     } catch (e) {
       console.error('Error guardando medición:', e);
+      alert('No se pudo guardar la medición. Revisa que peso, grasa y músculo sean números (ej. 72.5).');
     } finally {
       setMedSaving(false);
     }
@@ -278,15 +289,27 @@ export default function AlumnoPerfilPage() {
   }
 
   async function handleDeletePlan(planId: string) {
-    if (!confirm('¿Eliminar este plan?')) return;
+    const hoy = todayStr();
+    const futuras = reservas.filter(r => r.planId === planId && r.fecha >= hoy && (r.estado === 'pendiente' || r.estado === 'confirmada'));
+    const msg = futuras.length
+      ? `¿Eliminar este plan?\n\nTambién se borrarán sus ${futuras.length} clase(s) futuras agendadas. Las clases pasadas quedan en el historial sin plan.`
+      : '¿Eliminar este plan?';
+    if (!confirm(msg)) return;
     try {
+      if (futuras.length) {
+        const { error: e1 } = await supabase.from('reservas').delete().in('id', futuras.map(r => r.id));
+        if (e1) throw e1;
+      }
+      const { error: e2 } = await supabase.from('reservas').update({ plan_id: null }).eq('plan_id', planId);
+      if (e2) throw e2;
       await deletePlanDB(planId);
     } catch {
       alert('No se pudo eliminar el plan. Verifica tu conexión e intenta de nuevo.');
+      loadReservas();
       return;
     }
     setPlanes(prev => prev.filter(p => p.id !== planId));
-    setReservas(prev => prev.filter(r => r.planId !== planId));
+    loadReservas();
   }
 
   async function handleChangeReservaEstado(reservaId: string, nuevoEstado: Reserva['estado']) {
@@ -329,7 +352,7 @@ export default function AlumnoPerfilPage() {
     const reagenda = reagendas.find(r => r.id === reagendaId);
     if (!reagenda) return;
     const check = canReagendar(reagenda, nuevaFecha);
-    if (!check.ok) { console.warn('Reagenda inválida:', check.reason); return; }
+    if (!check.ok) { setReagendaErr(check.reason ?? 'Fecha no válida para esta reagenda'); return; }
     // Verificar que la fecha no esté bloqueada
     const bloqueado = bloqueos.find(b => {
       if (b.fecha !== nuevaFecha) return false;
@@ -348,14 +371,13 @@ export default function AlumnoPerfilPage() {
     const planDeReagenda = planes.find(p => p.id === reagenda.planId);
     const tipoClase = original?.tipoClase
       ?? (planDeReagenda?.modalidad === '2:1' || alumno?.tipoSesion === '2:1' ? '2:1 Duo' : '1:1 Individual');
-    const nuevaReserva: Reserva = {
-      id: crypto.randomUUID(), alumnoId: id, planId: reagenda.planId,
-      fecha: nuevaFecha, hora, estado: 'pendiente',
-      reagendaId: reagenda.id, tipoClase, coachId: original?.coachId,
-      creadaAt: new Date().toISOString(),
-    };
+    let nuevaReserva: Reserva;
     try {
-      await upsertReservaDB(nuevaReserva);
+      nuevaReserva = await insertReservaDB({
+        alumnoId: id, planId: reagenda.planId,
+        fecha: nuevaFecha, hora, estado: 'pendiente',
+        reagendaId: reagenda.id, tipoClase, coachId: original?.coachId,
+      });
     } catch {
       setReagendaErr('No se pudo crear la nueva reserva. Verifica tu conexión e intenta de nuevo.');
       return;
@@ -397,8 +419,9 @@ export default function AlumnoPerfilPage() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ alumnoId: id, email: alumno.email, nombre: alumno.nombre }),
       });
-      const data = await res.json() as { ok?: boolean; error?: string };
+      const data = await res.json() as { ok?: boolean; error?: string; link?: string | null };
       if (!res.ok || !data.ok) throw new Error(data.error ?? 'Error');
+      setInviteLink(data.link ?? null);
       setInviteOk(true);
     } catch (e) {
       setInviteError(e instanceof Error ? e.message : 'Error al enviar invitación');
@@ -409,6 +432,11 @@ export default function AlumnoPerfilPage() {
 
   async function handleCrearPago() {
     if (!alumno || !pagoForm.monto || !pagoForm.descripcion) return;
+    const monto = parseInt(pagoForm.monto.replace(/\D/g, ''), 10);
+    if (!monto || monto < 350) { setPagoError('Ingresa un monto válido (mínimo $350).'); return; }
+    // La pestaña se abre antes de esperar al servidor: si se abre después,
+    // el navegador (sobre todo en celular) la bloquea como popup.
+    const win = window.open('', '_blank');
     setPagoLoading(true);
     setPagoError('');
     try {
@@ -419,19 +447,21 @@ export default function AlumnoPerfilPage() {
           alumnoId:     id,
           alumnoNombre: `${alumno.nombre} ${alumno.apellido}`,
           alumnoEmail:  alumno.email ?? '',
-          monto:        parseInt(pagoForm.monto, 10),
+          monto,
           descripcion:  pagoForm.descripcion,
           planId:       planes.find(p => getPlanEstado(p) === 'activo')?.id,
         }),
       });
       const data = await res.json() as { payUrl?: string; error?: string };
       if (!res.ok || !data.payUrl) throw new Error(data.error ?? 'Error al crear cobro');
-      window.open(data.payUrl, '_blank');
+      if (win) win.location.href = data.payUrl;
+      else window.location.href = data.payUrl;
       setShowPagoModal(false);
       setPagoForm({ monto: '', descripcion: '' });
       // Recargar pagos
       getPagosAlumnoDB(id).then(setPagos).catch(() => {});
     } catch (e) {
+      win?.close();
       setPagoError(e instanceof Error ? e.message : 'Error desconocido');
     } finally {
       setPagoLoading(false);
@@ -441,7 +471,7 @@ export default function AlumnoPerfilPage() {
   if (!alumno) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-[#5E5E5E]">Alumno no encontrado.</p>
+        <p className="text-[#5E5E5E]">{cargando ? 'Cargando…' : 'Alumno no encontrado.'}</p>
       </main>
     );
   }
@@ -454,9 +484,15 @@ export default function AlumnoPerfilPage() {
   // Unique exercises from all sessions for progress tracking
   const ejerciciosUnicos = [...new Set(sesiones.flatMap(s => s.ejercicios.map(e => e.nombre)))].sort();
 
-  const edad = alumno.fechaNacimiento
-    ? new Date().getFullYear() - new Date(alumno.fechaNacimiento).getFullYear()
-    : null;
+  const edad = (() => {
+    if (!alumno.fechaNacimiento) return null;
+    const [y, m, d] = alumno.fechaNacimiento.slice(0, 10).split('-').map(Number);
+    if (!y) return null;
+    const hoy = new Date();
+    let e = hoy.getFullYear() - y;
+    if (hoy.getMonth() + 1 < m || (hoy.getMonth() + 1 === m && hoy.getDate() < d)) e--;
+    return e >= 0 ? e : null;
+  })();
 
   const RESERVAS_LIMITE = 5;
   const hoyStr = todayStr();
@@ -491,7 +527,7 @@ export default function AlumnoPerfilPage() {
             <h1 className="break-words text-lg font-bold text-[#121212] sm:text-xl">{alumno.nombre} {alumno.apellido}</h1>
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#5E5E5E]">
               {alumno.email && <span className="break-all">{alumno.email}</span>}
-              {edad && <span>{edad} años</span>}
+              {edad !== null && <span>{edad} años</span>}
               {alumno.altura && <span>{alumno.altura} cm</span>}
               {ultimaPeso && <span>{ultimaPeso.peso} kg (último registro)</span>}
             </div>
@@ -599,7 +635,7 @@ export default function AlumnoPerfilPage() {
                 ) : (
                   <div className="divide-y divide-[#CACACA] rounded-[8px] border border-[#CACACA] bg-[#E4E4E4]">
                     {reservasMostradas.map(r => {
-                      const lbl = RESERVA_LABEL[r.estado];
+                      const lbl = RESERVA_LABEL[r.estado] ?? { label: String(r.estado), color: '#888888', quema: false };
                       return (
                         <div key={r.id} className="flex items-center gap-2 px-3 py-1.5">
                           <span className="w-[52px] shrink-0 text-xs font-medium text-[#121212]">{fmtFechaCorta(r.fecha)}</span>
@@ -983,12 +1019,28 @@ export default function AlumnoPerfilPage() {
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-[#5E5E5E]">
-                  Envía un link de acceso a <strong>{alumno.email}</strong> para que el alumno pueda ver sus rutinas, clases y pagos.
+                  Crea el acceso de <strong>{alumno.email}</strong> para que el alumno pueda ver sus rutinas, clases y pagos.
                 </p>
                 {inviteOk && (
-                  <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">
-                    ✓ Invitación enviada a {alumno.email}
-                  </p>
+                  <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                    <p className="font-semibold">✓ Acceso creado. Copia este link y mándaselo al alumno (WhatsApp, correo…): al abrirlo fija su contraseña.</p>
+                    {inviteLink && (
+                      <>
+                        <p className="break-all rounded border border-green-200 bg-white px-2 py-1.5 text-[11px] text-[#121212]">{inviteLink}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(inviteLink)
+                              .then(() => { setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); })
+                              .catch(() => alert('No se pudo copiar: selecciona el link y cópialo a mano.'));
+                          }}
+                          className="rounded-md bg-green-700 px-2.5 py-1 text-[11px] font-bold text-white"
+                        >
+                          {linkCopiado ? '¡Copiado!' : 'Copiar link'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
                 {inviteError && (
                   <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">{inviteError}</p>
@@ -999,7 +1051,7 @@ export default function AlumnoPerfilPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-[#121212] px-3 py-2 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-40"
                 >
                   {invitando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  {invitando ? 'Enviando...' : 'Invitar al portal'}
+                  {invitando ? 'Creando acceso...' : 'Invitar al portal'}
                 </button>
               </div>
             )}
@@ -1227,7 +1279,7 @@ export default function AlumnoPerfilPage() {
             <div className="mb-5 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <span className="font-medium text-green-700">
-                Firmado{alumno.contratoFechaFirma ? ` el ${new Date(alumno.contratoFechaFirma).toLocaleDateString('es-CL')}` : ''}
+                Firmado{alumno.contratoFechaFirma ? ` el ${formatDate(alumno.contratoFechaFirma.slice(0, 10))}` : ''}
               </span>
             </div>
           ) : (

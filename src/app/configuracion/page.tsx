@@ -9,6 +9,7 @@ import {
   type HorarioConfig, type HorarioDiaConfig, type HorarioBloqueo,
 } from '@/lib/horario-config';
 import { supabase } from '@/lib/supabaseClient';
+import { fechaLocal } from '@/lib/format';
 
 const DIA_LABELS: Record<number, string> = {
   0: 'Domingo', 1: 'Lunes', 2: 'Martes', 3: 'Miércoles',
@@ -31,17 +32,32 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+// Guarda solo dígitos ("10.000" → 10000) y deja borrar el campo mientras se
+// escribe; el mínimo/máximo se aplica al salir del campo.
 function NumInput({ label, sub, value, onChange, min, max }: {
   label: string; sub: string; value: number;
   onChange: (v: number) => void; min: number; max: number;
 }) {
+  const [texto, setTexto] = useState(String(value));
+  const [editando, setEditando] = useState(false);
+  const mostrar = editando ? texto : String(value);
   return (
     <div>
       <label className="block text-[10px] font-bold uppercase tracking-wider mb-1"
         style={{ color: 'var(--nexa-muted)' }}>{label}</label>
       <p className="text-[10px] mb-1.5" style={{ color: 'var(--nexa-faint)' }}>{sub}</p>
-      <input type="text" inputMode="numeric" pattern="[0-9]*" value={value} min={min} max={max}
-        onChange={e => onChange(parseInt(e.target.value) || min)}
+      <input type="text" inputMode="numeric" pattern="[0-9]*" value={mostrar}
+        onFocus={() => { setTexto(String(value)); setEditando(true); }}
+        onChange={e => {
+          const t = e.target.value.replace(/\D/g, '');
+          setTexto(t);
+          if (t !== '') onChange(Math.min(max, parseInt(t, 10)));
+        }}
+        onBlur={() => {
+          setEditando(false);
+          const n = parseInt(texto, 10);
+          onChange(Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min);
+        }}
         className="w-full rounded-lg px-3 py-2 text-[13px]"
         style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
       />
@@ -101,6 +117,7 @@ export default function ConfiguracionPage() {
     fecha: '', horaInicio: '', horaFin: '', motivo: '', diaCompleto: true,
   });
   const [addingB, setAddingB] = useState(false);
+  const [verPasados, setVerPasados] = useState(false);
 
   const [precios,       setPrecios]       = useState<Record<string, number>>({});
   const [descuentoTrim, setDescuentoTrim] = useState(0);
@@ -169,6 +186,11 @@ export default function ConfiguracionPage() {
 
   async function handleAddBloqueo() {
     if (!newB.fecha) return;
+    // Sin horas, un bloqueo parcial quedaría como día completo sin querer
+    if (!newB.diaCompleto) {
+      if (!newB.horaInicio || !newB.horaFin) { setBloqueoErr('Indica la hora de inicio y de fin (o marca "Día completo").'); return; }
+      if (newB.horaFin <= newB.horaInicio) { setBloqueoErr('La hora de fin debe ser posterior a la de inicio.'); return; }
+    }
     setAddingB(true);
     setBloqueoErr('');
     try {
@@ -191,6 +213,7 @@ export default function ConfiguracionPage() {
   }
 
   async function handleDeleteBloqueo(id: string) {
+    if (!confirm('¿Eliminar este bloqueo? Ese horario vuelve a quedar disponible.')) return;
     try {
       await deleteBloqueo(id);
     } catch {
@@ -234,6 +257,10 @@ export default function ConfiguracionPage() {
       setSavingPrecios(false);
     }
   }
+
+  const hoy = fechaLocal();
+  const bloqueosPasados  = bloqueos.filter(b => b.fecha < hoy).length;
+  const bloqueosVisibles = verPasados ? bloqueos : bloqueos.filter(b => b.fecha >= hoy);
 
   if (loading) {
     return (
@@ -396,12 +423,18 @@ export default function ConfiguracionPage() {
         {/* ─ Bloqueos ─ */}
         <Card title="Bloqueos y feriados">
 
-          {/* Lista de bloqueos */}
-          {bloqueos.length === 0 ? (
+          {/* Lista de bloqueos (los pasados se ocultan) */}
+          {bloqueosPasados > 0 && (
+            <button type="button" onClick={() => setVerPasados(v => !v)}
+              className="mb-2 text-[11px] underline" style={{ color: 'var(--nexa-muted)' }}>
+              {verPasados ? 'Ocultar bloqueos pasados' : `Ver ${bloqueosPasados} bloqueo${bloqueosPasados !== 1 ? 's' : ''} pasado${bloqueosPasados !== 1 ? 's' : ''}`}
+            </button>
+          )}
+          {bloqueosVisibles.length === 0 ? (
             <p className="text-[12px] mb-4" style={{ color: 'var(--nexa-muted)' }}>No hay bloqueos registrados.</p>
           ) : (
             <div className="space-y-1.5 mb-4">
-              {bloqueos.map(b => (
+              {bloqueosVisibles.map(b => (
                 <div key={b.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5"
                   style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
                   <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
@@ -517,7 +550,7 @@ export default function ConfiguracionPage() {
         {/* ─ Precios de entrenamiento ─ */}
         <Card title="Precios de entrenamiento">
           <p className="text-[11px] mb-4" style={{ color: 'var(--nexa-muted)' }}>
-            Precio mensual por modalidad y frecuencia semanal. Esto define lo que ve el alumno en /clases-grupales.
+            Precio mensual por modalidad y frecuencia semanal. Es lo que ve el alumno al comprar un plan 1:1 o 2:1 en la página pública de planes.
           </p>
 
           <div className="overflow-x-auto mb-5">
@@ -540,7 +573,7 @@ export default function ConfiguracionPage() {
                       <td key={m} className="py-2 pr-4">
                         <input type="text" inputMode="numeric" pattern="[0-9]*"
                           value={precios[precioKey(m, f)] ?? 0}
-                          onChange={e => setPrecios(p => ({ ...p, [precioKey(m, f)]: parseInt(e.target.value) || 0 }))}
+                          onChange={e => setPrecios(p => ({ ...p, [precioKey(m, f)]: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 }))}
                           className="w-28 rounded-lg px-2 py-1.5 text-[12px]"
                           style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}
                         />

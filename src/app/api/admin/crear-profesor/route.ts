@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (roleErr) {
       return NextResponse.json({ error: `Error al leer rol: ${roleErr.message}`, step: 'role' }, { status: 500 });
     }
-    if (myRole !== 'admin') {
+    if (myRole !== 'admin' && myRole !== 'host') {
       return NextResponse.json({ error: `Acceso denegado. Tu rol es: ${myRole ?? 'ninguno'}`, step: 'role' }, { status: 403 });
     }
 

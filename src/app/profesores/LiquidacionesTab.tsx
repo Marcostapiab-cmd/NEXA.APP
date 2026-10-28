@@ -48,11 +48,13 @@ export default function LiquidacionesTab() {
   const [advertencias, setAdvertencias] = useState<Advertencia[]>([]);
   const [coaches,      setCoaches]      = useState<Coach[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const [todosCoaches, { data: resData }] = await Promise.all([
+      const [todosCoaches, { data: resData, error: resErr }] = await Promise.all([
         getAllCoachesDB(),
         supabase
           .from('reservas')
@@ -62,6 +64,7 @@ export default function LiquidacionesTab() {
           .in('estado', ['presente', 'no_show', 'cancelada_tarde'])
           .not('coach_id', 'is', null),
       ]);
+      if (resErr) throw resErr;
       setCoaches(todosCoaches);
       const reservas = (resData ?? []) as ReservaParaPago[];
       const { clases, advertencias: adv } = agruparClases(reservas);
@@ -74,6 +77,7 @@ export default function LiquidacionesTab() {
       setAdvertencias(adv);
     } catch (err) {
       console.error('liquidaciones-tab load error', err);
+      setError('No se pudieron cargar las clases del mes. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -141,6 +145,14 @@ export default function LiquidacionesTab() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-[12px]"
+          style={{ background: 'rgba(180,64,64,0.08)', border: '1px solid rgba(180,64,64,0.3)', color: '#B44040' }}>
+          {error}
+          <button onClick={() => cargar()} className="font-semibold underline">Reintentar</button>
         </div>
       )}
 

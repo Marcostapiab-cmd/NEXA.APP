@@ -113,7 +113,7 @@ export default function RegistroPage() {
           </div>
           <h2 className="mb-2 text-[18px] font-bold" style={{ color: 'var(--nexa-text)' }}>¡Cuenta creada!</h2>
           <p className="mb-6 text-[13px]" style={{ color: 'var(--nexa-text-sub)' }}>
-            Revisá tu correo y hacé clic en el link de confirmación para activar tu cuenta.
+            Ya puedes iniciar sesión con tu correo y contraseña.
           </p>
           <Link href="/login" className="text-[13px] font-semibold" style={{ color: 'var(--nexa-accent)' }}>
             Volver al login
@@ -199,7 +199,7 @@ export default function RegistroPage() {
         </form>
 
         <p className="mt-8 text-center text-[13px]" style={{ color: 'var(--nexa-muted)' }}>
-          ¿Ya tenés cuenta?{' '}
+          ¿Ya tienes cuenta?{' '}
           <Link href="/login" className="font-semibold" style={{ color: 'var(--nexa-text)' }}>
             Iniciar sesión
           </Link>

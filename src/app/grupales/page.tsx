@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Calendar, CheckCircle2, XCircle, Clock, RefreshCw, UserCircle, CreditCard, Plus, Pencil, Trash2, Star, X, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { clp, DIAS_LARGO, MESES_LARGO, MESES_CORTO , hoyLocal } from '@/lib/format';
+import { clp, DIAS_LARGO, MESES_LARGO, MESES_CORTO, hoyLocal, fechaLocal } from '@/lib/format';
 
 // ── Tipos para alumnos grupales ──────────────────────────────
 
@@ -275,6 +275,7 @@ interface SesionAgrupada {
 
 const ESTADO_CFG: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
   pendiente:        { label: 'Pendiente',  color: '#d97706', bg: '#fffbeb', Icon: Clock        },
+  confirmada:       { label: 'Confirmada', color: '#2563eb', bg: '#eff6ff', Icon: Clock        },
   presente:         { label: 'Presente',   color: '#16a34a', bg: '#f0fdf4', Icon: CheckCircle2 },
   no_show:          { label: 'No asistió', color: '#dc2626', bg: '#fef2f2', Icon: XCircle      },
   cancelada_tiempo: { label: 'Cancelada',  color: '#9B9B9B', bg: '#f9fafb', Icon: XCircle      },
@@ -373,6 +374,7 @@ function PlanesTab() {
 
   async function guardar() {
     if (!form.nombre.trim() || !form.precio_clp) return;
+    if (form.num_clases < 1 || form.validez_dias < 1) { alert('El plan debe tener al menos 1 clase y 1 día de validez.'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -395,6 +397,7 @@ function PlanesTab() {
   }
 
   async function eliminar(id: string) {
+    if (!confirm('¿Desactivar este plan? Deja de mostrarse en la web; las compras hechas no se ven afectadas. Puedes reactivarlo editándolo.')) return;
     setDeleting(id);
     try {
       const { error } = await supabase.from('planes_grupales').update({ activo: false }).eq('id', id);
@@ -520,15 +523,15 @@ function PlanesTab() {
                 placeholder="Una línea describiendo el plan" />
               <div className="grid grid-cols-2 gap-3">
                 <PlanInput label="Precio CLP *" type="number" value={form.precio_clp}
-                  onChange={v => setForm({ ...form, precio_clp: Number(v) })} placeholder="15000" />
+                  onChange={v => setForm({ ...form, precio_clp: Number(v.replace(/\D/g, '')) || 0 })} placeholder="15000" />
                 <PlanInput label="N° de clases" type="number" value={form.num_clases}
-                  onChange={v => setForm({ ...form, num_clases: Number(v) })} />
+                  onChange={v => setForm({ ...form, num_clases: Number(v.replace(/\D/g, '')) || 0 })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <PlanInput label="Validez (días)" type="number" value={form.validez_dias}
-                  onChange={v => setForm({ ...form, validez_dias: Number(v) })} />
+                  onChange={v => setForm({ ...form, validez_dias: Number(v.replace(/\D/g, '')) || 0 })} />
                 <PlanInput label="Orden" type="number" value={form.orden}
-                  onChange={v => setForm({ ...form, orden: Number(v) })} placeholder="1, 2, 3..." />
+                  onChange={v => setForm({ ...form, orden: Number(v.replace(/\D/g, '')) || 0 })} placeholder="1, 2, 3..." />
               </div>
               <div className="flex gap-4 pt-1">
                 {([['destacado', 'Popular', form.destacado], ['activo', 'Activo', form.activo]] as [keyof typeof form, string, boolean][]).map(([key, label, val]) => (
@@ -578,9 +581,7 @@ export default function GrupalesPage() {
     const hoy = hoyLocal();
     const fin = filtro === 'hoy'
       ? hoy
-      : filtro === 'semana'
-      ? new Date(Date.now() + 7  * 86400000).toISOString().slice(0, 10)
-      : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+      : fechaLocal(new Date(Date.now() + (filtro === 'semana' ? 7 : 30) * 86400000));
 
     const [{ data: reservasData }, { data: clasesData }, { data: onlineData }] = await Promise.all([
       supabase
@@ -589,7 +590,7 @@ export default function GrupalesPage() {
         .ilike('tipo_clase', '%grupal%')
         .gte('fecha', hoy)
         .lte('fecha', fin)
-        .not('estado', 'in', '(cancelada_tiempo,cancelada_tarde,cancelada_nexa)')
+        .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa)')
         .order('fecha', { ascending: true })
         .order('hora',  { ascending: true }),
       supabase
@@ -620,13 +621,23 @@ export default function GrupalesPage() {
 
     const clases = (clasesData ?? []) as ClaseInfo[];
 
+    // En `reservas` la fecha es un timestamp y la hora puede traer segundos:
+    // se normalizan para agrupar con las reservas online de la misma clase.
+    const deReservas = ((reservasData ?? []) as unknown as Reserva[]).map(r => ({
+      ...r,
+      fecha: String(r.fecha).slice(0, 10),
+      hora:  String(r.hora ?? '').slice(0, 5),
+      atletas: Array.isArray(r.atletas) ? r.atletas : r.atletas ? [r.atletas as unknown as AtletaFila] : [],
+    }));
+    const onlineNorm = online.map(r => ({ ...r, fecha: String(r.fecha).slice(0, 10), hora: String(r.hora ?? '').slice(0, 5) }));
+
     // Agrupar por fecha + hora
     const mapa: Record<string, SesionAgrupada> = {};
-    for (const r of [...((reservasData ?? []) as unknown as Reserva[]), ...online]) {
+    for (const r of [...deReservas, ...onlineNorm]) {
       const key = `${r.fecha}|${r.hora}`;
       if (!mapa[key]) {
         const dow = new Date(r.fecha + 'T12:00:00').getDay();
-        const claseInfo = clases.find(c => c.hora === r.hora && c.dia_semana === dow);
+        const claseInfo = clases.find(c => String(c.hora).slice(0, 5) === r.hora && c.dia_semana === dow);
         mapa[key] = {
           fecha:     r.fecha,
           hora:      r.hora,
@@ -841,7 +852,7 @@ export default function GrupalesPage() {
                               <Icn size={11} />
                               {cfg.label}
                             </span>
-                            {r.estado === 'pendiente' && (
+                            {(r.estado === 'pendiente' || r.estado === 'confirmada') && (
                               <>
                                 <button
                                   disabled={updating === r.id}

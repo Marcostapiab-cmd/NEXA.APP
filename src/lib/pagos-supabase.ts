@@ -25,7 +25,7 @@ function toPago(r: Record<string, unknown>): Pago {
     metodo:      (r.metodo as Pago['metodo']) ?? 'stripe',
     descripcion: r.descripcion ? String(r.descripcion) : undefined,
     checkoutUrl: r.checkout_url ? String(r.checkout_url) : undefined,
-    fechaPago:   r.fecha_pago ? String(r.fecha_pago).slice(0, 10) : undefined,
+    fechaPago:   r.fecha_pago ? String(r.fecha_pago) : undefined,   // timestamp completo: se muestra en hora local
     createdAt:   String(r.created_at),
   };
 }

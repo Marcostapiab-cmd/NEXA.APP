@@ -94,7 +94,9 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
   }
 
   const esCustom = f.tipo === 'personalizado';
-  const faltaFrecuencia = !esCustom && !frecuencia;
+  // Al editar, un plan con un total que no calza con 1–5 veces por semana
+  // se puede guardar igual (ej. para cambiar la nota o extender la vigencia).
+  const faltaFrecuencia = !esCustom && !frecuencia && mode === 'create';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -200,7 +202,9 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
                   </div>
                   {frecuencia
                     ? <p className="mt-1.5 text-[11px] text-[#888888]">{frecuencia} {frecuencia === 1 ? 'vez' : 'veces'} por semana × {PLAN_SEMANAS[f.tipo]} semanas = {frecuencia * PLAN_SEMANAS[f.tipo]} clases.</p>
-                    : <p className="mt-1.5 text-[11px] text-[#C4783A]">Elige cuántas veces por semana entrena para calcular el total de clases.</p>}
+                    : mode === 'edit'
+                      ? <p className="mt-1.5 text-[11px] text-[#888888]">Total actual: {f.totalClases} clases. Elige veces por semana solo si quieres recalcularlo.</p>
+                      : <p className="mt-1.5 text-[11px] text-[#C4783A]">Elige cuántas veces por semana entrena para calcular el total de clases.</p>}
                 </div>
               )}
 
@@ -220,7 +224,7 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
                   ))}
                 </div>
                 <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.totalClases}
-                  onChange={e => set('totalClases', parseInt(e.target.value) || 1)}
+                  onChange={e => set('totalClases', Math.max(1, parseInt(e.target.value.replace(/\D/g, '')) || 1))}
                   className={IC} />
               </div>}
 
@@ -228,11 +232,11 @@ export default function PlanFormModal({ alumnoNombre, initial, mode, onSave, onC
               {isEdit && (
                 <div>
                   <label className={LC}>Clases utilizadas</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={f.usedClases}
-                    onChange={e => set('usedClases', Math.min(f.totalClases, parseInt(e.target.value) || 0))}
-                    className={IC} />
+                  <p className="rounded-xl border border-[#C8C8C8] bg-[#F0F0F0] px-3 py-2.5 text-sm text-[#121212]">
+                    {f.usedClases} de {f.totalClases} · restantes {Math.max(0, f.totalClases - f.usedClases)}
+                  </p>
                   <p className="mt-1 text-[11px] text-[#888888]">
-                    Restantes: {Math.max(0, f.totalClases - f.usedClases)} clases
+                    Se calculan solas con la asistencia (presente, no-show y cancelación tardía).
                   </p>
                 </div>
               )}

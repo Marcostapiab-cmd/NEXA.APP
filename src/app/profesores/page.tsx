@@ -9,6 +9,7 @@ import {
   type Coach,
 } from '@/lib/coaches-supabase';
 import { supabase } from '@/lib/supabaseClient';
+import { fechaLocal } from '@/lib/format';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,11 @@ function getInitials(nombre: string): string {
 
 function formatCLP(n: number): string {
   return '$' + n.toLocaleString('es-CL');
+}
+
+// "25.000" o "$25.000" → 25000 (parseFloat leería 25)
+function monto(v: string): number {
+  return parseInt(String(v).replace(/\D/g, ''), 10) || 0;
 }
 
 function extractMsg(e: unknown): string {
@@ -80,6 +86,7 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
   inviteWarning?: string;
 }) {
   const isEdit = !!draft.id;
+  const [copiado, setCopiado] = useState(false);
 
   // Tras crear con acceso, se muestra el link para fijar contraseña en vez
   // del formulario — hay que copiarlo y mandárselo al profesor por el canal
@@ -123,10 +130,14 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
             <div className="flex gap-2">
               {inviteLink && (
                 <button
-                  onClick={() => navigator.clipboard?.writeText(inviteLink)}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(inviteLink)
+                      .then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); })
+                      .catch(() => alert('No se pudo copiar: selecciona el link y cópialo a mano.'));
+                  }}
                   className="flex-1 rounded-xl py-2.5 text-[12px] font-bold"
                   style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
-                  Copiar link
+                  {copiado ? '¡Copiado!' : 'Copiar link'}
                 </button>
               )}
               <button onClick={onClose}
@@ -390,7 +401,7 @@ function CoachCard({ coach, alumnosCount, isAdmin, onClick }: {
           <span style={{ fontSize: 20, fontWeight: 300, color: 'var(--nexa-text)', marginRight: 4, lineHeight: 1 }}>
             {alumnosCount}
           </span>
-          alumno{alumnosCount !== 1 ? 's' : ''} asignado{alumnosCount !== 1 ? 's' : ''}
+          alumno{alumnosCount !== 1 ? 's' : ''} con clases (±30 días)
         </div>
       </div>
     </div>
@@ -419,16 +430,22 @@ export default function ProfesoresPage() {
       const [{ data: roleData }, coaches, { data: atletasData }] = await Promise.all([
         supabase.rpc('get_my_role'),
         getAllCoachesDB().catch(() => [] as Coach[]),
-        supabase.from('atletas').select('coach_id').not('coach_id', 'is', null),
+        supabase.from('reservas').select('coach_id, alumno_id')
+          .not('coach_id', 'is', null).not('alumno_id', 'is', null)
+          .gte('fecha', fechaLocal(new Date(Date.now() - 30 * 86400000)))
+          .lte('fecha', fechaLocal(new Date(Date.now() + 30 * 86400000)))
+          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_nexa)'),
       ]);
       setRole(roleData as string ?? null);
       setCoaches(coaches);
-      const countMap = new Map<string, number>();
-      for (const a of (atletasData ?? [])) {
-        const cid = String(a.coach_id);
-        countMap.set(cid, (countMap.get(cid) ?? 0) + 1);
+      // Alumnos distintos con clases con cada profesor (30 días atrás y adelante)
+      const porCoach = new Map<string, Set<string>>();
+      for (const r of (atletasData ?? []) as { coach_id: string; alumno_id: string }[]) {
+        const cid = String(r.coach_id);
+        if (!porCoach.has(cid)) porCoach.set(cid, new Set());
+        porCoach.get(cid)!.add(String(r.alumno_id));
       }
-      setAlumnosCount(countMap);
+      setAlumnosCount(new Map([...porCoach].map(([k, v]) => [k, v.size])));
       setLoading(false);
     }
     load();
@@ -464,9 +481,9 @@ export default function ProfesoresPage() {
             nombre:                modal.nombre.trim(),
             email:                 modal.email.trim(),
             especialidad:          modal.especialidad.trim() || undefined,
-            tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
-            tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
-            tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+            tarifa_1a1:            monto(modal.tarifa_1a1),
+            tarifa_2a1:            monto(modal.tarifa_2a1),
+            tarifa_incompleta_2a1: monto(modal.tarifa_incompleta_2a1),
             color:                 modal.color || undefined,
           }),
         });
@@ -477,9 +494,9 @@ export default function ProfesoresPage() {
           id:                     json.userId,
           nombre:                 modal.nombre.trim(),
           especialidad:           modal.especialidad.trim() || undefined,
-          tarifa_1a1:             parseFloat(modal.tarifa_1a1)            || 0,
-          tarifa_2a1:             parseFloat(modal.tarifa_2a1)            || 0,
-          tarifa_incompleta_2a1:  parseFloat(modal.tarifa_incompleta_2a1) || 0,
+          tarifa_1a1:             monto(modal.tarifa_1a1),
+          tarifa_2a1:             monto(modal.tarifa_2a1),
+          tarifa_incompleta_2a1:  monto(modal.tarifa_incompleta_2a1),
           color:                  modal.color || undefined,
           activo:                 true,
         };
@@ -501,9 +518,9 @@ export default function ProfesoresPage() {
         ...(modal.id ? { id: modal.id } : {}),
         nombre:                modal.nombre.trim(),
         especialidad:          modal.especialidad.trim() || undefined,
-        tarifa_1a1:            parseFloat(modal.tarifa_1a1)            || 0,
-        tarifa_2a1:            parseFloat(modal.tarifa_2a1)            || 0,
-        tarifa_incompleta_2a1: parseFloat(modal.tarifa_incompleta_2a1) || 0,
+        tarifa_1a1:            monto(modal.tarifa_1a1),
+        tarifa_2a1:            monto(modal.tarifa_2a1),
+        tarifa_incompleta_2a1: monto(modal.tarifa_incompleta_2a1),
         color:                 modal.color || undefined,
         activo:                modal.activo,
       });
@@ -531,7 +548,10 @@ export default function ProfesoresPage() {
       setCoaches(prev => prev.filter(c => c.id !== modal.id));
       setModal(null);
     } catch (e: unknown) {
-      setErr(extractMsg(e));
+      const msg = extractMsg(e);
+      setErr(/foreign key|violates/i.test(msg)
+        ? 'No se puede eliminar: tiene clases registradas. Desactívalo con el interruptor "Activo" para que no aparezca al agendar.'
+        : msg);
     } finally {
       setSaving(false);
     }

@@ -4,16 +4,11 @@ import { hoyLocal } from '@/lib/format';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getAtletaPortal, soloFecha, type AtletaPortal } from '@/lib/portal';
+import { cuentaEnPlan } from '@/lib/planes-supabase';
+import { formatDate } from '@/lib/planes';
 import { Calendar, Dumbbell, CreditCard, LogOut, ChevronRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-
-interface AtletaPortal {
-  id: string;
-  nombre: string;
-  apellido: string;
-  email?: string;
-  foto?: string;
-}
 
 interface Reserva {
   id: string;
@@ -62,45 +57,55 @@ export default function PortalPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/portal/login'); return; }
-
-      // Buscar atleta vinculado a este user
-      const { data: atletaData } = await supabase
-        .from('atletas')
-        .select('id, nombre, apellido, email, foto')
-        .eq('user_id', user.id)
-        .single();
-
+      const atletaData = await getAtletaPortal();
+      if (atletaData === undefined) { router.push('/portal/login'); return; }
       if (!atletaData) { router.push('/portal/sin-cuenta'); return; }
-      setAtleta(atletaData as AtletaPortal);
+      setAtleta(atletaData);
 
-      const aid = (atletaData as AtletaPortal).id;
-
-      // Próximas reservas (últimas 10 ordenadas por fecha desc)
-      const { data: resData } = await supabase
-        .from('reservas')
-        .select('id, fecha, hora, estado, descripcion')
-        .eq('alumno_id', aid)
-        .order('fecha', { ascending: false })
-        .limit(10);
-      setReservas((resData ?? []) as Reserva[]);
-
-      // Planes activos
+      const aid = atletaData.id;
       const hoy = hoyLocal();
+
+      // Próximas clases (las más cercanas primero) e historial reciente
+      const [{ data: futuras }, { data: pasadas }] = await Promise.all([
+        supabase.from('reservas').select('id, fecha, hora, estado, descripcion')
+          .eq('alumno_id', aid).gte('fecha', hoy).order('fecha', { ascending: true }).limit(10),
+        supabase.from('reservas').select('id, fecha, hora, estado, descripcion')
+          .eq('alumno_id', aid).lt('fecha', hoy).order('fecha', { ascending: false }).limit(10),
+      ]);
+      setReservas([...(futuras ?? []), ...(pasadas ?? [])].map((r: Record<string, unknown>) => ({
+        id:          String(r.id),
+        fecha:       soloFecha(r.fecha),
+        hora:        r.hora ? String(r.hora).slice(0, 5) : undefined,
+        estado:      String(r.estado ?? 'pendiente'),
+        descripcion: r.descripcion ? String(r.descripcion) : undefined,
+      })));
+
+      // Planes vigentes: las clases usadas se cuentan desde las reservas
+      // (la columna used_clases no se actualiza)
       const { data: planesData } = await supabase
         .from('planes')
-        .select('id, nombre, total_clases, used_clases, start_date, end_date')
+        .select('id, nombre, total_clases, start_date, end_date, extended_until')
         .eq('alumno_id', aid)
-        .gte('end_date', hoy)
         .order('end_date', { ascending: true });
-      setPlanes((planesData ?? []).map((p: Record<string, unknown>) => ({
+      const vigentes = (planesData ?? []).filter((p: Record<string, unknown>) =>
+        String(p.extended_until || p.end_date || '') >= hoy);
+      const usadas = new Map<string, number>();
+      if (vigentes.length) {
+        const { data: resPlan } = await supabase.from('reservas').select('plan_id, estado, fecha')
+          .in('plan_id', vigentes.map((p: Record<string, unknown>) => String(p.id)));
+        for (const r of resPlan ?? []) {
+          if (cuentaEnPlan(r.estado, r.fecha, hoy) === 'usada') {
+            usadas.set(String(r.plan_id), (usadas.get(String(r.plan_id)) ?? 0) + 1);
+          }
+        }
+      }
+      setPlanes(vigentes.map((p: Record<string, unknown>) => ({
         id:          String(p.id),
         nombre:      String(p.nombre ?? ''),
         totalClases: p.total_clases ? Number(p.total_clases) : undefined,
-        usedClases:  p.used_clases  ? Number(p.used_clases)  : undefined,
+        usedClases:  usadas.get(String(p.id)) ?? 0,
         startDate:   p.start_date ? String(p.start_date) : undefined,
-        endDate:     p.end_date   ? String(p.end_date)   : undefined,
+        endDate:     String(p.extended_until || p.end_date || '') || undefined,
       })));
 
       // Pagos pendientes
@@ -139,7 +144,7 @@ export default function PortalPage() {
 
   if (!atleta) return null;
 
-  const proximasReservas = reservas.filter(r => r.fecha >= hoyLocal()).slice(0, 3);
+  const proximasReservas = reservas.filter(r => r.fecha >= hoyLocal()).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 3);
   const pagosPendientes  = pagos.filter(p => p.estado === 'pendiente');
   const planActivo       = planes[0];
 
@@ -215,8 +220,8 @@ export default function PortalPage() {
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-[#5E5E5E]">
-                  {planActivo.totalClases - (planActivo.usedClases ?? 0)} clases disponibles
-                  {planActivo.endDate && ` · Vence ${new Date(planActivo.endDate).toLocaleDateString('es-CL')}`}
+                  {Math.max(0, planActivo.totalClases - (planActivo.usedClases ?? 0))} clases disponibles
+                  {planActivo.endDate && ` · Vence ${formatDate(planActivo.endDate.slice(0, 10))}`}
                 </p>
               </div>
             )}

@@ -92,9 +92,9 @@ export async function getBloqueos(fechaDesde?: string, fechaHasta?: string): Pro
   if (error) return [];
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:         String(r.id),
-    fecha:      String(r.fecha),
-    horaInicio: r.hora_inicio ? String(r.hora_inicio) : undefined,
-    horaFin:    r.hora_fin    ? String(r.hora_fin)    : undefined,
+    fecha:      String(r.fecha).slice(0, 10),
+    horaInicio: r.hora_inicio ? String(r.hora_inicio).slice(0, 5) : undefined,
+    horaFin:    r.hora_fin    ? String(r.hora_fin).slice(0, 5)    : undefined,
     motivo:     r.motivo      ? String(r.motivo)      : undefined,
     createdAt:  String(r.created_at),
   }));

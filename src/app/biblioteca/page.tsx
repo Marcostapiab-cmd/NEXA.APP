@@ -448,7 +448,12 @@ export default function BibliotecaPage() {
   }
 
   async function handleRestaurar(id: string) {
-    await restaurarBibliotecaEjercicioDB(id);
+    try {
+      await restaurarBibliotecaEjercicioDB(id);
+    } catch {
+      alert('No se pudo restaurar el ejercicio. Verifica tu conexión e intenta de nuevo.');
+      return;
+    }
     await loadData();
   }
 

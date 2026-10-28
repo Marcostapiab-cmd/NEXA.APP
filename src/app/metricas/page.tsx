@@ -100,7 +100,7 @@ export default function MetricasPage() {
   }, []);
 
   const mesNombre      = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  const totalIngresado = (ingresos?.atletasPagado ?? 0) + (ingresos?.planesPagado ?? 0);
+  const totalIngresado = (ingresos?.atletasPagado ?? 0) + (ingresos?.planesPagado ?? 0) + (ingresos?.grupalesPagado ?? 0);
 
   const atletasTotal   = (ingresos?.atletasPagado ?? 0) + (ingresos?.atletasPendiente ?? 0);
   const planesTotal    = (ingresos?.planesPagado  ?? 0) + (ingresos?.planesPendiente  ?? 0);
@@ -196,6 +196,9 @@ export default function MetricasPage() {
                   />
                 </div>
 
+                <Divider label="Clases grupales" />
+                <MetricRow label="Packs pagados" value={clp(ingresos?.grupalesPagado ?? 0)} />
+
                 <Total label="Total ingresado" value={clp(totalIngresado)} />
               </div>
             </Card>
@@ -213,9 +216,9 @@ export default function MetricasPage() {
                       color="#4A8A5A"
                     />
                     <MetricRow
-                      label="Inactivos"
-                      value={alumnos?.inactivos ?? 0}
-                      barPct={pct(alumnos?.inactivos ?? 0, alumnos?.total ?? 0)}
+                      label="Pendientes"
+                      value={alumnos?.pendientes ?? 0}
+                      barPct={pct(alumnos?.pendientes ?? 0, alumnos?.total ?? 0)}
                       color="#C4783A"
                     />
                     {(alumnos?.archivados ?? 0) > 0 && (
