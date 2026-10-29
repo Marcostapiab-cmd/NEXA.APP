@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { procesarCola } from '@/lib/notificaciones-server';
 
 export const runtime = 'nodejs';
 
@@ -163,5 +164,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, ...resultados });
+  // Los recordatorios de clase (24 h y 3 h antes) los encola la tarea horaria
+  // de Supabase (migración 043). Aquí solo se envía lo que quede en cola.
+  const cola = await procesarCola(supabaseAdmin, 200);
+
+  return NextResponse.json({ ok: true, ...resultados, cola });
 }

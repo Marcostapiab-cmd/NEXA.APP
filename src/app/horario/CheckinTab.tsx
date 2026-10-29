@@ -1,5 +1,6 @@
 'use client';
 import { hoyLocal } from '@/lib/format';
+import { puedeCancelarATiempo } from '@/lib/politica-cancelacion';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,20 +79,15 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr + 'T12:00:00').getTime() - Date.now()) / 86_400_000);
 }
 
+// Misma política que valida la base de datos (12:00 inclusive = regla de las 22:00
+// del día anterior; después, 6 horas de aviso), siempre en hora de Chile.
 function isCancelOnTime(hora: string, cfg: HorarioConfig): boolean {
-  const now  = new Date();
-  const isAM = hora < cfg.limiteHoraAm;
-  if (isAM) {
-    const [ch, cm] = cfg.corteCancelacionAm.split(':').map(Number);
-    const cutoff   = new Date(now);
-    cutoff.setDate(cutoff.getDate() - 1);
-    cutoff.setHours(ch, cm, 0, 0);
-    return now <= cutoff;
-  }
-  const [lh, lm] = hora.split(':').map(Number);
-  const claseMs  = new Date(now);
-  claseMs.setHours(lh, lm, 0, 0);
-  return now.getTime() <= claseMs.getTime() - cfg.cancelHorasAvisoPm * 3_600_000;
+  const hoyChile = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
+  return puedeCancelarATiempo(hoyChile, hora, new Date(), {
+    limiteHoraAm:       cfg.limiteHoraAm,
+    corteCancelacionAm: cfg.corteCancelacionAm,
+    cancelHorasAvisoPm: cfg.cancelHorasAvisoPm,
+  });
 }
 
 // ─── Card individual ──────────────────────────────────────────────────────────

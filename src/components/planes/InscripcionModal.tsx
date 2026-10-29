@@ -21,7 +21,7 @@ import SemanaProfesor from './SemanaProfesor';
 
 const IC = 'w-full rounded-xl border border-[#C8C8C8] bg-[#F8F8F8] px-3 py-2.5 text-sm text-[#121212] placeholder-[#888888] outline-none transition focus:border-[#121212]';
 const LC = 'mb-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#777777]';
-const ESTADOS_INACTIVOS = '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)';
+const ESTADOS_INACTIVOS = '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show,reagendada,bloqueada)';
 
 const TIPOS: { value: PlanTipo; label: string; sub: string }[] = [
   { value: 'mensual',       label: 'Mensual',    sub: '4 sem'  },

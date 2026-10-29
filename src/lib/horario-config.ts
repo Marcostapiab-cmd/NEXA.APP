@@ -12,12 +12,15 @@ export interface HorarioConfig {
   capacidadGrupal:     number;
   maxProfesores:       number;
   duracionBloque:      number;
-  // hora tope del DÍA ANTERIOR para cancelar una clase AM (ej: "21:00")
+  // hora tope del DÍA ANTERIOR para cancelar una clase AM (ej: "22:00")
   corteCancelacionAm:  string;
-  // clases que empiecen ANTES de esta hora son AM (ej: "12:00")
+  // clases que empiecen a esta hora o ANTES son AM (ej: "12:00" inclusive)
   limiteHoraAm:        string;
   cancelHorasAvisoPm:  number;
   reagendaValidezDias: number;
+  // Migración 041 (undefined si aún no está aplicada; entonces no se guardan)
+  maxReagendasPorPlan?: number | null; // null = sin límite
+  listaEsperaActiva?:   boolean;
 }
 
 export interface HorarioBloqueo {
@@ -42,7 +45,7 @@ export const DEFAULT_HORARIO_CONFIG: HorarioConfig = {
   capacidadGrupal:     12,
   maxProfesores:        3,
   duracionBloque:      60,
-  corteCancelacionAm: '21:00',
+  corteCancelacionAm: '22:00',
   limiteHoraAm:       '12:00',
   cancelHorasAvisoPm:  6,
   reagendaValidezDias: 30,
@@ -61,10 +64,14 @@ export async function getHorarioConfig(): Promise<HorarioConfig> {
     capacidadGrupal:      Number(r.capacidad_grupal      ?? 12),
     maxProfesores:        Number(r.max_profesores         ?? 3),
     duracionBloque:       Number(r.duracion_bloque        ?? 60),
-    corteCancelacionAm:   String(r.corte_cancelacion_am   ?? '21:00'),
+    corteCancelacionAm:   String(r.corte_cancelacion_am   ?? '22:00'),
     limiteHoraAm:         String(r.limite_hora_am          ?? '12:00'),
     cancelHorasAvisoPm:   Number(r.cancel_horas_aviso_pm  ?? 6),
     reagendaValidezDias:  Number(r.reagenda_validez_dias  ?? 30),
+    ...('lista_espera_activa' in r ? {
+      maxReagendasPorPlan: r.max_reagendas_por_plan == null ? null : Number(r.max_reagendas_por_plan),
+      listaEsperaActiva:   r.lista_espera_activa !== false,
+    } : {}),
   };
 }
 
@@ -79,6 +86,10 @@ export async function saveHorarioConfig(config: HorarioConfig): Promise<void> {
     limite_hora_am:        config.limiteHoraAm,
     cancel_horas_aviso_pm: config.cancelHorasAvisoPm,
     reagenda_validez_dias: config.reagendaValidezDias,
+    ...(config.listaEsperaActiva !== undefined ? {
+      max_reagendas_por_plan: config.maxReagendasPorPlan ?? null,
+      lista_espera_activa:    config.listaEsperaActiva,
+    } : {}),
     updated_at:            new Date().toISOString(),
   });
   if (error) throw error;

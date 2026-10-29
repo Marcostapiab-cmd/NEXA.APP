@@ -118,3 +118,54 @@ Pendiente / a revisar:
 - Reagendar una clase conserva su tipo (1:1 / 2:1) y su profesor.
 - **Migración `035_corregir_planes_2a1.sql`**: corrige planes y clases futuras de alumnos 2:1 que se
   guardaron como 1:1. Aplicarla después de la 034.
+
+## Autogestión del alumno: cancelar, reagendar y reservar (2026-10-28)
+
+- **MI NEXA → Mis clases** (`/portal/clases`): cada clase futura muestra hasta cuándo se puede
+  cancelar/reagendar y los botones **Reagendar** (elegir horario → confirmar) y **Cancelar**.
+  También: créditos del plan (contratadas / usadas / reservadas / disponibles), **Reservar clase**
+  con créditos libres, **Mis horarios fijos** y "Avisarme si se libera un cupo" (lista de espera).
+- **Política** (`src/lib/politica-cancelacion.ts` + función SQL `nexa_limite_cancelacion`):
+  clases hasta las 12:00 (inclusive) → hasta las 22:00 del día anterior; después de las 12:00 →
+  6 horas antes. Hora de Chile (America/Santiago), justo en el límite vale. El check-in del staff
+  usa la misma regla.
+- **Toda la validación vive en la base** (migración `041_autogestion_alumno.sql`): funciones
+  `alumno_*` con `auth.uid()`, candado por horario contra reservas simultáneas, tope de profesores
+  a la vez, bloqueos por profesor (`horario_bloqueos.coach_id`), auditoría (`auditoria_reservas`),
+  cola de correos sin duplicados (`notificaciones`) y `lista_espera`.
+- **Correos**: `/api/notificaciones/procesar` (tras cada acción) y el cron diario (también encola
+  el recordatorio de las clases de mañana). Requiere `RESEND_API_KEY` y `RESEND_FROM`.
+- **Pruebas**: `src/lib/politica-cancelacion.test.ts` (plazos y cambios de hora) y
+  `src/lib/autogestion-sql.test.ts` (ejecuta la migración 041 en PGlite y prueba los escenarios).
+
+**Hay que aplicar 040 y luego 041 en el SQL Editor de Supabase.** Sin la 041, "Mis clases"
+muestra las clases sin botones y avisa que la gestión en línea aún no está activa.
+
+## Fase 2: créditos, asistencia y detección de errores (2026-10-28)
+
+- **Historial de créditos** (`movimientos_credito`, migración `042_creditos_asistencia.sql`): cada reserva,
+  cancelación, reagenda, asistencia, inasistencia o excepción deja un movimiento con quién lo hizo, cuándo
+  y la política aplicada (límite, instante de la solicitud, a tiempo o no). No se puede editar ni borrar
+  (tampoco `auditoria_reservas`). Los datos previos quedan como "saldo inicial".
+- **Contador** (`nexa_resumen_plan` / `alumno_mi_plan`): contratadas, realizadas, inasistencias, cancelaciones
+  tardías, agendadas, **por confirmar** (clases pasadas sin marcar), disponibles para reservar y pendientes de
+  realizar. Cambio de regla: una clase pasada sin marcar **retiene su crédito** para el alumno hasta que el
+  staff marque asistencia (antes lo liberaba). El panel del staff (`cuentaEnPlan`) no cambió.
+- **MI NEXA**: el inicio muestra el contador nuevo; `/portal/creditos` muestra el historial.
+- **Guardias**: no se marca asistencia de clases futuras; un profesor no puede devolver créditos ni cambiar
+  el plan/alumno de una reserva.
+- **Correos automáticos**: tras cada clase (con el resumen real del plan), inasistencia, cancelación tardía,
+  clases restantes (umbrales `horario_config.umbrales_clases`, por defecto 5/3/2/1/0, uno por plan y umbral),
+  corrección de asistencia y recordatorios 24 h / 3 h (`recordatorio_horas`) con la hora límite de cancelación.
+- **Requiere mi atención** (`/atencion`, tabla `incidencias`): asistencia sin marcar, sobrecupo, reservas
+  duplicadas, capacidad superada, saldo negativo, clases sin plan o sin profesor, correos fallidos, pagos
+  duplicados, plan en uso sin pago y descuadres del historial. Las automáticas se cierran solas al corregirse.
+  Los profesores pueden informar incidencias (`staff_reportar_incidencia`).
+- **Tarea cada hora** (migración `043_tareas_programadas.sql`, pg_cron + pg_net en Supabase): recordatorios,
+  revisión y envío de la cola. Para que envíe los correos hay que guardar la URL pública de la app en
+  `horario_config.app_url`. El cron diario de Vercel ya no encola recordatorios (evita duplicados).
+- **Pruebas**: `src/lib/creditos-sql.test.ts` (042 en PGlite), `src/lib/notificaciones-correos.test.ts`.
+  `src/lib/autogestion-sql.test.ts` ahora corre con 041 + 042.
+
+**Aplicar 042 y luego 043 en el SQL Editor de Supabase.** Sin la 042, MI NEXA usa el contador anterior y
+`/atencion` avisa que falta la migración.
