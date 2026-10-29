@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
   Grid3x3, Settings, LogOut,
-  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog, Menu, X,
+  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog, Menu, X, AlertTriangle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -59,6 +59,7 @@ const SECTIONS_HOST: Section[] = [
 const SECTION_ADMIN: Section = {
   label: 'Administración',
   items: [
+    { href: '/atencion',       label: 'Requiere atención', Icon: AlertTriangle },
     { href: '/metricas',       label: 'Métricas',        Icon: BarChart2    },
     { href: '/grupales',       label: 'Clases grupales', Icon: CalendarDays },
     { href: '/usuarios',       label: 'Usuarios',        Icon: UserCog      },

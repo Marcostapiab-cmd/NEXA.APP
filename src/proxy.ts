@@ -28,7 +28,7 @@ const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
   '/weightroom', '/progreso', '/rutinas', '/configuracion',
   '/pagos', '/contratos', '/calendario', '/notificaciones', '/biblioteca',
-  '/grupales',
+  '/grupales', '/atencion',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -154,7 +154,7 @@ export async function proxy(request: NextRequest) {
   // Recepcionista (host): todo lo del admin excepto dashboard y entrenamiento
   const HOST_ALLOWED = [
     '/horario', '/alumnos', '/profesores',
-    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos',
+    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos', '/atencion',
   ];
   if (rol === 'recepcionista' && !HOST_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));

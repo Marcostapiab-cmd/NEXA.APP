@@ -9,6 +9,7 @@ import { cuentaEnPlan } from '@/lib/planes-supabase';
 import { formatDate } from '@/lib/planes';
 import { Calendar, Dumbbell, CreditCard, LogOut, ChevronRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import ResumenPlan, { type ResumenPlanData } from '@/components/portal/ResumenPlan';
 
 interface Reserva {
   id: string;
@@ -54,6 +55,7 @@ export default function PortalPage() {
   const [planes,   setPlanes]   = useState<Plan[]>([]);
   const [pagos,    setPagos]    = useState<Pago[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [resumen,  setResumen]  = useState<ResumenPlanData | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -107,6 +109,10 @@ export default function PortalPage() {
         startDate:   p.start_date ? String(p.start_date) : undefined,
         endDate:     String(p.extended_until || p.end_date || '') || undefined,
       })));
+
+      // Contador oficial (migración 042). Si aún no está aplicada, se usa el cálculo anterior.
+      const { data: rp } = await supabase.rpc('alumno_mi_plan');
+      if (rp && (rp as ResumenPlanData).vigente && 'pendientes' in (rp as object)) setResumen(rp as ResumenPlanData);
 
       // Pagos pendientes
       const { data: pagosData } = await supabase
@@ -162,7 +168,7 @@ export default function PortalPage() {
             }
             <div>
               <p className="font-bold text-[#121212]">Hola, {atleta.nombre} 👋</p>
-              <p className="text-xs text-[#5E5E5E]">NEXA Training Studio</p>
+              <p className="text-xs font-bold tracking-[0.14em] text-[#5E5E5E]">MI NEXA</p>
             </div>
           </div>
           <button onClick={handleLogout}
@@ -200,7 +206,8 @@ export default function PortalPage() {
         )}
 
         {/* Plan activo */}
-        {planActivo && (
+        {resumen && <ResumenPlan r={resumen} />}
+        {!resumen && planActivo && (
           <div className="rounded-2xl border border-[#D8D8D8] bg-white p-5">
             <div className="mb-3 flex items-center gap-2">
               <Dumbbell className="h-4 w-4 text-[#5E5E5E]" />
@@ -265,7 +272,7 @@ export default function PortalPage() {
             <div>
               <Calendar className="mb-2 h-5 w-5 text-[#121212]" />
               <p className="font-bold text-[#121212]">Mis clases</p>
-              <p className="text-xs text-[#5E5E5E]">Agenda</p>
+              <p className="text-xs text-[#5E5E5E]">Reservar, reagendar o cancelar</p>
             </div>
             <ChevronRight className="h-4 w-4 text-[#9B9B9B]" />
           </Link>

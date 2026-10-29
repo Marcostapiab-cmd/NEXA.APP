@@ -11,13 +11,13 @@ export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_n
 //  - 'usada'    → realizada o perdida (presente, no-show, cancelación tardía)
 //  - 'agendada' → clase futura (o de hoy) aún sin marcar
 //  - null       → no ocupa clase: cancelada a tiempo, reagendada, o una clase
-//                 que ya pasó y quedó "pendiente" (no vino y avisó con tiempo)
+//                 que ya pasó sin marcar asistencia ("pendiente" o "confirmada")
 export function cuentaEnPlan(estado: unknown, fecha: unknown, hoy = hoyLocal()): 'usada' | 'agendada' | null {
   const e = String(estado ?? '').toLowerCase();
   if (ESTADOS_QUE_QUEMAN.includes(e))    return 'usada';
   if (ESTADOS_NO_DESCUENTAN.includes(e)) return null;
   const f = String(fecha ?? '').slice(0, 10);
-  if (e === 'pendiente' && f && f < hoy) return null;
+  if ((e === 'pendiente' || e === 'confirmada') && f && f < hoy) return null;
   return 'agendada';
 }
 

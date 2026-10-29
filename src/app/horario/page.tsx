@@ -18,7 +18,7 @@ import {
 
 const DAY_LABELS          = ['LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 // Reservas que ya no ocupan cupo en el horario
-const ESTADOS_INACTIVOS   = ['cancelada', 'cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show'];
+const ESTADOS_INACTIVOS   = ['cancelada', 'cancelada_tiempo', 'cancelada_tarde', 'cancelada_nexa', 'no_show', 'reagendada', 'bloqueada'];
 const esActiva = (status: string) => !ESTADOS_INACTIVOS.includes((status || '').toLowerCase());
 
 const ESTADOS_ASISTENCIA = [
@@ -591,7 +591,7 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
           .eq('hora', hora)
           .eq('coach_id', coachId || null)
           .not('tipo_clase', 'ilike', '%grupal%')
-          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show)');
+          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_tarde,cancelada_nexa,no_show,reagendada,bloqueada)');
 
         const resultado = validarConflictoTipo(tipo, existentes ?? []);
         if (!resultado.ok) {

@@ -393,13 +393,13 @@ export default function ConfiguracionPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TimeInput
               label="Corte AM (día anterior)"
-              sub="Hora tope del día ANTERIOR para cancelar clase de mañana. Ej: si es 21:00, debes cancelar antes de las 21h del día prev."
+              sub="Hora tope del día ANTERIOR para cancelar o reagendar una clase de mañana. Ej: 22:00 → una clase del miércoles 10:00 se cancela hasta el martes 22:00 (justo a las 22:00 vale)."
               value={draft.corteCancelacionAm}
               onChange={v => setDraft(d => ({ ...d, corteCancelacionAm: v }))}
             />
             <TimeInput
               label="Límite hora AM"
-              sub="Clases que empiecen ANTES de esta hora se consideran AM. Ej: 12:00 → todo antes del mediodía es AM."
+              sub="Clases que empiecen a esta hora o ANTES usan el corte del día anterior. Ej: 12:00 → una clase a las 12:00 también; la de 12:01 usa el aviso en horas."
               value={draft.limiteHoraAm}
               onChange={v => setDraft(d => ({ ...d, limiteHoraAm: v }))}
             />
@@ -412,11 +412,27 @@ export default function ConfiguracionPage() {
             />
             <NumInput
               label="Validez reagenda (días)"
-              sub="Días que tiene el alumno para usar su reagenda"
+              sub="Días máximos entre la clase original y la nueva al reagendar (además, siempre dentro de la vigencia del plan)"
               value={draft.reagendaValidezDias}
               onChange={v => setDraft(d => ({ ...d, reagendaValidezDias: v }))}
               min={1} max={90}
             />
+            {draft.listaEsperaActiva !== undefined && (
+              <>
+                <NumInput
+                  label="Máx. reagendamientos por plan"
+                  sub="Cuántas veces puede reagendar un alumno dentro de un plan. 0 = sin límite."
+                  value={draft.maxReagendasPorPlan ?? 0}
+                  onChange={v => setDraft(d => ({ ...d, maxReagendasPorPlan: v > 0 ? v : null }))}
+                  min={0} max={99}
+                />
+                <div>
+                  <p className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--nexa-muted)' }}>Lista de espera</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--nexa-faint)' }}>Avisar por correo a los alumnos compatibles cuando se libera un cupo.</p>
+                  <Toggle on={draft.listaEsperaActiva} onToggle={() => setDraft(d => ({ ...d, listaEsperaActiva: !d.listaEsperaActiva }))} />
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
