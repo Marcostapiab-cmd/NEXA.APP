@@ -30,3 +30,19 @@ describe('Correos automáticos', () => {
     expect(c?.html).not.toContain('<b>x</b>');
   });
 });
+
+describe('Correos de renovación', () => {
+  it('el recordatorio indica días, precio, clases que pasarían y la retención', () => {
+    const c = armarCorreo('renovacion_recordatorio', 'Ana', { dias: 7, precio: 225000, plan: { ...plan, pendientes: 3 }, retencion_hasta: '2026-12-22' }, 'https://x');
+    expect(c?.asunto).toBe('Tu plan NEXA vence en 7 días');
+    expect(c?.html).toContain('$225.000');
+    expect(c?.html).toContain('quedan 3 clases');
+    expect(c?.html).toContain('/portal/renovar');
+  });
+  it('todos los avisos de renovación tienen plantilla', () => {
+    for (const t of ['renovacion_recibida', 'renovacion_aprobada', 'renovacion_rechazada', 'clases_arrastradas',
+                     'horarios_retenidos', 'horarios_por_liberar', 'horarios_liberados']) {
+      expect(armarCorreo(t, 'Ana', { plan, motivo: 'x', cantidad: 2, hasta: '2026-12-22' }, 'https://x')).not.toBeNull();
+    }
+  });
+});

@@ -303,6 +303,10 @@ export default function PortalPage() {
           </Link>
         </div>
 
+        <Link href="/reglamento" className="block text-center text-xs font-semibold text-[#5E5E5E] underline">
+          Reglamento y condiciones NEXA
+        </Link>
+
         {/* Historial reciente */}
         {reservas.filter(r => r.fecha < hoyLocal()).length > 0 && (
           <div className="rounded-2xl border border-[#D8D8D8] bg-white p-5">

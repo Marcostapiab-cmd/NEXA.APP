@@ -7,7 +7,7 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(
 CREATE FUNCTION public.get_my_role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('test.rol', true), '') $$;
 
 CREATE TABLE public.coaches (id uuid PRIMARY KEY, nombre text, activo boolean DEFAULT true);
-CREATE TABLE public.atletas (id uuid PRIMARY KEY, nombre text, apellido text, email text, user_id uuid, perfil_id uuid, tipo_sesion text);
+CREATE TABLE public.atletas (id uuid PRIMARY KEY, nombre text, apellido text, email text, user_id uuid, perfil_id uuid, tipo_sesion text, rut text);
 CREATE TABLE public.planes (id text PRIMARY KEY, alumno_id text, nombre text, tipo text, total_clases int, used_clases int DEFAULT 0,
   start_date text, end_date text, extended_until text, admin_nota text, created_at timestamptz DEFAULT now(), modalidad text);
 CREATE TABLE public.reservas (id serial PRIMARY KEY, rut text, clase_id int, fecha timestamptz DEFAULT now(), coach_id uuid,
@@ -27,6 +27,10 @@ CREATE TABLE public.horario_bloqueos (id uuid PRIMARY KEY DEFAULT gen_random_uui
 CREATE TABLE public.pagos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), alumno_id uuid NOT NULL, plan_id text, monto int NOT NULL,
   moneda text DEFAULT 'clp', estado text DEFAULT 'pendiente', metodo text DEFAULT 'transferencia', descripcion text,
   fecha_pago timestamptz, created_at timestamptz DEFAULT now());
+CREATE TABLE public.precios_entrenamiento (modalidad text, frecuencia_semanal int, precio_mes_clp int, PRIMARY KEY (modalidad, frecuencia_semanal));
+INSERT INTO public.precios_entrenamiento VALUES ('1:1',1,120000),('1:1',2,225000),('1:1',3,275000),('2:1',1,100000),('2:1',2,170000),('2:1',3,200000);
+CREATE TABLE public.precios_entrenamiento_config (clave text PRIMARY KEY, valor int NOT NULL);
+INSERT INTO public.precios_entrenamiento_config VALUES ('descuento_trimestral_mes',5000),('descuento_semestral_mes',10000);
 `;
 
-export const MIGRACIONES = ['041_autogestion_alumno.sql', '042_creditos_asistencia.sql'];
+export const MIGRACIONES = ['041_autogestion_alumno.sql', '042_creditos_asistencia.sql', '044_renovaciones_reglamento.sql', '045_reglamento_v1_comprobantes.sql'];

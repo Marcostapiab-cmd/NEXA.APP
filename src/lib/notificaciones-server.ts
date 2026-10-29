@@ -20,6 +20,9 @@ interface Datos {
   aviso_restantes?: boolean;
   horas?: number; limite?: string; a_tiempo?: boolean;
   estado?: string;
+  // Renovaciones
+  dias?: number; precio?: number; tipo?: string; motivo?: string; cantidad?: number;
+  hasta?: string; retencion_hasta?: string; sobrantes?: number; vencidas?: number; creadas?: number;
 }
 
 const MODALIDAD: Record<string, string> = {
@@ -46,6 +49,9 @@ function hoyChile(): string {
 }
 
 const n = (v: unknown) => (typeof v === 'number' ? String(v) : '');
+const clp = (v?: number) => (typeof v === 'number' ? `$${v.toLocaleString('es-CL')}` : '');
+const RENOVAR = { texto: 'Renovar mi plan', ruta: '/portal/renovar' };
+const MI_NEXA = { texto: 'Ir a MI NEXA', ruta: '/portal' };
 
 /** Filas con el estado real del plan (sale de la base de datos al registrar la clase). */
 function filasPlan(d: Datos): [string, string][] {
@@ -72,7 +78,8 @@ function esc(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
-function plantilla(titulo: string, intro: string, filas: [string, string][], cierre: string, appUrl: string): string {
+function plantilla(titulo: string, intro: string, filas: [string, string][], cierre: string, appUrl: string,
+                   cta: { texto: string; ruta: string } = { texto: 'Ver mis clases', ruta: '/portal/clases' }): string {
   const tabla = filas.filter(([, v]) => v).map(([k, v]) => `
     <tr><td style="padding:6px 0;color:#9B9B9B;font-size:13px;width:110px">${esc(k)}</td>
         <td style="padding:6px 0;color:#121212;font-size:15px;font-weight:600">${esc(v)}</td></tr>`).join('');
@@ -86,7 +93,7 @@ function plantilla(titulo: string, intro: string, filas: [string, string][], cie
 <p style="margin:0 0 20px;font-size:15px;color:#5E5E5E">${esc(intro)}</p>
 <table cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #EEE;border-bottom:1px solid #EEE;margin-bottom:20px">${tabla}</table>
 <p style="margin:0 0 24px;font-size:15px;color:#121212;font-weight:600">${esc(cierre)}</p>
-<a href="${esc(appUrl)}/portal/clases" style="display:inline-block;background:#121212;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px">Ver mis clases</a>
+<a href="${esc(appUrl)}${esc(cta.ruta)}" style="display:inline-block;background:#121212;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px">${esc(cta.texto)}</a>
 <p style="margin:32px 0 0;font-size:12px;color:#9B9B9B">NEXA Performance — Este es un mensaje automático.</p>
 </td></tr></table></td></tr></table></body></html>`;
 }
@@ -169,6 +176,67 @@ export function armarCorreo(tipo: string, nombre: string, d: Datos, appUrl: stri
         html: plantilla('Corrección de asistencia',
           `${hola} Corregimos el registro de tu clase del ${fechaLarga(d.fecha)} a las ${d.hora ?? ''}. Este es el estado actualizado de tu plan:`,
           filasPlan(d), 'Disculpa las molestias.', appUrl),
+      };
+    case 'renovacion_recordatorio': {
+      const k = d.dias ?? 0;
+      const cuando = k === 0 ? 'hoy' : k === 1 ? 'mañana' : `en ${k} días`;
+      const sobran = d.plan?.pendientes ?? 0;
+      return {
+        asunto: k === 0 ? 'Tu plan NEXA vence hoy' : `Tu plan NEXA vence ${cuando}`,
+        html: plantilla(`Tu plan vence ${cuando}`,
+          `${hola} Tu plan vence el ${fechaLarga(d.plan?.fin)}.${sobran > 0 ? ` Te ${sobran === 1 ? 'queda 1 clase' : `quedan ${sobran} clases`}: si renuevas, pasan a tu próximo período; si no, vencen con el plan.` : ''} Al renovar conservas tus horarios fijos.`,
+          [...filasPlan(d), ['Renovación', clp(d.precio)]],
+          `Si no renuevas, guardamos tus horarios hasta el ${fechaLarga(d.retencion_hasta)}.`, appUrl, RENOVAR),
+      };
+    }
+    case 'renovacion_recibida':
+      return {
+        asunto: 'Recibimos tu comprobante de pago',
+        html: plantilla('Recibimos tu comprobante',
+          `${hola} Recibimos el comprobante de tu renovación ${d.tipo ?? ''} por ${clp(d.precio)}. Lo revisaremos y te avisaremos cuando tu plan quede activo.`,
+          [], 'Tu plan se activa cuando confirmemos el abono.', appUrl, RENOVAR),
+      };
+    case 'renovacion_aprobada':
+      return {
+        asunto: 'Tu plan NEXA está renovado',
+        html: plantilla('Tu plan está renovado',
+          `${hola} Confirmamos tu pago. Tu nuevo período ya está activo${d.creadas ? ` y agendamos ${d.creadas} clases en tus horarios fijos` : ''}.`,
+          filasPlan(d), 'Gracias por seguir entrenando con nosotros.', appUrl),
+      };
+    case 'renovacion_rechazada':
+      return {
+        asunto: 'No pudimos confirmar tu pago',
+        html: plantilla('No pudimos confirmar tu pago',
+          `${hola} Revisamos tu solicitud de renovación y no pudimos confirmarla. Motivo: ${d.motivo ?? ''}.`,
+          [], 'Puedes volver a solicitarla desde MI NEXA o escribirnos.', appUrl, RENOVAR),
+      };
+    case 'clases_arrastradas':
+      return {
+        asunto: `Sumamos ${d.cantidad ?? ''} clases a tu nuevo período`,
+        html: plantilla('Tus clases pendientes pasaron a tu nuevo período',
+          `${hola} Como renovaste, las ${d.cantidad ?? ''} clases que te quedaban sin usar se sumaron a tu nuevo plan.`,
+          filasPlan(d), 'Nos vemos en tu próximo entrenamiento.', appUrl),
+      };
+    case 'horarios_retenidos':
+      return {
+        asunto: 'Tu plan venció: guardamos tus horarios',
+        html: plantilla('Guardamos tus horarios',
+          `${hola} Tu plan terminó. Te guardamos tus horarios fijos hasta el ${fechaLarga(d.hasta)}: si renuevas antes, los conservas.${d.sobrantes ? ` También recuperas las ${d.sobrantes} clases que te quedaron.` : ''}`,
+          [], 'Renueva desde MI NEXA en pocos pasos.', appUrl, RENOVAR),
+      };
+    case 'horarios_por_liberar':
+      return {
+        asunto: 'Mañana liberamos tus horarios en NEXA',
+        html: plantilla('Último día para conservar tus horarios',
+          `${hola} Tus horarios fijos están guardados hasta el ${fechaLarga(d.hasta)}. Después quedarán disponibles para otros alumnos.`,
+          [], 'Renueva hoy para no perderlos.', appUrl, RENOVAR),
+      };
+    case 'horarios_liberados':
+      return {
+        asunto: 'Liberamos tus horarios en NEXA',
+        html: plantilla('Liberamos tus horarios',
+          `${hola} Como no se renovó tu plan, liberamos tus horarios fijos.${d.vencidas ? ` Las ${d.vencidas} clases que no se usaron vencieron con el plan.` : ''} Cuando quieras volver, te esperamos.`,
+          [], 'Puedes contratar un nuevo plan desde nuestra página.', appUrl, MI_NEXA),
       };
     default:
       return null;

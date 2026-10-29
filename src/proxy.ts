@@ -12,6 +12,7 @@ const PUBLIC_OPEN = [
   '/api/pagos/flow-confirmation', '/api/pagos/retorno', '/api/pagos/estado', '/pagos/confirmado',
   '/api/registro',  // registro público de alumnos (valida RUT/email por su cuenta)
   '/api/cron',      // cron de Vercel: se protege con CRON_SECRET
+  '/reglamento',    // reglamento publicado: lo puede leer cualquiera antes de contratar
 ];
 
 // Login/registro del portal de clases grupales (redirigen si ya hay sesión grupal)
@@ -28,7 +29,7 @@ const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
   '/weightroom', '/progreso', '/rutinas', '/configuracion',
   '/pagos', '/contratos', '/calendario', '/notificaciones', '/biblioteca',
-  '/grupales', '/atencion',
+  '/grupales', '/atencion', '/renovaciones',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -154,7 +155,7 @@ export async function proxy(request: NextRequest) {
   // Recepcionista (host): todo lo del admin excepto dashboard y entrenamiento
   const HOST_ALLOWED = [
     '/horario', '/alumnos', '/profesores',
-    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos', '/atencion',
+    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos', '/atencion', '/renovaciones',
   ];
   if (rol === 'recepcionista' && !HOST_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));
