@@ -57,6 +57,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ingresa un email válido para procesar el pago.' }, { status: 400 });
     }
 
+    // Alumnos nuevos: primero la Clase de Prueba / evaluación (migración 044)
+    const { data: evaluacion, error: evalErr } = await supabaseAdmin
+      .rpc('nexa_evaluacion_cumplida', { p_email: email.trim(), p_rut: rut?.trim() || null });
+    if (evalErr) {
+      console.error('[reservar/pagar] no se pudo verificar la evaluación inicial:', evalErr.message);
+    } else if (evaluacion && !(evaluacion as { ok: boolean }).ok) {
+      const ev = evaluacion as { motivo: string; fecha?: string };
+      const fecha = ev.fecha ? new Date(`${ev.fecha}T12:00:00Z`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', timeZone: 'UTC' }) : '';
+      return NextResponse.json({
+        codigo: 'requiere_evaluacion',
+        error: ev.motivo === 'evaluacion_agendada'
+          ? `Tu Clase de Prueba es el ${fecha}. Después de tu evaluación podrás contratar tu plan.`
+          : 'Para contratar tu primer plan necesitas hacer tu Clase de Prueba (evaluación inicial). Puedes reservarla en esta misma página, en la sección de clases.',
+      }, { status: 403 });
+    }
+
     // Precio: siempre se calcula en el servidor, nunca se confía en el monto del cliente
     const [{ data: precioFila, error: precioErr }, { data: configFilas, error: configErr }] = await Promise.all([
       supabaseAdmin

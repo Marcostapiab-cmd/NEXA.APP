@@ -107,7 +107,13 @@ export default function ResumenPlan({ r }: { r: ResumenPlanData }) {
         </p>
       </div>
 
-      <Link href="/portal/creditos" className="mt-4 flex items-center justify-between rounded-xl border border-[#EBEBEB] px-4 py-3 text-sm font-semibold text-[#121212] transition hover:border-[#121212]">
+      <Link href="/portal/renovar"
+        className={`mt-4 flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition ${
+          typeof dias === 'number' && dias <= 14 ? 'bg-[#121212] text-white' : 'border border-[#EBEBEB] text-[#121212] hover:border-[#121212]'}`}>
+        Renovar mi plan
+        <ChevronRight className="h-4 w-4 opacity-60" />
+      </Link>
+      <Link href="/portal/creditos" className="mt-2 flex items-center justify-between rounded-xl border border-[#EBEBEB] px-4 py-3 text-sm font-semibold text-[#121212] transition hover:border-[#121212]">
         Ver el historial de mis clases
         <ChevronRight className="h-4 w-4 text-[#9B9B9B]" />
       </Link>

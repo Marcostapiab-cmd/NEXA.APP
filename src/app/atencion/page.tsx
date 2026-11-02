@@ -184,6 +184,10 @@ export default function AtencionPage() {
                         <Link href={`/alumnos/${i.atleta_id}`} className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
                           style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Ver alumno</Link>
                       )}
+                      {i.tipo === 'transferencia_pendiente' && (
+                        <Link href="/renovaciones" className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
+                          style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Validar transferencia</Link>
+                      )}
                       {i.tipo === 'asistencia_pendiente' && (
                         <Link href="/horario" className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
                           style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Ir a Check-in</Link>

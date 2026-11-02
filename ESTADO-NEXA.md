@@ -169,3 +169,25 @@ muestra las clases sin botones y avisa que la gestión en línea aún no está a
 
 **Aplicar 042 y luego 043 en el SQL Editor de Supabase.** Sin la 042, MI NEXA usa el contador anterior y
 `/atencion` avisa que falta la migración.
+
+## Fase 4: renovaciones, reglamento y evaluación inicial (2026-10-29)
+
+- **Renovar mi plan** (`/portal/renovar`): plan actual, horarios fijos, clases que pasarían, 3 períodos con
+  precio calculado en la base (`nexa_precio_plan`, mismo cálculo que el catálogo). Pago por transferencia:
+  datos bancarios + subida de comprobante (bucket privado `comprobantes`). El comprobante **no activa** nada.
+- **Renovaciones** (`/renovaciones`, staff): ver comprobante, aprobar o rechazar con motivo; configurar datos
+  bancarios. Aprobar (idempotente) crea el plan desde el día siguiente al vencimiento (o desde hoy si ya
+  venció), el pago y las clases en los horarios fijos. Lo que no se pueda agendar va a "Requiere atención".
+- **Vencimientos** (tarea horaria): avisos 14/7/3/1/0 días antes; retención de horarios fijos una semana
+  (otros alumnos no los ven libres); al terminar un plan renovado, las clases sobrantes pasan al nuevo
+  período; sin renovar, pasada la semana, vencen y se liberan las clases futuras sin plan. Un plan creado a mano
+  por el staff que empieza cerca del fin del anterior se enlaza como renovación.
+- **Reglamento** (`/reglamento`, público): versión 1 cargada como **borrador** (migración 045). El admin lo
+  publica con el botón de la página; desde ahí se exige aceptarlo para renovar. Versiones publicadas y
+  aceptaciones (con IP, navegador y huella del texto) no se pueden modificar. Punto 15 marcado para revisión legal.
+- **Evaluación inicial**: la compra online de planes 1:1 / 2:1 exige ser alumno con plan previo o tener pagada la
+  Clase de Prueba con fecha ya pasada (`nexa_evaluacion_cumplida`; desactivable con `horario_config.requiere_evaluacion`).
+  El staff puede inscribir a cualquiera desde el panel.
+- **Pruebas**: `src/lib/renovaciones-sql.test.ts` (17 escenarios).
+
+**Aplicar 044 y luego 045 en el SQL Editor de Supabase.**
