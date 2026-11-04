@@ -188,6 +188,10 @@ export default function AtencionPage() {
                         <Link href="/renovaciones" className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
                           style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Validar transferencia</Link>
                       )}
+                      {(i.tipo === 'clase_en_cierre' || i.tipo === 'ausencia_profesor') && (
+                        <Link href="/cierres" className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
+                          style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Resolver en Cierres y ausencias</Link>
+                      )}
                       {i.tipo === 'asistencia_pendiente' && (
                         <Link href="/horario" className="rounded-[8px] px-3 py-1.5 text-xs font-semibold"
                           style={{ border: '1px solid var(--nexa-border)', color: 'var(--nexa-text)' }}>Ir a Check-in</Link>
@@ -201,15 +205,23 @@ export default function AtencionPage() {
                         </li>
                       ))}
                     </ol>
-                    <textarea value={nota} onChange={e => setNota(e.target.value)} rows={2}
-                      placeholder="Qué hiciste o por qué la descartas (queda en el historial)"
+                    {i.tipo === 'solicitud_alumno' && (
+                      <p className="rounded-[8px] px-3 py-2 text-xs" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+                        Consulta enviada por el alumno desde MI NEXA. Lo que escribas abajo le llega por correo y lo ve en su Centro de Ayuda.
+                      </p>
+                    )}
+                    <textarea value={nota} onChange={e => setNota(e.target.value)} rows={i.tipo === 'solicitud_alumno' ? 4 : 2}
+                      placeholder={i.tipo === 'solicitud_alumno'
+                        ? 'Escribe la respuesta para el alumno'
+                        : 'Qué hiciste o por qué la descartas (queda en el historial)'}
                       className="w-full rounded-[8px] px-3 py-2 text-sm outline-none"
                       style={{ border: '1px solid var(--nexa-border)', background: 'var(--nexa-bg, #fff)', color: 'var(--nexa-text)' }} />
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => cerrar(i.id, 'resuelta')}
-                        className="flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-xs font-semibold text-white"
+                        disabled={i.tipo === 'solicitud_alumno' && !nota.trim()}
+                        className="flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
                         style={{ background: 'var(--nexa-success)' }}>
-                        <CheckCircle2 size={13} /> Marcar resuelta
+                        <CheckCircle2 size={13} /> {i.tipo === 'solicitud_alumno' ? 'Responder y cerrar' : 'Marcar resuelta'}
                       </button>
                       <button onClick={() => cerrar(i.id, 'descartada')}
                         className="flex items-center gap-1.5 rounded-[8px] px-3 py-2 text-xs font-semibold"

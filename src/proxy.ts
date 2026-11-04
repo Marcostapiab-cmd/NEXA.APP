@@ -29,7 +29,7 @@ const STAFF_PREFIXES = [
   '/dashboard', '/horario', '/alumnos', '/profesores', '/checkin',
   '/weightroom', '/progreso', '/rutinas', '/configuracion',
   '/pagos', '/contratos', '/calendario', '/notificaciones', '/biblioteca',
-  '/grupales', '/atencion', '/renovaciones',
+  '/grupales', '/atencion', '/renovaciones', '/cierres',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -147,7 +147,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Profesor: horario, entrenamiento (rutinas, weightroom, calendario). Sin check-in ni progreso.
-  const PROFESOR_ALLOWED = ['/horario', '/rutinas', '/weightroom', '/calendario'];
+  const PROFESOR_ALLOWED = ['/horario', '/rutinas', '/weightroom', '/calendario', '/cierres'];
   if (rol === 'profesor' && !PROFESOR_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));
   }
@@ -155,7 +155,7 @@ export async function proxy(request: NextRequest) {
   // Recepcionista (host): todo lo del admin excepto dashboard y entrenamiento
   const HOST_ALLOWED = [
     '/horario', '/alumnos', '/profesores',
-    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos', '/atencion', '/renovaciones',
+    '/metricas', '/grupales', '/usuarios', '/configuracion', '/pagos', '/atencion', '/renovaciones', '/cierres',
   ];
   if (rol === 'recepcionista' && !HOST_ALLOWED.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/horario', request.url));

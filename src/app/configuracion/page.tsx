@@ -438,6 +438,11 @@ export default function ConfiguracionPage() {
 
         {/* ─ Bloqueos ─ */}
         <Card title="Bloqueos y feriados">
+          <p className="mb-3 rounded-[8px] px-3 py-2 text-[12px]" style={{ background: '#eff6ff', color: '#1e3a8a' }}>
+            Para feriados, cierres o ausencias de profesores usa{' '}
+            <a href="/cierres" className="font-semibold underline">Cierres y ausencias</a>: muestra las clases afectadas,
+            permite asignar sustituto o suspenderlas sin costo y avisa a los alumnos por correo.
+          </p>
 
           {/* Lista de bloqueos (los pasados se ocultan) */}
           {bloqueosPasados > 0 && (

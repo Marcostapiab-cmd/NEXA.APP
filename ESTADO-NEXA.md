@@ -192,6 +192,22 @@ muestra las clases sin botones y avisa que la gestión en línea aún no está a
 
 **Aplicar 044 y luego 045 en el SQL Editor de Supabase.**
 
+## Fase 5: Centro de Ayuda (2026-11-04)
+
+- **MI NEXA → Centro de Ayuda** (`/portal/ayuda`): preguntas frecuentes con los **datos reales** del alumno
+  (clases que le quedan, fecha de vencimiento, cuándo renovar, por qué no puede reagendar cada clase, plazo de
+  cancelación de su próxima clase, sus horarios fijos, clases descontadas o por confirmar). Buscador sin tildes.
+  Si un dato no se puede consultar, lo dice en vez de inventarlo. Lógica en `src/lib/centro-ayuda.ts` (solo lectura).
+- **Enviar una consulta**: tema + mensaje (+ clase opcional). Llega a **Requiere atención** como `solicitud_alumno`
+  (las de "excepción" con prioridad alta). Máximo 3 abiertas por alumno. El alumno recibe un correo de recibido.
+- **Responder**: en `/atencion`, escribir la respuesta → "Responder y cerrar". Al alumno le llega por correo y la ve
+  en "Mis consultas". La consulta no modifica reservas ni créditos: eso lo hace el staff con las herramientas normales.
+- Accesos: tarjeta en el inicio de MI NEXA, botón "Ayuda" en Mis clases y "Pedir una excepción" en el aviso de fuera de plazo.
+- **Pruebas**: `src/lib/centro-ayuda.test.ts` (respuestas y buscador) y `src/lib/ayuda-sql.test.ts` (047 en PGlite).
+
+**Aplicar `047_centro_ayuda.sql` en el SQL Editor de Supabase.** Sin ella las preguntas funcionan igual, pero
+"Enviar una consulta" avisa que aún no está activo.
+
 ## Catálogo: solo Clase de Prueba + planes 1:1 / 2:1 (2026-11-04)
 
 - En la base real se desactivaron (no se borraron) los packs grupales Clase Normal, Pack 2×Prueba, Pack Mensual
@@ -202,3 +218,27 @@ muestra las clases sin botones y avisa que la gestión en línea aún no está a
 - Migración `048_catalogo_solo_clase_prueba.sql`: ya aplicada en la base; queda en el repo como registro.
 - Ojo: en la base real **no están aplicadas 044 ni 045** (no existen `nexa_precio_plan` ni `nexa_evaluacion_cumplida`).
   Hoy cualquiera puede comprar un plan 1:1 / 2:1 sin haber hecho la clase de prueba.
+
+## Fase 6: cierres, ausencias de profesores y lista de espera (2026-11-04)
+
+- **Antes**: un bloqueo solo impedía reservas nuevas; las clases ya agendadas quedaban igual y nadie avisaba.
+- **Cierres y ausencias** (`/cierres`, menú Administración): feriado, cierre extraordinario, mantención, evento,
+  horario reducido, vacaciones y ausencia de profesor, por rango de fechas y, opcionalmente, de horas.
+  "Ver clases afectadas" muestra cada clase y qué profesores están libres. Luego se elige:
+  **suspender** (estado `cancelada_nexa`: el alumno conserva el crédito y recibe correo), **asignar sustituto**
+  (solo ausencias; 2:1 pasan juntos al mismo profesor; si no hay, queda por resolver) o **decidir una por una**
+  (Asignar / Suspender / Mantener). Todo queda en `clases_afectadas` con motivo y solución; nunca se borran reservas.
+- Los bloqueos creados en Configuración también registran sus clases (revisión horaria y al abrir `/cierres`).
+- **Profesor** (`/cierres` = "Mis ausencias"): avisa su ausencia con motivo. Por defecto queda para que
+  administración resuelva (`horario_config.sustituto_requiere_aprobacion`); si se desactiva, se asigna sustituto solo.
+  Genera una alerta de prioridad alta en Requiere atención.
+- **Requiere atención**: nueva alerta automática "Clases en horario cerrado" (se cierra sola al resolverlas).
+- **Lista de espera**: rango de horas ("cualquier hora sin cupo"), vencimiento al pasar la hora, prioridad
+  (orden de llegada o primero quien quiere mover una clase), modo **todos a la vez** o **por turnos** con minutos
+  configurables; también avisa cuando el cupo lo libera el staff. El alumno ve y quita sus avisos en Mis clases.
+  Configuración en `/cierres` → Lista de espera.
+- **Correos nuevos**: `clase_suspendida`, `cambio_profesor`; `cupo_liberado` indica el plazo de prioridad.
+- **Pruebas**: `src/lib/operacion-sql.test.ts` (16 escenarios en PGlite).
+- Fuera de alcance: las clases **grupales** (sistema aparte) no se suspenden automáticamente con un cierre.
+
+**Aplicar `048_operacion_cierres.sql` en el SQL Editor de Supabase (después de la 047).**

@@ -14,6 +14,8 @@ import {
 } from '@/lib/reservas-alumno';
 import HojaPortal from '@/components/portal/HojaPortal';
 import SelectorHorario from '@/components/portal/SelectorHorario';
+import { horariosFijos } from '@/lib/centro-ayuda';
+import { cancelarEspera, getMisEsperas, type MiEspera } from '@/lib/operacion';
 
 interface Pasada {
   id: string;
@@ -30,7 +32,7 @@ const ESTADO: Record<string, { label: string; icon: React.ElementType; color: st
   no_show:          { label: 'No asistió', icon: XCircle,      color: '#dc2626', bg: '#fef2f2' },
   cancelada_tarde:  { label: 'Cancelada tarde', icon: XCircle, color: '#dc2626', bg: '#fef2f2' },
   cancelada_tiempo: { label: 'Cancelada',  icon: XCircle,      color: '#9B9B9B', bg: '#f9fafb' },
-  cancelada_nexa:   { label: 'Cancelada',  icon: XCircle,      color: '#9B9B9B', bg: '#f9fafb' },
+  cancelada_nexa:   { label: 'Suspendida por NEXA', icon: XCircle, color: '#9B9B9B', bg: '#f9fafb' },
   reagendada:       { label: 'Reagendada', icon: RefreshCw,    color: '#6b7280', bg: '#f9fafb' },
 };
 
@@ -67,19 +69,6 @@ function Estado({ estado }: { estado: string }) {
   );
 }
 
-/** Horarios fijos = mismo día de la semana y hora que se repite en las próximas clases. */
-function horariosFijos(clases: ClaseAlumno[]) {
-  const m = new Map<string, { dia: number; hora: string; profesor?: string; n: number }>();
-  for (const c of clases) {
-    if (!c.activa || !c.hora) continue;
-    const dia = new Date(`${c.fecha}T12:00:00`).getDay();
-    const k = `${dia}|${c.hora}`;
-    const x = m.get(k) ?? { dia, hora: c.hora, profesor: c.profesor, n: 0 };
-    x.n++; m.set(k, x);
-  }
-  return [...m.values()].filter(x => x.n >= 2).sort((a, b) => ((a.dia + 6) % 7) - ((b.dia + 6) % 7) || a.hora.localeCompare(b.hora));
-}
-
 interface Datos {
   redirigir?: string;
   proximas:   ClaseAlumno[];
@@ -87,21 +76,23 @@ interface Datos {
   plan:       MiPlan | null;
   politica:   PoliticaAlumno | null;
   pasadas:    Pasada[];
+  esperas:    MiEspera[];
 }
 
 async function obtenerDatos(): Promise<Datos> {
-  const vacio = { proximas: [], sinSistema: false, plan: null, politica: null, pasadas: [] };
+  const vacio = { proximas: [], sinSistema: false, plan: null, politica: null, pasadas: [], esperas: [] };
   const atleta = await getAtletaPortal();
   if (atleta === undefined) return { ...vacio, redirigir: '/portal/login' };
   if (!atleta) return { ...vacio, redirigir: '/portal/sin-cuenta' };
 
   const hoy = hoyLocal();
-  const [clases, plan, politica, { data: hist }] = await Promise.all([
+  const [clases, plan, politica, { data: hist }, esperas] = await Promise.all([
     getMisClases().catch(() => null),
     getMiPlan().catch(() => null),
     getPoliticaAlumno().catch(() => null),
     supabase.from('reservas').select('id, fecha, hora, estado, descripcion, tipo_clase')
       .eq('alumno_id', atleta.id).lt('fecha', hoy).order('fecha', { ascending: false }).limit(100),
+    getMisEsperas(),
   ]);
 
   let proximas = clases;
@@ -117,7 +108,7 @@ async function obtenerDatos(): Promise<Datos> {
     }));
   }
   return {
-    proximas, sinSistema: !clases, plan, politica,
+    proximas, sinSistema: !clases, plan, politica, esperas: esperas ?? [],
     pasadas: (hist ?? []).map((r: Record<string, unknown>) => ({
       id: String(r.id), fecha: soloFecha(r.fecha), hora: r.hora ? String(r.hora).slice(0, 5) : undefined,
       estado: String(r.estado ?? 'pendiente'),
@@ -147,12 +138,13 @@ export default function PortalClasesPage() {
   const [errorHoja, setErrorHoja] = useState<string | null>(null);
   const [selectorKey, setSelectorKey] = useState(0);
   const [aviso,     setAviso]     = useState<string | null>(null);
+  const [esperas,   setEsperas]   = useState<MiEspera[]>([]);
 
   const aplicar = useCallback((d: Datos | null) => {
     if (!d) return;
     if (d.redirigir) { router.push(d.redirigir); return; }
     setProximas(d.proximas); setSinSistema(d.sinSistema); setPlan(d.plan);
-    setPolitica(d.politica); setPasadas(d.pasadas); setLoading(false);
+    setPolitica(d.politica); setPasadas(d.pasadas); setEsperas(d.esperas); setLoading(false);
   }, [router]);
 
   const cargar = useCallback(async () => { aplicar(await obtenerDatos()); }, [aplicar]);
@@ -230,6 +222,9 @@ export default function PortalClasesPage() {
             <h1 className="font-bold text-[#121212]">Mis clases</h1>
             <p className="text-xs text-[#5E5E5E]">Reserva, reagenda o cancela sin escribirnos</p>
           </div>
+          <Link href="/portal/ayuda#no-puedo-reagendar" className="ml-auto rounded-lg border border-[#CACACA] px-3 py-2 text-xs font-semibold text-[#5E5E5E] hover:text-[#121212]">
+            Ayuda
+          </Link>
         </div>
       </header>
 
@@ -288,6 +283,34 @@ export default function PortalClasesPage() {
               ))}
             </div>
             <p className="mt-2 text-[11px] text-[#9B9B9B]">Cancelar o mover una clase no cambia tus horarios fijos de las otras semanas.</p>
+          </div>
+        )}
+
+        {/* Avisos de cupo (lista de espera) */}
+        {esperas.length > 0 && (
+          <div className="mb-5 rounded-2xl border border-[#D8D8D8] bg-white p-4">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9B9B9B]">
+              <Clock className="h-3 w-3" /> Mis avisos de cupo
+            </p>
+            <ul className="space-y-2">
+              {esperas.map(e => (
+                <li key={e.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-[#121212]">
+                    {fechaCorta(e.fecha)} · {e.hora_hasta ? `entre ${e.hora} y ${e.hora_hasta}` : e.hora}
+                    {e.estado === 'notificada' && (
+                      <span className="block text-xs font-semibold text-[#16a34a]">
+                        Se liberó un cupo{e.hora_avisada ? ` a las ${e.hora_avisada}` : ''}: resérvalo con “Reservar clase”.
+                      </span>
+                    )}
+                  </span>
+                  <button onClick={async () => { const r = await cancelarEspera(e.id); if (r.ok) setEsperas(x => x.filter(y => y.id !== e.id)); }}
+                    className="shrink-0 rounded-lg border border-[#D8D8D8] px-2.5 py-1.5 text-xs font-semibold text-[#5E5E5E]">
+                    Quitar
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] text-[#9B9B9B]">El aviso no reserva el cupo: cuando te llegue el correo, entra y confírmalo.</p>
           </div>
         )}
 
@@ -380,6 +403,10 @@ export default function PortalClasesPage() {
           {hoja.clase.limite && (
             <p className="mt-3 text-xs text-[#5E5E5E]">El plazo para esta clase terminó el {textoLimite(new Date(hoja.clase.limite))}.</p>
           )}
+          <Link href={`/portal/ayuda?solicitar=excepcion&clase=${hoja.clase.id}`}
+            className="mt-4 flex items-center justify-center rounded-xl border border-[#D8D8D8] py-3 text-sm font-bold text-[#121212] hover:border-[#121212]">
+            Pedir una excepción
+          </Link>
         </HojaPortal>
       )}
 
