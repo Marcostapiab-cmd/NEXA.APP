@@ -191,3 +191,14 @@ muestra las clases sin botones y avisa que la gestión en línea aún no está a
 - **Pruebas**: `src/lib/renovaciones-sql.test.ts` (17 escenarios).
 
 **Aplicar 044 y luego 045 en el SQL Editor de Supabase.**
+
+## Catálogo: solo Clase de Prueba + planes 1:1 / 2:1 (2026-11-04)
+
+- En la base real se desactivaron (no se borraron) los packs grupales Clase Normal, Pack 2×Prueba, Pack Mensual
+  y Pack Intensivo. A la venta queda solo la **Clase de Prueba $8.990**. Nadie había comprado packs.
+- Precios 1:1 / 2:1 verificados contra `NEXA_Precios_y_Ejercicio.xlsx` (ya coincidían): mensual base, trimestral
+  −$5.000/mes, semestral −$10.000/mes; clases = veces por semana × 4 × meses. Las tarjetas ahora muestran el
+  valor por clase. Prueba: `src/lib/catalogo.test.ts` ("precios = planilla NEXA", las 30 combinaciones).
+- Migración `048_catalogo_solo_clase_prueba.sql`: ya aplicada en la base; queda en el repo como registro.
+- Ojo: en la base real **no están aplicadas 044 ni 045** (no existen `nexa_precio_plan` ni `nexa_evaluacion_cumplida`).
+  Hoy cualquiera puede comprar un plan 1:1 / 2:1 sin haber hecho la clase de prueba.

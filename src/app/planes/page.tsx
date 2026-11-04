@@ -11,7 +11,7 @@ import PlanesExplorer from '@/components/publico/PlanesExplorer';
 
 export const metadata: Metadata = {
   title: 'Planes · NEXA Performance',
-  description: 'Packs de clases grupales y planes de entrenamiento 1:1 y 2:1. Compra en línea y reserva tu horario.',
+  description: 'Clase de prueba y planes de entrenamiento 1:1 y 2:1 mensuales, trimestrales y semestrales. Compra en línea y reserva tu horario.',
 };
 
 // Precios y cupos cambian desde el panel admin: siempre datos frescos
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const PASOS = [
   { n: '01', t: 'Elige tu plan',        d: 'Abre cada plan para ver sus clases, vigencia y condiciones antes de comprar.' },
-  { n: '02', t: 'Crea tu cuenta',       d: 'En clases grupales tu cuenta guarda tu saldo de clases y su vigencia.' },
+  { n: '02', t: 'Crea tu cuenta',       d: 'Para la clase de prueba tu cuenta guarda tu reserva y su vigencia.' },
   { n: '03', t: 'Elige tu horario',     d: 'Ves las fechas con cupos reales. En 1:1 y 2:1 eliges tus días y hora.' },
   { n: '04', t: 'Paga en línea',        d: 'Pago seguro en Flow. Tu plan queda activo cuando Flow confirma el pago.' },
 ];
@@ -40,8 +40,8 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
       r: 'Desde que Flow confirma tu pago. Cada plan indica sus días de vigencia; las clases que no reserves dentro de ese plazo vencen.',
     },
     {
-      p: '¿Cómo reservo mis clases grupales?',
-      r: 'Puedes elegir tu primera clase al comprar. Después reservas desde tu cuenta: ves las fechas y horarios con cupos disponibles y cada reserva descuenta una clase de tu saldo.',
+      p: '¿Cómo reservo mi clase de prueba?',
+      r: 'Eliges la fecha y hora al comprar, entre los horarios con cupos disponibles. Si prefieres, la reservas después desde tu cuenta.',
     },
     {
       p: '¿Qué pasa si la clase que elegí se llena mientras pago?',
@@ -53,7 +53,7 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
     }] : []),
     {
       p: '¿Cómo funcionan los planes 1:1 y 2:1?',
-      r: 'Eliges cuántas veces por semana entrenas, los días y la hora. Al confirmarse el pago se agenda tu plan completo y el equipo de NEXA te asigna un coach.',
+      r: 'Eliges cuántas veces por semana entrenas (1 a 5), los días y la hora. Cada semana del plan incluye esas clases: 4 semanas por mes. Al confirmarse el pago se agenda tu plan completo y el equipo de NEXA te asigna un coach.',
     },
   ];
 
@@ -68,7 +68,7 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
             Encuentra tu plan.
           </h1>
           <p className="mt-6 max-w-xl text-[16px] leading-relaxed sm:text-[18px]" style={{ color: 'var(--nx-sub)' }}>
-            Clases grupales por pack o entrenamiento personalizado 1:1 y 2:1. Compra en línea y reserva tu horario en minutos.
+            Parte con tu clase de prueba y elige tu entrenamiento personalizado 1:1 o 2:1. Compra en línea y reserva tu horario en minutos.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link href="#planes" className="nx-btn nx-btn-primary">
@@ -78,7 +78,7 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
           </div>
           {desdeGrupal !== null && (
             <p className="mt-10 text-[13px]" style={{ color: 'var(--nx-muted)' }}>
-              Clases grupales desde <span style={{ color: 'var(--nx-white)', fontWeight: 600 }}>{clp(desdeGrupal)}</span>
+              {prueba ? 'Clase de prueba' : 'Clases grupales desde'} <span style={{ color: 'var(--nx-white)', fontWeight: 600 }}>{clp(desdeGrupal)}</span>
             </p>
           )}
         </HeroFoto>
