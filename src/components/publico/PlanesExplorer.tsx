@@ -5,7 +5,7 @@ import { clp } from '@/lib/format';
 import {
   DIAS_POR_TIPO, FRECUENCIAS, MODALIDADES, MODALIDAD_INFO, TIPOS_PLAN, TIPO_LABEL,
   buscarPrecio, descuentoMensual, esClaseDePrueba, etiquetaClases, etiquetaDias,
-  montoTotalPlan, precioMensualPlan, sesionesTotalesPlan, valorPorClase,
+  montoTotalPlan, precioMensualPlan, sesionesTotalesPlan,
   type CatalogoPublico, type PlanGrupal, type TipoPlan,
 } from '@/lib/catalogo';
 import PlanCard from './PlanCard';
@@ -110,7 +110,6 @@ export default function PlanesExplorer({ catalogo, comprarInicial }: { catalogo:
                   const mes   = precioMensualPlan(precio!.precio_mes_clp, tipo, catalogo.config);
                   const total = montoTotalPlan(precio!.precio_mes_clp, tipo, catalogo.config);
                   const ses   = sesionesTotalesPlan(fr, tipo);
-                  const porClase = valorPorClase(total, ses);
                   return (
                     <PlanCard key={k}
                       titulo={`${fr} ${fr === 1 ? 'vez' : 'veces'} por semana`}
@@ -118,7 +117,6 @@ export default function PlanesExplorer({ catalogo, comprarInicial }: { catalogo:
                       precioNota={tipo === 'mensual' ? `${ses} sesiones · ${DIAS_POR_TIPO[tipo]} días` : `${clp(mes)} por mes · ${ses} sesiones`}
                       detalles={[
                         `${ses} sesiones de ${MODALIDAD_INFO[m].titulo.toLowerCase()} (${fr} por semana)`,
-                        `Valor por clase: ${clp(porClase)}`,
                         `Vigencia: ${DIAS_POR_TIPO[tipo]} días desde la confirmación del pago`,
                         `Eliges ${fr === 1 ? 'el día' : `los ${fr} días`} de la semana y tu hora`,
                         'NEXA asigna tu coach después del pago',
