@@ -88,6 +88,11 @@ export function sesionesTotalesPlan(frecuencia: number, tipo: TipoPlan): number 
   return frecuencia * SEMANAS_POR_TIPO[tipo];
 }
 
+/** Valor de cada clase del plan (igual que la planilla de precios: total / sesiones). */
+export function valorPorClase(total: number, sesiones: number): number {
+  return sesiones > 0 ? Math.round(total / sesiones) : 0;
+}
+
 export function buscarPrecio(precios: PrecioEntrenamiento[], modalidad: Modalidad, frecuencia: number) {
   return precios.find(p => p.modalidad === modalidad && p.frecuencia_semanal === frecuencia) ?? null;
 }

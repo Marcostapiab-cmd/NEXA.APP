@@ -33,8 +33,10 @@ export default async function LandingPage() {
   const desde = (xs: number[]) => (xs.length ? Math.min(...xs) : null);
   const lineas = [
     {
-      titulo: 'Clases grupales',
-      desc:   `${grupales.length} packs, desde 1 clase. Reservas cada horario según cupos.`,
+      titulo: grupales.length === 1 ? grupales[0].nombre : 'Clases grupales',
+      desc:   grupales.length === 1
+        ? 'Tu primera clase en NEXA: conócenos y haz tu evaluación inicial.'
+        : `${grupales.length} packs, desde 1 clase. Reservas cada horario según cupos.`,
       precio: desde(grupales.map(p => p.precio_clp)),
       sufijo: '',
       href:   '/planes#grupales',
