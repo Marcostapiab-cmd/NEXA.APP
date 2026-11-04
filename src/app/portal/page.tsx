@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getAtletaPortal, soloFecha, type AtletaPortal } from '@/lib/portal';
 import { cuentaEnPlan } from '@/lib/planes-supabase';
 import { formatDate } from '@/lib/planes';
-import { Calendar, Dumbbell, CreditCard, LogOut, ChevronRight, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Calendar, Dumbbell, CreditCard, LogOut, ChevronRight, CheckCircle2, Clock, AlertCircle, LifeBuoy } from 'lucide-react';
 import Link from 'next/link';
 import ResumenPlan, { type ResumenPlanData } from '@/components/portal/ResumenPlan';
 
@@ -44,7 +44,7 @@ const ESTADO_RESERVA: Record<string, { label: string; color: string }> = {
   no_show:         { label: 'No asistió',  color: '#dc2626' },
   cancelada_tarde: { label: 'Cancelada',   color: '#dc2626' },
   cancelada_tiempo:{ label: 'Cancelada',   color: '#9B9B9B' },
-  cancelada_nexa:  { label: 'Cancelada',   color: '#9B9B9B' },
+  cancelada_nexa:  { label: 'Suspendida por NEXA', color: '#9B9B9B' },
   reagendada:      { label: 'Reagendada',  color: '#6b7280' },
 };
 
@@ -300,6 +300,16 @@ export default function PortalPage() {
               </span>
             )}
             {pagosPendientes.length === 0 && <ChevronRight className="h-4 w-4 text-[#9B9B9B]" />}
+          </Link>
+
+          <Link href="/portal/ayuda"
+            className="col-span-2 flex items-center justify-between rounded-2xl border border-[#D8D8D8] bg-white p-4 transition hover:border-[#121212]">
+            <div>
+              <LifeBuoy className="mb-2 h-5 w-5 text-[#121212]" />
+              <p className="font-bold text-[#121212]">Centro de Ayuda</p>
+              <p className="text-xs text-[#5E5E5E]">Resuelve tus dudas o envíanos una consulta</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-[#9B9B9B]" />
           </Link>
         </div>
 

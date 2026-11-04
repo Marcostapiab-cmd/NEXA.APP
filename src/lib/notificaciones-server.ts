@@ -23,6 +23,10 @@ interface Datos {
   // Renovaciones
   dias?: number; precio?: number; tipo?: string; motivo?: string; cantidad?: number;
   hasta?: string; retencion_hasta?: string; sobrantes?: number; vencidas?: number; creadas?: number;
+  // Centro de ayuda
+  tema?: string; mensaje?: string; respuesta?: string;
+  // Operación
+  profesor_anterior?: string | null; turno_hasta?: string | null;
 }
 
 const MODALIDAD: Record<string, string> = {
@@ -52,6 +56,7 @@ const n = (v: unknown) => (typeof v === 'number' ? String(v) : '');
 const clp = (v?: number) => (typeof v === 'number' ? `$${v.toLocaleString('es-CL')}` : '');
 const RENOVAR = { texto: 'Renovar mi plan', ruta: '/portal/renovar' };
 const MI_NEXA = { texto: 'Ir a MI NEXA', ruta: '/portal' };
+const AYUDA = { texto: 'Ver en el Centro de Ayuda', ruta: '/portal/ayuda' };
 
 /** Filas con el estado real del plan (sale de la base de datos al registrar la clase). */
 function filasPlan(d: Datos): [string, string][] {
@@ -72,6 +77,10 @@ function textoRestantes(p?: ResumenPlan | null): string {
   const k = p?.pendientes ?? 0;
   if (k === 0) return 'Completaste todas las clases de tu plan. Puedes renovarlo desde MI NEXA.';
   return `Te ${k === 1 ? 'queda 1 clase' : `quedan ${k} clases`} por realizar. Tu plan vence el ${fechaLarga(p?.fin)}.`;
+}
+
+function horaChile(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Santiago' });
 }
 
 function esc(s: unknown): string {
@@ -126,7 +135,26 @@ export function armarCorreo(tipo: string, nombre: string, d: Datos, appUrl: stri
       return {
         asunto: 'Se liberó un cupo que estabas esperando',
         html: plantilla('Se liberó un cupo', `${hola} Se liberó el horario que pediste. El cupo no queda reservado hasta que lo confirmes en MI NEXA.`,
-          filas, 'Reserva pronto: otros alumnos también pueden tomarlo.', appUrl),
+          filas,
+          d.turno_hasta
+            ? `Tienes prioridad hasta las ${horaChile(d.turno_hasta)}. Después avisaremos al siguiente alumno de la lista.`
+            : 'Reserva pronto: otros alumnos también pueden tomarlo.',
+          appUrl),
+      };
+    case 'clase_suspendida':
+      return {
+        asunto: 'NEXA suspendió una de tus clases',
+        html: plantilla('Suspendimos tu clase',
+          `${hola} Tuvimos que suspender esta clase${d.motivo ? ` (${d.motivo})` : ''}. No pierdes tu crédito: puedes reservar otro horario desde MI NEXA.`,
+          filas, 'Disculpa las molestias. Tus otras clases siguen igual.', appUrl,
+          { texto: 'Reservar otro horario', ruta: '/portal/clases' }),
+      };
+    case 'cambio_profesor':
+      return {
+        asunto: 'Cambio de profesor en tu clase',
+        html: plantilla('Cambio de profesor',
+          `${hola} ${d.profesor_anterior ? `${d.profesor_anterior} no podrá hacer tu clase` : 'Tu profesor no podrá hacer tu clase'}${d.motivo ? ` (${d.motivo})` : ''}. La mantenemos en el mismo horario con otro profesor:`,
+          filas, 'Si prefieres otro horario, puedes reagendarla desde MI NEXA dentro del plazo habitual.', appUrl),
       };
     case 'recordatorio_clase': {
       const esHoy = d.fecha?.slice(0, 10) === hoyChile();
@@ -237,6 +265,20 @@ export function armarCorreo(tipo: string, nombre: string, d: Datos, appUrl: stri
         html: plantilla('Liberamos tus horarios',
           `${hola} Como no se renovó tu plan, liberamos tus horarios fijos.${d.vencidas ? ` Las ${d.vencidas} clases que no se usaron vencieron con el plan.` : ''} Cuando quieras volver, te esperamos.`,
           [], 'Puedes contratar un nuevo plan desde nuestra página.', appUrl, MI_NEXA),
+      };
+    case 'solicitud_recibida':
+      return {
+        asunto: 'Recibimos tu consulta',
+        html: plantilla('Recibimos tu consulta',
+          `${hola} Tu consulta ya está con el equipo de NEXA. Te responderemos por este medio y también podrás ver la respuesta en MI NEXA.`,
+          [['Tema', d.tema ?? ''], ['Mensaje', d.mensaje ?? '']], 'Gracias por escribirnos.', appUrl, AYUDA),
+      };
+    case 'solicitud_respondida':
+      return {
+        asunto: 'Respondimos tu consulta',
+        html: plantilla('Respondimos tu consulta', `${hola} Esta es la respuesta del equipo de NEXA:`,
+          [['Tema', d.tema ?? ''], ['Tu consulta', d.mensaje ?? ''], ['Respuesta', d.respuesta ?? '']],
+          'Si necesitas algo más, puedes enviar otra consulta desde el Centro de Ayuda.', appUrl, AYUDA),
       };
     default:
       return null;

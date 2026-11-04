@@ -33,4 +33,4 @@ CREATE TABLE public.precios_entrenamiento_config (clave text PRIMARY KEY, valor 
 INSERT INTO public.precios_entrenamiento_config VALUES ('descuento_trimestral_mes',5000),('descuento_semestral_mes',10000);
 `;
 
-export const MIGRACIONES = ['041_autogestion_alumno.sql', '042_creditos_asistencia.sql', '044_renovaciones_reglamento.sql', '045_reglamento_v1_comprobantes.sql'];
+export const MIGRACIONES = ['041_autogestion_alumno.sql', '042_creditos_asistencia.sql', '044_renovaciones_reglamento.sql', '045_reglamento_v1_comprobantes.sql', '047_centro_ayuda.sql', '048_operacion_cierres.sql'];

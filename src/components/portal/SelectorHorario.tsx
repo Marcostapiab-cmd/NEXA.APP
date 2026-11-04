@@ -8,6 +8,7 @@ import {
   getHorariosDisponibles, unirseListaEspera,
   type HorarioDisponible, type PoliticaAlumno,
 } from '@/lib/reservas-alumno';
+import { esperaRango } from '@/lib/operacion';
 
 const RANGO_DIAS = 21;
 
@@ -76,6 +77,13 @@ export default function SelectorHorario({ reservaId, politica, seleccionado, onE
   async function avisarme() {
     if (!dia || !espera) return;
     setMsgEspera(null);
+    if (espera === '*') {
+      // Cualquier hora sin cupo del día (migración 048)
+      const r = await esperaRango(dia, horasSinCupo[0], horasSinCupo[horasSinCupo.length - 1], reservaId);
+      if (r.ok) setAvisado(`${dia}|*`);
+      else setMsgEspera(r.sinMigracion ? 'Por ahora elige una hora específica.' : r.mensaje);
+      return;
+    }
     const r = await unirseListaEspera(dia, espera, reservaId);
     if (r.ok) setAvisado(`${dia}|${espera}`);
     else setMsgEspera(r.mensaje);
@@ -156,13 +164,14 @@ export default function SelectorHorario({ reservaId, politica, seleccionado, onE
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#777]">¿No está la hora que buscas?</p>
           {avisado?.startsWith(`${dia}|`) ? (
             <p className="mt-2 flex items-center gap-2 text-sm text-[#121212]">
-              <Bell className="h-4 w-4" /> Te avisaremos por correo si se libera un cupo a las {avisado.split('|')[1]}.
+              <Bell className="h-4 w-4" /> Te avisaremos por correo si se libera un cupo {avisado.endsWith('|*') ? 'a cualquier hora de este día' : `a las ${avisado.split('|')[1]}`}.
             </p>
           ) : (
             <div className="mt-2 flex gap-2">
               <select value={espera} onChange={e => setEspera(e.target.value)} aria-label="Hora para lista de espera"
                 className="flex-1 rounded-xl border border-[#C8C8C8] bg-white px-3 py-2.5 text-sm text-[#121212]">
                 <option value="">Elige una hora</option>
+                {horasSinCupo.length > 1 && <option value="*">Cualquier hora sin cupo</option>}
                 {horasSinCupo.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
               <button type="button" onClick={avisarme} disabled={!espera}
