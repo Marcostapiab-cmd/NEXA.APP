@@ -14,6 +14,8 @@ const TZ = 'America/Santiago';
 const diaChile = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: TZ });
 const HOY = diaChile(new Date());
 const sumar = (f: string, n: number) => { const d = new Date(`${f}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+/** Día hábil para reservar ~6 días adelante (el gimnasio cierra los domingos). */
+const DIA6 = (() => { let f = sumar(HOY, 6); if (new Date(`${f}T12:00:00Z`).getUTCDay() === 0) f = sumar(f, 1); return f; })();
 /** Fecha y hora (en punto, hora de Chile) de la primera hora completa después de `horas` desde ahora. */
 function enHoras(horas: number) {
   const d = new Date(Date.now() + horas * 3_600_000);
@@ -131,7 +133,7 @@ describe('Historial de créditos', () => {
 
   it('reservar compromete, cancelar a tiempo libera y guarda la política aplicada', async () => {
     await como(4);
-    const r = await rpc<{ ok: boolean; reserva_id: number }>(`public.alumno_reservar_clase($1::date, '11:00', $2::uuid)`, [sumar(HOY, 6), COACH.B]);
+    const r = await rpc<{ ok: boolean; reserva_id: number }>(`public.alumno_reservar_clase($1::date, '11:00', $2::uuid)`, [DIA6, COACH.B]);
     expect(r.ok).toBe(true);
     expect(await rpc(`public.alumno_cancelar_reserva($1::int)`, [r.reserva_id])).toMatchObject({ ok: true });
     const m = await movimientos(r.reserva_id);
@@ -144,9 +146,9 @@ describe('Historial de créditos', () => {
   it('reagendar no gasta dos créditos: libera la original y compromete la nueva', async () => {
     await como(4);
     const antes = await miPlan();
-    const r = await rpc<{ ok: boolean; reserva_id: number }>(`public.alumno_reservar_clase($1::date, '12:00', $2::uuid)`, [sumar(HOY, 6), COACH.B]);
+    const r = await rpc<{ ok: boolean; reserva_id: number }>(`public.alumno_reservar_clase($1::date, '12:00', $2::uuid)`, [DIA6, COACH.B]);
     const mov = await rpc<{ ok: boolean; reserva_id: number }>(`public.alumno_reagendar_reserva($1::int, $2::date, '13:00', $3::uuid)`,
-      [r.reserva_id, sumar(HOY, 6), COACH.B]);
+      [r.reserva_id, DIA6, COACH.B]);
     expect(mov.ok).toBe(true);
     expect((await movimientos(r.reserva_id)).map(x => x.tipo)).toEqual(['comprometido', 'liberado_reagenda']);
     expect((await movimientos(mov.reserva_id)).map(x => x.tipo)).toEqual(['comprometido']);

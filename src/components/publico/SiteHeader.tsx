@@ -56,7 +56,7 @@ export default function SiteHeader({ transparente = false }: { transparente?: bo
         borderBottom: `1px solid ${solido ? 'var(--nx-line)' : 'transparent'}`,
       }}>
       <div className="nx-container flex h-16 items-center justify-between gap-4 md:h-[72px]">
-        <Link href="/" aria-label="NEXA Performance, inicio" className="rounded-md">
+        <Link href="/" title="Ir al inicio" className="rounded-md">
           <NexaLogo />
         </Link>
 

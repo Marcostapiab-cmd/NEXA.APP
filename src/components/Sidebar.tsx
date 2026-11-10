@@ -90,7 +90,7 @@ const SECTIONS_PROFESOR: Section[] = [
   },
 ];
 
-const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
+const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena', '/reglamento']);
 const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/planes', '/grupales-alumno'];
 
 function isActive(pathname: string, href: string) {
@@ -360,6 +360,7 @@ export default function Sidebar() {
           </Link>
           <button
             onClick={() => setDrawerOpen(false)}
+            aria-label="Cerrar menú"
             className="flex h-9 w-9 items-center justify-center rounded-[8px]"
             style={{ color: 'var(--nexa-muted)' }}>
             <X size={18} strokeWidth={2} />
