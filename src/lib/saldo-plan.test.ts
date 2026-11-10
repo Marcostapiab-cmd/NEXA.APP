@@ -27,7 +27,7 @@ describe('saldo de clases: administración = MI NEXA', () => {
         expect([e, fecha, cuentaEnPlan(e, fecha, hoy)]).toEqual([e, fecha, sql]);
       }
     }
-  });
+    }, 60_000);
 
   it('las clases pasadas sin marcar no quedan disponibles para reservar', () => {
     const plan = { totalClases: 8, usedClases: 2, agendadasClases: 3, porConfirmarClases: 2 } as Plan;

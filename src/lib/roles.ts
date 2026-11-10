@@ -52,6 +52,7 @@ export const PUBLIC_OPEN = [
   '/api/cron',       // cron de Vercel: se protege con CRON_SECRET
   '/api/notificaciones/procesar', // tarea horaria de Supabase: se protege con secreto o sesión
   '/reglamento',     // reglamento publicado
+  '/robots.txt', '/sitemap.xml', // buscadores
 ];
 
 const GRUPALES_AUTH = ['/grupales-alumno/login', '/grupales-alumno/registro'];

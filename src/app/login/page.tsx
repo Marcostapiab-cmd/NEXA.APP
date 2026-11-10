@@ -111,7 +111,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label
-              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em]"
+              className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.1em]"
               style={{ color: 'var(--nexa-muted)' }}
             >
               Correo electrónico
@@ -129,14 +129,14 @@ export default function LoginPage() {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label
-                className="text-[11px] font-semibold uppercase tracking-[0.1em]"
+                className="text-[12px] font-semibold uppercase tracking-[0.1em]"
                 style={{ color: 'var(--nexa-muted)' }}
               >
                 Contraseña
               </label>
               <Link
                 href="/recuperar-contrasena"
-                className="text-[11px] font-semibold"
+                className="text-[12px] font-semibold"
                 style={{ color: 'var(--nexa-accent)' }}
               >
                 ¿Olvidaste tu contraseña?

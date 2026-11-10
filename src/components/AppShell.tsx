@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 
 import GuardiaDatosLocales from './GuardiaDatosLocales';
-const NO_SIDEBAR_PATHS = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena']);
+const NO_SIDEBAR_PATHS = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena', '/reglamento']);
 const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/mi-cuenta', '/planes', '/grupales-alumno'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
