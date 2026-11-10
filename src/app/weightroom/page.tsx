@@ -754,7 +754,7 @@ export default function WeightroomPage() {
   const filtered    = alumnos.filter(a =>
     `${a.nombre} ${a.apellido}`.toLowerCase().includes(searchQ.toLowerCase())
   );
-  const todayStr    = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayStr    = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Santiago' });
   const selectedArr = alumnos.filter(a => selected.has(a.id));
 
   return (
@@ -841,7 +841,7 @@ export default function WeightroomPage() {
 
           {/* Right: date + saved */}
           <div className="ml-auto flex shrink-0 items-center gap-3">
-            <span className="hidden text-[11px] capitalize text-[#C4C4C4] lg:block">{todayStr}</span>
+            <span suppressHydrationWarning className="hidden text-[11px] capitalize text-[#C4C4C4] lg:block">{todayStr}</span>
             {savedCount > 0 && (
               <span className="rounded-full border border-[#4A8A5A]/25 bg-[#EBF5EE] px-3 py-1 text-[11px] font-semibold text-[#4A8A5A]">
                 {savedCount} guardada{savedCount !== 1 ? 's' : ''}

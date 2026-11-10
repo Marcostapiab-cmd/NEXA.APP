@@ -52,6 +52,7 @@ beforeAll(async () => {
     INSERT INTO public.grupales_alumnos (user_id) VALUES ('${GRUPAL}');
   `);
   await db.exec(readFileSync('supabase/migrations/050_seguridad_roles.sql', 'utf8'));
+  await db.exec(readFileSync('supabase/migrations/054_registro_rol_posterior.sql', 'utf8'));
 });
 
 describe('050 — roles protegidos', () => {
@@ -70,6 +71,18 @@ describe('050 — roles protegidos', () => {
     await crearUsuario(PROFE, 'profe@x.cl', { nombre: 'Profe' }, { rol: 'profesor' });
     expect(await rolPerfil(PROFE)).toBe('profesor');
     expect(await rolApp(PROFE)).toBe('profesor');
+  });
+
+  it('054: como Supabase Auth — crea el usuario y DESPUÉS guarda el rol — igual se crea el perfil', async () => {
+    const id = '00000000-0000-0000-0000-0000000000e1';
+    await crearUsuario(id, 'nuevo@x.cl', { nombre: 'Nuevo' }, { provider: 'email' });
+    expect(await rolPerfil(id)).toBeNull();
+    await db.query(`UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"rol":"alumno"}' WHERE id = $1`, [id]);
+    expect(await rolPerfil(id)).toBe('alumno');
+    // Cambiar app_metadata no cambia un rol ya asignado (eso lo hace un admin en perfiles)
+    await db.query(`UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"rol":"admin"}' WHERE id = $1`, [id]);
+    expect(await rolPerfil(id)).toBe('alumno');
+    await db.query(`DELETE FROM public.perfiles WHERE id = $1`, [id]);
   });
 
   it('un usuario no puede darse rol ni cambiar el suyo', async () => {

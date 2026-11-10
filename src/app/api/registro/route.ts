@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { asegurarPerfil } from '@/lib/perfil-server';
 import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
@@ -102,7 +103,15 @@ export async function POST(req: NextRequest) {
 
     const userId = userData.user.id;
 
-    // Actualizar atletas con RUT (el trigger ya creó la fila)
+    // Perfil de alumno (crea la ficha en atletas). Sin esto la cuenta queda sin acceso.
+    const perfil = await asegurarPerfil(admin, userId, 'alumno', nombre.trim());
+    if (perfil.error) {
+      console.error('[registro] no se pudo crear el perfil:', perfil.error);
+      await admin.auth.admin.deleteUser(userId);
+      return NextResponse.json({ error: 'No pudimos crear la cuenta. Intenta de nuevo.' }, { status: 500 });
+    }
+
+    // Actualizar atletas con RUT (el trigger de perfiles ya creó la fila)
     // Reintentar hasta 3 veces si la fila aún no existe (propagación del trigger)
     let rutGuardado = false;
     for (let i = 0; i < 3; i++) {
