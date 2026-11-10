@@ -209,12 +209,15 @@ export default function UsuariosPage() {
               }}>
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             </button>
+            {/* Solo un administrador crea cuentas del personal (el servidor también lo exige) */}
+            {role === 'admin' && (
             <button onClick={() => { setShowModal(true); setFormErr(''); setFormOk(''); setForm(INITIAL_FORM); }}
               className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[12px] font-bold transition"
               style={{ background: 'var(--nexa-accent)', color: '#FFFFFF' }}>
               <Plus size={13} />
               Nuevo usuario
             </button>
+            )}
           </div>
         </div>
 
@@ -356,6 +359,7 @@ export default function UsuariosPage() {
                 </p>
               </Field>
 
+              {role === 'admin' ? (
               <Field label="Cargo / Rol">
                 <div className="grid grid-cols-4 gap-2">
                   {(['admin', 'host', 'profesor', 'recepcionista'] as const).map(val => (
@@ -372,6 +376,11 @@ export default function UsuariosPage() {
                   ))}
                 </div>
               </Field>
+              ) : (
+                <p className="text-[11px]" style={{ color: 'var(--nexa-muted)' }}>
+                  Rol: <b>{ROL_LABEL[editForm.rol as keyof typeof ROL_LABEL] ?? editForm.rol}</b> · solo un administrador puede cambiar roles.
+                </p>
+              )}
 
               {editErr && (
                 <div className="rounded-lg px-3 py-2.5 text-[12px]"

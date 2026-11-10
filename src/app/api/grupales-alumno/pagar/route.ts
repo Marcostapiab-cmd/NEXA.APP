@@ -40,8 +40,14 @@ export async function POST(req: NextRequest) {
     }
     const plan = planData as PlanGrupal;
 
+    // NEXA no vende packs de clases grupales por ahora: solo la Clase de Prueba
+    // (evaluación inicial, requisito para contratar 1:1 / 2:1 en línea).
+    if (!esClaseDePrueba(plan)) {
+      return NextResponse.json({ error: 'Este plan ya no está disponible.' }, { status: 404 });
+    }
+
     // Clase de prueba: una sola vez por persona (regla existente del proyecto).
-    if (esClaseDePrueba(plan)) {
+    {
       const { data: pruebas } = await admin
         .from('planes_grupales')
         .select('id')

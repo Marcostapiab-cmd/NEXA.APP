@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, AlertTriangle, DollarSign } from 'lucide-rea
 import { supabase } from '@/lib/supabaseClient';
 import { clp, MESES_CAP } from '@/lib/format';
 import { getAllCoachesDB, type Coach } from '@/lib/coaches-supabase';
+import { todasLasFilas } from '@/lib/paginar';
 import {
   agruparClases,
   calcularFilaProfesor,
@@ -54,19 +55,19 @@ export default function LiquidacionesTab() {
     setLoading(true);
     setError('');
     try {
-      const [todosCoaches, { data: resData, error: resErr }] = await Promise.all([
+      // Todas las páginas: con más de 1000 clases en el mes la liquidación quedaría corta.
+      const [todosCoaches, reservas] = await Promise.all([
         getAllCoachesDB(),
-        supabase
+        todasLasFilas<ReservaParaPago>((d, h) => supabase
           .from('reservas')
           .select('id, coach_id, fecha, hora, tipo_clase, estado')
           .gte('fecha', primerDia(year, month))
           .lte('fecha', ultimoDia(year, month))
           .in('estado', ['presente', 'no_show', 'cancelada_tarde'])
-          .not('coach_id', 'is', null),
+          .not('coach_id', 'is', null)
+          .order('id').range(d, h)),
       ]);
-      if (resErr) throw resErr;
       setCoaches(todosCoaches);
-      const reservas = (resData ?? []) as ReservaParaPago[];
       const { clases, advertencias: adv } = agruparClases(reservas);
       const coachIdsConClases = new Set(clases.map(c => c.coach_id));
       const coachesConClases  = todosCoaches.filter(c => coachIdsConClases.has(c.id));

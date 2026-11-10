@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import type { Sesion } from './sesiones';
 
+import { todasLasFilas } from './paginar';
 export async function saveSesionDB(sesion: Sesion): Promise<void> {
   const { error } = await supabase.from('sesiones').upsert({
     id:             sesion.id,
@@ -16,14 +17,18 @@ export async function saveSesionDB(sesion: Sesion): Promise<void> {
   if (error) throw error;
 }
 
-export async function getSesionesDB(): Promise<Sesion[]> {
-  const { data, error } = await supabase
-    .from('sesiones')
-    .select('id, alumno_id, fecha, fecha_planeada, rutina_id, rutina_nombre, bloque_nombre, notas, ejercicios')
-    .order('fecha', { ascending: false })
-    .limit(1000);
-  if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+/** Sesiones registradas, más recientes primero. Sin `limite` trae todas (por páginas). */
+export async function getSesionesDB(limite?: number): Promise<Sesion[]> {
+  const cols = 'id, alumno_id, fecha, fecha_planeada, rutina_id, rutina_nombre, bloque_nombre, notas, ejercicios';
+  const data = limite
+    ? await (async () => {
+        const r = await supabase.from('sesiones').select(cols).order('fecha', { ascending: false }).order('id').limit(limite);
+        if (r.error) throw r.error;
+        return r.data ?? [];
+      })()
+    : await todasLasFilas<Record<string, unknown>>((d, h) =>
+        supabase.from('sesiones').select(cols).order('fecha', { ascending: false }).order('id').range(d, h));
+  return data.map((r: Record<string, unknown>) => ({
     id:             String(r.id),
     alumnoId:       String(r.alumno_id),
     fecha:          String(r.fecha),
@@ -54,4 +59,15 @@ export async function getSesionesAlumnoDB(alumnoId: string): Promise<Sesion[]> {
     notas:          String(r.notas ?? ''),
     ejercicios:     (r.ejercicios as Sesion['ejercicios']) ?? [],
   }));
+}
+
+/** Cantidad exacta de sesiones registradas entre dos fechas (incluidas), sin límite de filas. */
+export async function contarSesionesRango(desde: string, hasta: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('sesiones')
+    .select('id', { count: 'exact', head: true })
+    .gte('fecha', desde)
+    .lte('fecha', hasta);
+  if (error) throw error;
+  return count ?? 0;
 }

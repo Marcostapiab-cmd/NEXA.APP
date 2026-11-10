@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Calendar, Dumbbell, Users } from 'lucide-react';
+import { ArrowRight, Calendar, ClipboardCheck, Dumbbell } from 'lucide-react';
 import { clp } from '@/lib/format';
 import { getCatalogoPublico } from '@/lib/catalogo-server';
 import { MODALIDAD_INFO } from '@/lib/catalogo';
@@ -11,9 +11,9 @@ export const dynamic = 'force-dynamic';
 
 const SERVICIOS = [
   {
-    icon: Users,
-    titulo: 'Clases grupales',
-    desc: 'Barre, funcional, movilidad y más. Clases en grupos pequeños con atención personalizada. Reserva tu lugar en minutos.',
+    icon: ClipboardCheck,
+    titulo: 'Evaluación inicial',
+    desc: 'Tu primera sesión en NEXA: conocemos tu nivel y tus objetivos para armar tu plan de entrenamiento.',
   },
   {
     icon: Dumbbell,
@@ -33,13 +33,11 @@ export default async function LandingPage() {
   const desde = (xs: number[]) => (xs.length ? Math.min(...xs) : null);
   const lineas = [
     {
-      titulo: grupales.length === 1 ? grupales[0].nombre : 'Clases grupales',
-      desc:   grupales.length === 1
-        ? 'Tu primera clase en NEXA: conócenos y haz tu evaluación inicial.'
-        : `${grupales.length} packs, desde 1 clase. Reservas cada horario según cupos.`,
+      titulo: 'Evaluación inicial',
+      desc:   'Tu primera clase en NEXA: conócenos y haz tu evaluación inicial.',
       precio: desde(grupales.map(p => p.precio_clp)),
       sufijo: '',
-      href:   '/planes#grupales',
+      href:   '/planes#evaluacion',
     },
     ...(['1:1', '2:1'] as const).map(m => ({
       titulo: MODALIDAD_INFO[m].titulo,
@@ -62,11 +60,11 @@ export default async function LandingPage() {
             <span style={{ color: 'var(--nx-muted)' }}>Avanza en serio.</span>
           </h1>
           <p className="mt-6 max-w-xl text-[16px] leading-relaxed sm:text-[18px]" style={{ color: 'var(--nx-sub)' }}>
-            Clases grupales y entrenamiento personalizado 1:1 y 2:1 en un espacio diseñado para que logres resultados reales.
+            Entrenamiento personalizado 1:1 y 2:1 en un espacio diseñado para que logres resultados reales.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link href="/planes#planes" className="nx-btn nx-btn-primary">Ver planes <ArrowRight size={16} aria-hidden /></Link>
-            <Link href="/grupales-alumno/login" className="nx-btn nx-btn-outline">Mi cuenta</Link>
+            <Link href="/portal/login" className="nx-btn nx-btn-outline">Mi cuenta</Link>
           </div>
         </HeroFoto>
 

@@ -24,8 +24,9 @@ export async function POST(req: NextRequest) {
     if (roleErr) {
       return NextResponse.json({ error: `Error al leer rol: ${roleErr.message}`, step: 'role' }, { status: 500 });
     }
-    if (myRole !== 'admin' && myRole !== 'host') {
-      return NextResponse.json({ error: `Acceso denegado. Tu rol es: ${myRole ?? 'ninguno'}`, step: 'role' }, { status: 403 });
+    // Solo un administrador asigna roles de personal.
+    if (myRole !== 'admin') {
+      return NextResponse.json({ error: 'Solo un administrador puede crear cuentas del personal.', step: 'role' }, { status: 403 });
     }
 
     // ── 3. Validar body ──────────────────────────────────────────────────
@@ -66,7 +67,8 @@ export async function POST(req: NextRequest) {
       email:         email.trim().toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { rol, nombre: nombre.trim() },
+      app_metadata:  { rol },
+      user_metadata: { nombre: nombre.trim() },
     });
     if (authErr) {
       return NextResponse.json(

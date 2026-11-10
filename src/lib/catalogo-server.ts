@@ -1,6 +1,6 @@
 // Solo para Server Components / route handlers (usa cookies de next/headers).
 import { createClient } from '@/lib/supabase/server';
-import type { CatalogoPublico, ConfigPrecios, PlanGrupal, PrecioEntrenamiento } from '@/lib/catalogo';
+import { esClaseDePrueba, type CatalogoPublico, type ConfigPrecios, type PlanGrupal, type PrecioEntrenamiento } from '@/lib/catalogo';
 
 /** Lee el catálogo público desde Supabase (RLS permite lectura anónima). */
 export async function getCatalogoPublico(): Promise<CatalogoPublico> {
@@ -25,7 +25,9 @@ export async function getCatalogoPublico(): Promise<CatalogoPublico> {
     for (const c of (config.data ?? []) as { clave: string; valor: number }[]) cfg[c.clave] = c.valor;
 
     return {
-      grupales: (grupales.data ?? []) as PlanGrupal[],
+      // Sin clases grupales por ahora: solo se ofrece la Clase de Prueba
+      // (evaluación inicial), aunque haya otros packs activos en la base.
+      grupales: ((grupales.data ?? []) as PlanGrupal[]).filter(esClaseDePrueba),
       precios:  (precios.data ?? []) as PrecioEntrenamiento[],
       config:   cfg,
       error:    Boolean(grupales.error || precios.error || config.error),

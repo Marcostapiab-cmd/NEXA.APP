@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { consultarPagoFlow } from '@/lib/flow';
+import { consultarPagoFlow, datosVerificacion } from '@/lib/flow';
 import { Resend } from 'resend';
 
 export const runtime = 'nodejs';
 
 interface ConfirmarResult {
-  ok:                 boolean;
-  ya_procesado:       boolean;
-  atleta_id:          string | null;
-  plan_id:            string | null;
-  pedido_id:          string | null;
-  nombre:             string | null;
-  apellido:           string | null;
-  email:              string | null;
-  modalidad:          string | null;
-  tipo:               string | null;
-  frecuencia_semanal: number | null;
-  monto_clp:          number | null;
+  ok:                  boolean;
+  codigo?:             string;
+  ya_procesado?:       boolean;
+  atleta_id?:          string | null;
+  plan_id?:            string | null;
+  pedido_id?:          string | null;
+  nombre?:             string | null;
+  apellido?:           string | null;
+  email?:              string | null;
+  modalidad?:          string | null;
+  tipo?:               string | null;
+  frecuencia_semanal?: number | null;
+  monto_clp?:          number | null;
+  clases_sin_agendar?: number;
 }
 
 const TIPO_LABEL: Record<string, string> = { mensual: 'Mensual', trimestral: 'Trimestral', semestral: 'Semestral' };
@@ -37,59 +39,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'token requerido' }, { status: 400 });
     }
 
-    // Consultar estado del pago en Flow
+    // El estado real se consulta siempre a Flow (nunca se confía en el request).
     const pago = await consultarPagoFlow(token);
 
     if (pago.status !== 2) {
-      // No pagado todavía — actualizar estado si es rechazo
+      // Rechazado o anulado: se registra. Pendiente: no se hace nada todavía.
       if (pago.status === 3 || pago.status === 4) {
-        await supabaseAdmin
+        const { error: updErr } = await supabaseAdmin
           .from('pedidos_planes')
-          .update({ estado: 'fallido' })
+          .update({ estado: pago.status === 3 ? 'fallido' : 'cancelado' })
           .eq('flow_token', token)
-          .eq('estado', 'procesando');
+          .in('estado', ['pendiente', 'procesando']);
+        if (updErr) {
+          console.error('[reservar/confirmar] no se pudo guardar el rechazo:', updErr.message);
+          return NextResponse.json({ ok: false, error: 'error_guardando' }, { status: 500 }); // Flow reintenta
+        }
       }
       return NextResponse.json({ ok: true, status: pago.status });
     }
 
-    // El monto pagado en Flow debe coincidir con el del pedido; si no, no se
-    // acredita nada y queda para revisión manual.
-    const { data: pedidoMonto } = await supabaseAdmin
-      .from('pedidos_planes')
-      .select('monto_clp')
-      .eq('flow_token', token)
-      .maybeSingle();
-    if (pedidoMonto && Math.round(pago.amount) !== (pedidoMonto as { monto_clp: number }).monto_clp) {
-      console.error('[confirmar] monto pagado no coincide con el pedido; token', token);
-      return NextResponse.json({ ok: true });
-    }
-
-    // Toda la lógica de negocio (buscar/crear atleta, crear el plan y sus
-    // reservas, marcar el pedido pagado) corre en una sola transacción de
-    // Postgres con la fila del pedido bloqueada (SELECT ... FOR UPDATE
-    // dentro de confirmar_pedido_plan_pago, migración 033). Si Flow
-    // reintenta la entrega del webhook, la segunda llamada espera a que
-    // termine la primera y encuentra el pedido ya pagado — sin duplicar
-    // atletas, planes ni reservas.
-    const { data, error } = await supabaseAdmin
-      .rpc('confirmar_pedido_plan_pago', { p_flow_token: token })
-      .single();
+    // Verificación (orden, monto y moneda) + activación del plan + registro del
+    // pago, en una sola transacción con el pedido bloqueado (migración 052).
+    // Un reintento de Flow encuentra el pedido ya pagado y no duplica nada.
+    const v = datosVerificacion(pago);
+    const { data, error } = await supabaseAdmin.rpc('nexa_confirmar_pago_plan', {
+      p_flow_token: token, p_monto: v.monto, p_moneda: v.moneda, p_commerce_order: v.orden,
+    });
 
     if (error || !data) {
-      console.error('[confirmar] rpc error:', error);
+      // No se guardó: se responde error para que Flow vuelva a avisar.
+      console.error('[reservar/confirmar] rpc error:', error?.message);
       return NextResponse.json({ ok: false, error: 'error_confirmando' }, { status: 500 });
     }
 
     const result = data as ConfirmarResult;
 
     if (!result.ok) {
-      console.error('[confirmar] pedido no encontrado para token', token);
-      return NextResponse.json({ ok: true }); // responder 200 a Flow de todas formas
+      // No encontrado, o no coincide (queda en revisión con aviso al staff).
+      // Se responde 200 para que Flow no reintente sin fin: requiere revisión manual.
+      console.error('[reservar/confirmar] pago no acreditado:', result.codigo, 'pedido:', result.pedido_id ?? '-');
+      return NextResponse.json({ ok: true, acreditado: false });
     }
 
     // Ya se había procesado antes (idempotencia) — no reenviar el correo
     if (result.ya_procesado) {
       return NextResponse.json({ ok: true });
+    }
+
+    if (result.clases_sin_agendar) {
+      console.warn('[reservar/confirmar] plan activado con', result.clases_sin_agendar, 'clases sin agendar; pedido', result.pedido_id);
     }
 
     // Enviar email de confirmación

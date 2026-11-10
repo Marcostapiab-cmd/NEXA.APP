@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { rolActual } from '@/lib/rol-cliente';
+import { inicioDeRol } from '@/lib/roles';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function ActualizarContrasenaPage() {
@@ -33,12 +35,8 @@ export default function ActualizarContrasenaPage() {
       }
 
       // La sesión del link ya está activa: cada uno vuelve a su propia cuenta
-      const rol = data.user?.user_metadata?.rol;
-      const destino = rol === 'grupales' ? '/grupales-alumno/dashboard'
-                    : rol === 'alumno' ? '/portal'
-                    : rol === 'profesor' || rol === 'recepcionista' ? '/horario'
-                    : rol ? '/dashboard'
-                    : '/login?reset=ok';
+      const rol = await rolActual(data.user);
+      const destino = rol ? inicioDeRol(rol) : '/login?reset=ok';
       window.location.assign(destino);
     } catch {
       setError('Error de conexión. Verifica tu internet e intenta de nuevo.');

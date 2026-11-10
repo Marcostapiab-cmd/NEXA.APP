@@ -242,3 +242,41 @@ muestra las clases sin botones y avisa que la gestión en línea aún no está a
 - Fuera de alcance: las clases **grupales** (sistema aparte) no se suspenden automáticamente con un cierre.
 
 **Aplicar `048_operacion_cierres.sql` en el SQL Editor de Supabase (después de la 047).**
+
+## Seguridad, pagos, reservas y correos (2026-11-05)
+
+**Migraciones 050–053: probadas en PGlite y en un Postgres 17 local; NO aplicadas en producción.**
+Ver `supabase/produccion/LEEME.md` (diagnóstico, respaldo, orden, volver atrás).
+
+- **Roles (050):** el rol ya no sale de `user_metadata` (lo escribe el propio usuario: cualquiera podía
+  registrarse como admin con el registro público de Supabase). Ahora: `perfiles` protegida (solo un admin asigna
+  roles), copia del rol en `app_metadata` (solo servidor), `get_my_role()` ignora roles desconocidos, y las
+  funciones internas y de confirmación de pagos ya no se pueden llamar sin sesión. Reglas de navegación por rol
+  en `src/lib/roles.ts` (lista de permitidos; rol desconocido = sin acceso). Solo un admin crea cuentas del personal.
+- **Navegador:** ya no se guardan fichas, rutinas, sesiones, planes ni reservas en localStorage; se borran al
+  cargar, al cerrar sesión y al cambiar de cuenta (`src/lib/datos-locales.ts`). Si falla la conexión se avisa en
+  vez de mostrar copias. Los borradores de Sala de pesas van en sessionStorage.
+- **Pagos (052):** se verifican orden, monto y moneda (CLP) con Flow; el pago queda en `pagos` (método `flow`),
+  el plan con `estado_pago = pagado`; reintentos no duplican; si no coincide → pedido "revision" + alerta; si
+  faltan clases por agendar → plan activo igual + alerta + aviso al alumno. Pagos simulados solo contra una base
+  local o con `PAGOS_SIMULADOS_BASE_DE_PRUEBA=1`.
+- **Reservas (051):** un alumno no puede tener dos clases activas el mismo día y hora (también al editar o
+  reactivar, y con solicitudes simultáneas). Duplicados antiguos: se informan, no se borran.
+- **Saldo:** administración usa la misma regla que MI NEXA: clases pasadas sin asistencia = "por confirmar" y
+  retienen su crédito. La liquidación de profesores no cambió.
+- **Correos (053):** la tarea horaria llama a la app con `Authorization: Bearer` (secreto en Vault +
+  `NOTIFICACIONES_SECRET` en Vercel). Cola: recupera envíos interrumpidos, máximo 3 intentos, clave de
+  idempotencia de Resend, no envía recordatorios de clases ya pasadas.
+- **Panel:** "Entrenan hoy" = alumnos distintos con reserva activa hoy; "Sesiones registradas esta semana" =
+  lunes a domingo, hora de Chile, conteo exacto; "Error al cargar" distinto de 0.
+- **Horario en celular:** vista "Día" por defecto bajo 768 px (semana en escritorio), con selector Día/Semana.
+- **Compilación:** Google Fonts empezó a entregar direcciones sin extensión que hacen fallar `next/font/google`
+  (Next 16.2.7), en este equipo y posiblemente en Vercel. Inter y Manrope ahora van incluidas en
+  `src/app/fonts` (licencia OFL) con `next/font/local`: mismo diseño, sin depender de Google al compilar.
+- **Totales sin cortes:** liquidación de profesores, métricas de ingresos, alumnos por profesor, clases extra,
+  check-in, lista de alumnos y sesiones se piden por páginas (`src/lib/paginar.ts`); si una página falla se
+  muestra error en vez de un total incompleto. Métricas: las compras en línea se cuentan una sola vez (no en
+  `pagos` y `pedidos_planes` a la vez) y "este mes" usa el calendario de Chile.
+- **Pantallas del personal:** "Nuevo usuario", "cambiar rol" y "Dar acceso a la app" solo se muestran a un admin.
+- **Pruebas:** `operacion-sql.test.ts` fallaba según el día de la semana (dos fechas caían el mismo lunes); corregido.
+- **Producción:** aplicar con `supabase/produccion/02_aplicar_050_053.sql` (todo o nada), ver `LEEME.md`.

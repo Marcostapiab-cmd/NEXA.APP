@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { procesarCola } from '@/lib/notificaciones-server';
+import { bearerValido } from '@/lib/secreto-servidor';
 
 export const runtime = 'nodejs';
 
@@ -67,8 +68,8 @@ function pagosPendienteTemplate(nombre: string, monto: number, descripcion: stri
 }
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Sin CRON_SECRET configurado se rechaza todo (antes "Bearer undefined" pasaba).
+  if (!bearerValido(req.headers.get('authorization'), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -89,7 +90,10 @@ export async function GET(req: NextRequest) {
   const resultados = { planesNotificados: 0, pagosNotificados: 0, errores: 0 };
 
   // ── 1. Planes que vencen en 3 días ────────────────────────────────────────
-  const { data: planes } = await supabaseAdmin
+  // Si la base tiene el sistema de renovaciones (migración 044), ese ya avisa
+  // 14/7/3/1/0 días antes por la cola: aquí no se manda un segundo correo.
+  const conRenovaciones = !(await supabaseAdmin.from('renovaciones').select('id', { head: true, count: 'exact' })).error;
+  const { data: planes } = conRenovaciones ? { data: [] } : await supabaseAdmin
     .from('planes')
     .select('id, nombre, end_date, alumno_id')
     .eq('end_date', en3dias.toISOString().slice(0, 10));
@@ -110,14 +114,16 @@ export async function GET(req: NextRequest) {
       const atleta = atletaMap.get(String(p.alumno_id)) as Record<string, unknown> | undefined;
       if (!atleta?.email) continue;
       try {
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
           from:    fromEmail,
           to:      String(atleta.email),
           subject: `Tu plan "${p.nombre}" vence en 3 días`,
           html:    planVenceTemplate(String(atleta.nombre), String(p.nombre), String(p.end_date)),
-        });
+        }, { idempotencyKey: `nexa-plan-vence-${p.id}-${p.end_date}` });
+        if (error) throw new Error(error.message);
         resultados.planesNotificados++;
-      } catch {
+      } catch (e) {
+        console.error('[cron] aviso de vencimiento no enviado:', p.id, e instanceof Error ? e.message : e);
         resultados.errores++;
       }
     }
@@ -146,7 +152,7 @@ export async function GET(req: NextRequest) {
       const atleta = atletaMapPagos.get(String(p.alumno_id)) as Record<string, unknown> | undefined;
       if (!atleta?.email) continue;
       try {
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
           from:    fromEmail,
           to:      String(atleta.email),
           subject: 'Tienes un pago pendiente en NEXA',
@@ -156,9 +162,11 @@ export async function GET(req: NextRequest) {
             String(p.descripcion ?? ''),
             p.checkout_url ? String(p.checkout_url) : undefined,
           ),
-        });
+        }, { idempotencyKey: `nexa-pago-pendiente-${p.id}-${hoy.toISOString().slice(0, 10)}` }); // máximo uno por día
+        if (error) throw new Error(error.message);
         resultados.pagosNotificados++;
-      } catch {
+      } catch (e) {
+        console.error('[cron] aviso de pago pendiente no enviado:', p.id, e instanceof Error ? e.message : e);
         resultados.errores++;
       }
     }

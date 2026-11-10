@@ -7,7 +7,7 @@ export interface Pago {
   monto: number;         // pesos CLP
   moneda: string;
   estado: 'pendiente' | 'pagado' | 'fallido' | 'reembolsado';
-  metodo: 'stripe' | 'transferencia' | 'efectivo';
+  metodo: 'stripe' | 'transferencia' | 'efectivo' | 'flow';
   descripcion?: string;
   checkoutUrl?: string;
   fechaPago?: string;

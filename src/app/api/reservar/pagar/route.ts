@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         || diasSemana.some(d => !Number.isInteger(d) || d < 1 || d > 6)) {
       return NextResponse.json({ error: 'Debes elegir exactamente los días que correspondan a tu frecuencia semanal.' }, { status: 400 });
     }
-    if (typeof hora !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
+    if (typeof hora !== 'string' || !/^(0[6-9]|1\d|2[01]):00$/.test(hora)) {
       return NextResponse.json({ error: 'La hora no es válida.' }, { status: 400 });
     }
     if (rut?.trim() && !validarRut(rut)) {
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         codigo: 'requiere_evaluacion',
         error: ev.motivo === 'evaluacion_agendada'
           ? `Tu Clase de Prueba es el ${fecha}. Después de tu evaluación podrás contratar tu plan.`
-          : 'Para contratar tu primer plan necesitas hacer tu Clase de Prueba (evaluación inicial). Puedes reservarla en esta misma página, en la sección de clases.',
+          : 'Para contratar tu primer plan necesitas hacer tu Clase de Prueba (evaluación inicial). Puedes comprarla en esta misma página, en la sección Evaluación inicial.',
       }, { status: 403 });
     }
 

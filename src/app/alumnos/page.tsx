@@ -6,6 +6,7 @@ import { Plus, Search, X, Save, Eye, Users, CreditCard, CheckCircle2, Clock, XCi
 import { getAllPagosDB, type Pago } from '@/lib/pagos-supabase';
 import { getAlumnos, createAlumno, updateAlumno, deleteAlumno, updateEstadoPago } from '@/lib/alumnos';
 
+import AvisoErrorCarga from '@/components/AvisoErrorCarga';
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface Alumno {
@@ -477,33 +478,16 @@ export default function AlumnosPage() {
   const [modalPago, setModalPago] = useState<Alumno | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-
-  function syncLocal(updated: Alumno[]) {
-    try {
-      const existing = JSON.parse(localStorage.getItem('nexa_alumnos') || '[]');
-      const merged = updated.map(a => {
-        const old = existing.find((e: Alumno & { mediciones?: unknown[] }) => e.id === a.id);
-        return old?.mediciones ? { ...a, mediciones: old.mediciones } : a;
-      });
-      localStorage.setItem('nexa_alumnos', JSON.stringify(merged));
-    } catch {
-      localStorage.setItem('nexa_alumnos', JSON.stringify(updated));
-    }
-  }
+  const [errorCarga, setErrorCarga] = useState(false);
 
   useEffect(() => {
     getAlumnos()
       .then(data => {
         const normalized = data.map(a => ({ ...a, estado: a.estado ?? 'activo' }));
         setAlumnos(normalized);
-        syncLocal(normalized);
       })
-      .catch(() => {
-        try {
-          const raw = localStorage.getItem('nexa_alumnos');
-          if (raw) setAlumnos(JSON.parse(raw).map((a: Alumno) => ({ ...a, estado: a.estado ?? 'activo' })));
-        } catch {}
-      })
+      // Sin copias del navegador: si falla la conexión se avisa en vez de mostrar datos guardados.
+      .catch(() => setErrorCarga(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -526,7 +510,6 @@ export default function AlumnosPage() {
         updated = alumnos.map(a => a.id === modal.id ? editado : a);
       } else return;
       setAlumnos(updated);
-      syncLocal(updated);
       setModal(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message
@@ -543,7 +526,6 @@ export default function AlumnosPage() {
       await updateEstadoPago(id, estadoPago);
       const updated = alumnos.map(a => a.id === id ? { ...a, estadoPago } : a);
       setAlumnos(updated);
-      syncLocal(updated);
     } catch {
       alert('Error al actualizar estado de pago.');
     }
@@ -555,7 +537,6 @@ export default function AlumnosPage() {
       await deleteAlumno(id);
       const updated = alumnos.filter(a => a.id !== id);
       setAlumnos(updated);
-      syncLocal(updated);
       setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
     } catch {
       alert('Error al eliminar. Verifica tu conexión a internet.');
@@ -573,7 +554,6 @@ export default function AlumnosPage() {
     const ok = new Set(ids.filter((_, i) => res[i].status === 'fulfilled'));
     const updated = alumnos.map(a => ok.has(a.id) ? { ...a, estado } : a);
     setAlumnos(updated);
-    syncLocal(updated);
     setSelected(new Set());
     setAccionMasiva(false);
     if (ok.size < ids.length) alert(`${ids.length - ok.size} alumno(s) no se pudieron actualizar.`);
@@ -606,6 +586,7 @@ export default function AlumnosPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6" style={{ animation: 'fade-in 0.15s ease-out forwards' }}>
+      {errorCarga && <AvisoErrorCarga />}
 
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">

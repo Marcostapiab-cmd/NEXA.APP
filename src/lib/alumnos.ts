@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { todasLasFilas } from './paginar';
 import { hoyLocal } from './format';
 import type { Alumno, AtletaSalud } from '@/app/alumnos/page';
 
@@ -52,12 +53,13 @@ function errorRutDuplicado(error: { code?: string; message?: string }): Error | 
 }
 
 export async function getAlumnos(): Promise<Alumno[]> {
-  const { data, error } = await supabase
+  const data = await todasLasFilas<Record<string, unknown>>((d, h) => supabase
     .from('atletas')
     .select('id, nombre, apellido, email, fecha_nacimiento, peso, altura, foto_url, estado, rut, telefono, tipo_sesion, etapa, estado_pago')
-    .order('nombre', { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map((r: Record<string, unknown>) => toAlumno(r));
+    .order('nombre', { ascending: true })
+    .order('id')
+    .range(d, h));
+  return data.map(r => toAlumno(r));
 }
 
 export async function updateEstadoPago(id: string, estadoPago: 'al_dia' | 'debe'): Promise<void> {

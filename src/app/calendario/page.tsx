@@ -6,6 +6,7 @@ import { getRutinasDB } from '@/lib/rutinas-supabase';
 import { getAlumnos } from '@/lib/alumnos';
 import { fechaLocal } from '@/lib/format';
 
+import AvisoErrorCarga from '@/components/AvisoErrorCarga';
 interface Routine {
   id: string; name: string; exercises: { id: string }[];
   startDate: string; endDate: string;
@@ -32,6 +33,7 @@ function isLastWeek(date: Date, end: string) {
 
 export default function CalendarioPage() {
   const [routines, setRoutines]     = useState<Routine[]>([]);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -52,11 +54,9 @@ export default function CalendarioPage() {
           })));
           return;
         }
-      } catch { /* fallback to localStorage */ }
-      try {
-        const s = localStorage.getItem('nexa_routines');
-        if (s) setRoutines(JSON.parse(s));
-      } catch {}
+      } catch {
+        setErrorCarga(true); // sin copias del navegador
+      }
     }
     loadRoutines();
   }, []);
@@ -85,6 +85,7 @@ export default function CalendarioPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
+      {errorCarga && <AvisoErrorCarga />}
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight text-[#121212]">Calendario</h1>
         <p className="mt-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[#5E5E5E]">

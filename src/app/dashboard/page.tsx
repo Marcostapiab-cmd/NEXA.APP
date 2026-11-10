@@ -1,5 +1,4 @@
 'use client';
-import { hoyLocal, fechaLocal } from '@/lib/format';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -12,10 +11,14 @@ import { getRutinasDB, type RutinaDB } from '@/lib/rutinas-supabase';
 import type { Plan, Reserva } from '@/lib/planes';
 import { getPlanEstado, getClasesRestantes, getDiasRestantes, getEffectiveEndDate, ESTADO_CONFIG, RESERVA_LABEL } from '@/lib/planes';
 import { getAllPlanesDB, getReservasFechaDB } from '@/lib/planes-supabase';
+import { contarSesionesRango } from '@/lib/sesiones-supabase';
+import { alumnosQueEntrenan, fechaChile, semanaChile } from '@/lib/contadores';
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
-const TODAY = hoyLocal();
+// Hoy en Chile (no depende de la zona horaria del dispositivo)
+const TODAY = fechaChile();
+const SEMANA = semanaChile();
 
 // Días transcurridos desde una fecha YYYY-MM-DD hasta hoy
 function diasDesde(fecha: string): number {
@@ -23,23 +26,6 @@ function diasDesde(fecha: string): number {
     (new Date(TODAY + 'T12:00:00').getTime() - new Date(fecha + 'T12:00:00').getTime()) / 86400000
   );
   return Math.max(0, diff);
-}
-
-function todayDow(): number {
-  const d = new Date().getDay();
-  return d === 0 ? 6 : d - 1; // 0=Mon … 6=Sun
-}
-
-function getWeekDates(): string[] {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return fechaLocal(d);
-  });
 }
 
 function routineHasSessionToday(r: RutinaDB): boolean {
@@ -79,52 +65,34 @@ export default function DashboardPage() {
   const [sesiones,    setSesiones]    = useState<Sesion[]>([]);
   const [planes,      setPlanes]      = useState<Plan[]>([]);
   const [reservasHoy, setReservasHoy] = useState<Reserva[]>([]);
-  const [staleData,   setStaleData]   = useState(false);
+  // Contadores: null = cargando; 'error' = no se pudo cargar (distinto de cero)
+  const [sesionesSemana, setSesionesSemana] = useState<number | 'error' | null>(null);
+  const [errorReservasHoy, setErrorReservasHoy] = useState(false);
+  const [errorCarga, setErrorCarga] = useState(false);
 
   useEffect(() => {
-    // Alumnos
-    getAlumnos().then(setAlumnos).catch(() => {
-      try { const a = localStorage.getItem('nexa_alumnos'); if (a) { setAlumnos(JSON.parse(a)); setStaleData(true); } } catch {}
-    });
-    // Rutinas
-    getRutinasDB().then(setRoutines).catch(() => {
-      try {
-        const r = localStorage.getItem('nexa_routines');
-        if (r) {
-          const parsed = JSON.parse(r);
-          setRoutines(parsed.map((x: Record<string, unknown>) => ({
-            id:         String(x.id ?? ''),
-            nombre:     String(x.name ?? x.nombre ?? ''),
-            alumno_ids: (Array.isArray(x.alumnoIds) ? x.alumnoIds : x.alumnoId ? [x.alumnoId] : []) as string[],
-            start_date: String(x.startDate ?? x.start_date ?? ''),
-            end_date:   String(x.endDate   ?? x.end_date   ?? ''),
-            sessions:   (x.sessions ?? {}) as Record<string, unknown>,
-            blocks:     (Array.isArray(x.blocks) ? x.blocks : []) as unknown[],
-          })));
-          setStaleData(true);
-        }
-      } catch {}
-    });
-    // Sesiones
-    getSesionesDB().then(setSesiones).catch(() => {
-      try { const s = localStorage.getItem('nexa_sesiones'); if (s) { setSesiones(JSON.parse(s)); setStaleData(true); } } catch {}
-    });
-    // Planes (todos)
-    getAllPlanesDB().then(setPlanes).catch(() => {});
-    // Reservas de hoy
-    getReservasFechaDB(TODAY).then(setReservasHoy).catch(() => {});
+    // Solo datos del servidor: si falla, se avisa (sin copias guardadas en el navegador).
+    const fallo = () => setErrorCarga(true);
+    getAlumnos().then(setAlumnos).catch(fallo);
+    getRutinasDB().then(setRoutines).catch(fallo);
+    getSesionesDB(5).then(setSesiones).catch(fallo); // solo las 5 más recientes
+    // Conteo exacto de la semana (lunes a domingo, hora de Chile), sin límite de filas
+    contarSesionesRango(SEMANA.desde, SEMANA.hasta).then(setSesionesSemana).catch(() => setSesionesSemana('error'));
+    getAllPlanesDB().then(setPlanes).catch(fallo);
+    getReservasFechaDB(TODAY).then(setReservasHoy).catch(() => setErrorReservasHoy(true));
   }, []);
 
   const alumnoMap  = Object.fromEntries(alumnos.map(a => [a.id, a]));
-  const weekDates  = getWeekDates();
 
   /* ── Derived ── */
 
   const activeRoutines   = routines.filter(isRoutineActive);
-  const sesionesEsSemana = sesiones.filter(s => weekDates.includes(s.fecha));
   const recentSesiones   = [...sesiones].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5);
 
-  // Alumnos con sesión de rutina hoy
+  // Entrenan hoy = alumnos distintos con reservas activas hoy (no rutinas)
+  const entrenanHoy = alumnosQueEntrenan(reservasHoy, TODAY);
+
+  // Agenda: alumnos con rutina programada hoy (se muestran junto a las reservas)
   const alumnosHoy = alumnos.filter(a => {
     const r = activeRoutines.find(r => (r.alumno_ids ?? []).includes(a.id));
     return r && routineHasSessionToday(r);
@@ -165,22 +133,24 @@ export default function DashboardPage() {
   const stats = [
     { label: 'Alumnos',        value: alumnos.length,          Icon: Users,      href: '/alumnos',    accent: false },
     { label: 'Rutinas activas', value: activeRoutines.length,  Icon: Calendar,   href: '/rutinas',    accent: false },
-    { label: 'Esta semana',    value: sesionesEsSemana.length,  Icon: TrendingUp, href: '/weightroom', accent: false },
-    { label: 'Entrenan hoy',   value: alumnosHoy.length,       Icon: Dumbbell,   href: '/weightroom', accent: true  },
+    { label: 'Sesiones registradas esta semana', value: sesionesSemana, Icon: TrendingUp, href: '/weightroom', accent: false,
+      title: `Entrenamientos guardados en Sala de pesas del lunes ${SEMANA.desde.slice(8)} al domingo ${SEMANA.hasta.slice(8)} (hora de Chile)` },
+    { label: 'Entrenan hoy',   value: errorReservasHoy ? 'error' as const : entrenanHoy, Icon: Dumbbell, href: '/horario', accent: true,
+      title: 'Alumnos distintos con una clase activa hoy (pendiente, confirmada o presente)' },
   ];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-8">
 
       {/* ── Banner datos en caché ── */}
-      {staleData && (
+      {errorCarga && (
         <div
           className="mb-5 flex items-center gap-2.5 rounded-xl px-4 py-3 text-[12px]"
           style={{ background: 'rgba(196,120,58,0.08)', border: '1px solid rgba(196,120,58,0.25)' }}
         >
           <AlertTriangle size={13} strokeWidth={2} style={{ color: '#C4783A', flexShrink: 0 }} />
           <span style={{ color: '#C4783A' }}>
-            Datos en caché — sin conexión al servidor. Algunos números pueden estar desactualizados.
+            No pudimos cargar todos los datos del servidor. Revisa tu conexión y reintenta.
           </span>
           <button
             onClick={() => window.location.reload()}
@@ -205,13 +175,15 @@ export default function DashboardPage() {
 
       {/* ── Stats ── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map(({ label, value, Icon, href, accent }) => (
-          <Link key={label} href={href}
+        {stats.map(({ label, value, Icon, href, accent, ...rest }) => (
+          <Link key={label} href={href} title={'title' in rest ? rest.title : undefined}
             className="group flex flex-col gap-3 rounded-xl border border-[#E8E8E8] bg-[#F5F5F5] p-4 transition-all hover:border-[#D8D8D8] hover:bg-[#F0F0F0]">
             <Icon size={14} strokeWidth={1.75}
               className={`transition-colors ${accent ? 'text-[#121212]' : 'text-[#CACACA] group-hover:text-[#9B9B9B]'}`} />
             <div>
-              <p className="text-[22px] font-black tracking-tight text-[#121212]">{value}</p>
+              {value === 'error'
+                ? <p className="text-[13px] font-semibold text-[#B44040]">Error al cargar</p>
+                : <p className="text-[22px] font-black tracking-tight text-[#121212]">{value ?? '…'}</p>}
               <p className="mt-0.5 text-[11px] text-[#9B9B9B]">{label}</p>
             </div>
           </Link>

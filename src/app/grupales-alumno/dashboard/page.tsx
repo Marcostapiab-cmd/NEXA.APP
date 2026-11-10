@@ -7,6 +7,7 @@ import { CalendarPlus, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { clp, DIAS_LARGO, MESES_CORTO, MESES_LARGO } from '@/lib/format';
 
+import { cerrarSesion } from '@/lib/cerrar-sesion';
 interface Alumno { id: string; nombre: string; apellido: string; email: string }
 type Rel = { nombre: string } | { nombre: string }[] | null;
 interface Compra {
@@ -61,7 +62,7 @@ export default function DashboardGrupal() {
 
   async function salir() {
     setSaliendo(true);
-    await supabase.auth.signOut();
+    await cerrarSesion();
     router.replace('/grupales-alumno/login');
     router.refresh();
   }

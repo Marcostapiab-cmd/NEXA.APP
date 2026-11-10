@@ -117,6 +117,7 @@ export default function AlumnoPerfilPage() {
   const [alumno, setAlumno]     = useState<AlumnoExtended | null>(null);
   const [cargando, setCargando] = useState(true);
   const [routines, setRoutines] = useState<RutinaDB[]>([]);
+  const [errorFicha, setErrorFicha] = useState(false);
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [mediciones,   setMediciones]  = useState<Medicion[]>([]);
   const [showMedicion, setShowMedicion] = useState(false);
@@ -166,18 +167,9 @@ export default function AlumnoPerfilPage() {
 
   useEffect(() => {
     getAlumnoById(id).then(base => {
-      if (base) {
-        setAlumno(base);
-      } else {
-        try {
-          const stored = localStorage.getItem('nexa_alumnos');
-          if (stored) {
-            const all: AlumnoExtended[] = JSON.parse(stored);
-            setAlumno(all.find(a => a.id === id) || null);
-          }
-        } catch {}
-      }
-    }).catch(() => {}).finally(() => setCargando(false));
+      // Solo la ficha del servidor (nunca una copia guardada en el navegador).
+      setAlumno(base ?? null);
+    }).catch(() => setErrorFicha(true)).finally(() => setCargando(false));
     getRutinasDB().then(setRoutines).catch(() => {});
     getSesionesAlumnoDB(id).then(setSesiones).catch(() => {});
     getAtletaSaludDB(id).then(s => setSalud(s)).catch(() => setSalud(null));
@@ -471,7 +463,7 @@ export default function AlumnoPerfilPage() {
   if (!alumno) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-[#5E5E5E]">{cargando ? 'Cargando…' : 'Alumno no encontrado.'}</p>
+        <p className="text-[#5E5E5E]">{cargando ? 'Cargando…' : errorFicha ? 'No pudimos cargar la ficha. Revisa tu conexión e inténtalo de nuevo.' : 'Alumno no encontrado.'}</p>
       </main>
     );
   }

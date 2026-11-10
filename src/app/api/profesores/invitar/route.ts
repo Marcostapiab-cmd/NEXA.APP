@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
     if (roleErr) {
       return NextResponse.json({ error: `Error al leer rol: ${roleErr.message}` }, { status: 500 });
     }
-    if (myRole !== 'admin' && myRole !== 'host') {
-      return NextResponse.json({ error: `Acceso denegado. Tu rol es: ${myRole ?? 'ninguno'}` }, { status: 403 });
+    // Solo un administrador asigna roles de personal.
+    if (myRole !== 'admin') {
+      return NextResponse.json({ error: 'Solo un administrador puede dar acceso a profesores.' }, { status: 403 });
     }
 
     // 3. Validar body
@@ -70,13 +71,19 @@ export async function POST(req: NextRequest) {
     let warning = '';
 
     if (existingUser) {
+      // No cambiar el rol de una cuenta de administración por esta vía.
+      const { data: perfilActual } = await supabaseAdmin.from('perfiles').select('rol').eq('id', existingUser.id).maybeSingle();
+      if (perfilActual?.rol === 'admin' || perfilActual?.rol === 'host') {
+        return NextResponse.json({ error: 'Ese correo pertenece a una cuenta de administración. Usa otro correo.' }, { status: 409 });
+      }
       userId = existingUser.id;
       warning = 'Ya existía una cuenta con este correo — se reutilizó y se vinculó a este profesor.';
     } else {
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email:         emailNorm,
         email_confirm: true,
-        user_metadata: { rol: 'profesor', nombre: nombre.trim() },
+        app_metadata:  { rol: 'profesor' },
+        user_metadata: { nombre: nombre.trim() },
       });
       if (createErr || !newUser.user) {
         return NextResponse.json({ error: createErr?.message ?? 'No se pudo crear la cuenta.' }, { status: 400 });

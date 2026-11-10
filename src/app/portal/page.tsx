@@ -11,6 +11,7 @@ import { Calendar, Dumbbell, CreditCard, LogOut, ChevronRight, CheckCircle2, Clo
 import Link from 'next/link';
 import ResumenPlan, { type ResumenPlanData } from '@/components/portal/ResumenPlan';
 
+import { cerrarSesion } from '@/lib/cerrar-sesion';
 interface Reserva {
   id: string;
   fecha: string;
@@ -136,7 +137,7 @@ export default function PortalPage() {
   }, [router]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await cerrarSesion();
     router.push('/portal/login');
   }
 

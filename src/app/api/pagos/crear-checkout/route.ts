@@ -43,20 +43,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos requeridos (email es obligatorio para Flow)' }, { status: 400 });
     }
 
+    if (!Number.isInteger(monto) || monto <= 0) {
+      return NextResponse.json({ error: 'El monto debe ser un número entero mayor a cero.' }, { status: 400 });
+    }
+
     const baseUrl      = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
     const commerceOrder = `nexa-${alumnoId.slice(0, 8)}-${Date.now()}`;
 
-    // Crear orden en Flow
-    const flow = await crearPagoFlow({
-      commerceOrder,
-      subject:         `${descripcion} — ${alumnoNombre}`,
-      amount:          monto,
-      email:           alumnoEmail,
-      urlReturn:       `${baseUrl}/api/pagos/retorno`,
-      urlConfirmation: `${baseUrl}/api/pagos/flow-confirmation`,
-    });
-
-    // Guardar pago en pendiente
+    // 1. Registrar el cobro pendiente ANTES de crear la orden en Flow: así el
+    //    aviso de pago siempre encuentra a qué cobro corresponde.
     const { data: pagoData, error: pagoError } = await supabaseAdmin
       .from('pagos')
       .insert({
@@ -65,15 +60,32 @@ export async function POST(req: NextRequest) {
         monto,
         moneda:       'clp',
         estado:       'pendiente',
-        metodo:       'stripe',   // usamos 'stripe' como metodo genérico online; ajustar si se agrega campo flow
+        metodo:       'flow',
         descripcion,
-        stripe_checkout_session_id: commerceOrder, // reusamos el campo para el commerce order de Flow
-        checkout_url: flow.payUrl,
+        stripe_checkout_session_id: commerceOrder, // se reutiliza el campo para la orden de Flow
       })
       .select('id')
       .single();
-
     if (pagoError) throw pagoError;
+
+    // 2. Crear la orden en Flow; si falla, el cobro queda como fallido.
+    let flow;
+    try {
+      flow = await crearPagoFlow({
+        commerceOrder,
+        subject:         `${descripcion} — ${alumnoNombre}`,
+        amount:          monto,
+        email:           alumnoEmail,
+        urlReturn:       `${baseUrl}/api/pagos/retorno`,
+        urlConfirmation: `${baseUrl}/api/pagos/flow-confirmation`,
+      });
+    } catch (e) {
+      await supabaseAdmin.from('pagos').update({ estado: 'fallido' }).eq('id', (pagoData as { id: string }).id);
+      throw e;
+    }
+    const { error: urlErr } = await supabaseAdmin.from('pagos')
+      .update({ checkout_url: flow.payUrl }).eq('id', (pagoData as { id: string }).id);
+    if (urlErr) console.error('[crear-checkout] no se guardó el enlace de pago:', urlErr.message);
 
     return NextResponse.json({
       payUrl:  flow.payUrl,

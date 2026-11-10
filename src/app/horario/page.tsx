@@ -1,13 +1,14 @@
 'use client';
 import { hoyLocal, fechaLocal, textoBusqueda } from '@/lib/format';
 
-import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import { useState, useEffect, useCallback, Fragment, useRef, useSyncExternalStore } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus, ClipboardCheck } from 'lucide-react';
 import CheckinTab from './CheckinTab';
 import { supabase } from '@/lib/supabaseClient';
 import { getCoachesActivosDB, COACH_COLORS, type Coach } from '@/lib/coaches-supabase';
 import { validarConflictoTipo } from '@/lib/reservas-validation';
 import { cuentaEnPlan } from '@/lib/planes-supabase';
+import { todasLasFilas } from '@/lib/paginar';
 import {
   getHorarioConfig, getBloqueos, generateHours,
   DEFAULT_HORARIO_CONFIG,
@@ -146,18 +147,18 @@ async function marcarClasesExtra(reservas: RawReserva[]): Promise<RawReserva[]> 
   const planIds = [...new Set(reservas.map(r => r.plan_id).filter(Boolean).map(String))];
   if (planIds.length === 0) return reservas;
 
-  const [{ data: planes }, { data: todas }] = await Promise.all([
+  const [{ data: planes }, todas] = await Promise.all([
     supabase.from('planes').select('id, total_clases').in('id', planIds),
-    supabase.from('reservas').select('id, fecha, hora, estado, plan_id').in('plan_id', planIds),
+    todasLasFilas<{ id: unknown; fecha: string; hora?: string; estado?: string; plan_id: unknown }>((d, h) =>
+      supabase.from('reservas').select('id, fecha, hora, estado, plan_id').in('plan_id', planIds).order('id').range(d, h)),
   ]);
   const total = new Map<string, number>(
     ((planes ?? []) as { id: string; total_clases: number }[]).map(p => [String(p.id), Number(p.total_clases)])
   );
 
-  const hoy = hoyLocal();
   const porPlan = new Map<string, { id: string; orden: string }[]>();
   for (const r of (todas ?? []) as { id: unknown; fecha: string; hora?: string; estado?: string; plan_id: unknown }[]) {
-    if (!cuentaEnPlan(r.estado, r.fecha, hoy)) continue;
+    if (!cuentaEnPlan(r.estado, r.fecha)) continue;
     const pid = String(r.plan_id);
     if (!porPlan.has(pid)) porPlan.set(pid, []);
     porPlan.get(pid)!.push({ id: String(r.id), orden: `${String(r.fecha).slice(0, 10)} ${String(r.hora ?? '').slice(0, 5)}` });
@@ -558,9 +559,10 @@ function NuevaSesionModal({ fecha, hora, coaches, defaultCoachId, tipoFijo, onCl
     if (seleccionRef.current !== a.id) return;
     let usado = 0, agendadas = 0;
     for (const r of resPlan ?? []) {
-      const c = cuentaEnPlan(r.estado, r.fecha, today);
+      const c = cuentaEnPlan(r.estado, r.fecha);
       if (c === 'usada')         usado++;
-      else if (c === 'agendada') agendadas++;
+      // Las pasadas sin marcar retienen su crédito (misma regla que MI NEXA)
+      else if (c === 'agendada' || c === 'por_confirmar') agendadas++;
     }
 
     setPlan({ ...p, modalidad: p.modalidad ?? null, usado, agendadas });
@@ -935,9 +937,9 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
         </div>
       )}
       {slot.alumnos.slice(0, 2).map((a, i) => (
-        <div key={i} style={{
-          fontSize: 10, fontWeight: 600,
-          color: statusColor(a.status),
+        <div key={i} title={a.nombre} style={{
+          fontSize: 11, fontWeight: 700,
+          color: statusColor(a.status) === '#C9A96E' ? 'var(--nexa-text)' : statusColor(a.status),
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           lineHeight: 1.35,
         }}>
@@ -958,10 +960,10 @@ function SlotCard({ slot, coachColor, coachNombre, onClickSlot, isPast }: {
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-        <span style={{ fontSize: 9, color: 'var(--nexa-muted)', flexShrink: 0 }}>{slot.tipo}</span>
+        <span style={{ fontSize: 10, color: 'var(--nexa-text-sub)', flexShrink: 0 }}>{slot.tipo}</span>
         {coachNombre && (
           <span style={{
-            fontSize: 9, color: coachColor ? coachColor + 'aa' : 'var(--nexa-muted)',
+            fontSize: 10, color: 'var(--nexa-text-sub)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           }}>
             · {coachNombre.split(' ')[0]}
@@ -1087,8 +1089,9 @@ function HorarioCelda({ slots, coachById, isPast, onClickSlot, onClickEmpty, onA
 
 type Conteo = { n1a1: number; n2a1Completa: number; n2a1Incompleta: number; nGrupal: number; pago: number };
 
-// Cuenta automáticamente las clases de un coach. Cuenta todas las clases
-// agendadas o realizadas (sin canceladas ni reagendadas), agrupando por
+// Cuenta automáticamente las clases de un coach: agendadas, realizadas,
+// inasistencias y cancelaciones tardías (estas dos se cobran igual). No cuenta
+// cancelaciones a tiempo, reagendadas ni clases pasadas sin asistencia. Agrupa por
 // sesión real (fecha+hora): una clase 2:1 tiene 2 filas, una por alumno.
 // 2:1 completa = 2 alumnos; incompleta = 1 alumno.
 function contarClasesCoach(c: Coach, reservas: RawReserva[]): Conteo {
@@ -1096,7 +1099,9 @@ function contarClasesCoach(c: Coach, reservas: RawReserva[]): Conteo {
   const sesiones = new Map<string, RawReserva[]>();
   for (const r of reservas) {
     if (r.coach_id !== c.id) continue;
-    if (!cuentaEnPlan(r.estado, getSlotPos(r)?.fecha ?? r.fecha, hoy)) continue;
+    // Liquidación: igual que antes, solo clases realizadas o agendadas (no las pasadas sin marcar)
+    const cuenta = cuentaEnPlan(r.estado, getSlotPos(r)?.fecha ?? r.fecha, hoy);
+    if (cuenta !== 'usada' && cuenta !== 'agendada') continue;
     const pos = getSlotPos(r);
     if (!pos) continue;
     const key = `${pos.fecha}|${pos.hora}`;
@@ -1185,7 +1190,7 @@ function ResumenBar({ coaches, reservas, monday }: { coaches: Coach[]; reservas:
         {boton('semana', 'Semana')}
         {boton('mes', `Mes · ${mesLabel}`)}
         <span style={{ fontSize: 10, color: 'var(--nexa-muted)', marginLeft: 'auto' }}>
-          {cargando ? 'Cargando…' : errorMes ? `Error: ${errorMes}` : 'Agendadas y realizadas · sin canceladas'}
+          {cargando ? 'Cargando…' : errorMes ? `Error: ${errorMes}` : 'Agendadas, realizadas, inasistencias y cancelaciones tardías · sin cancelaciones a tiempo ni pasadas sin asistencia'}
         </span>
       </div>
 
@@ -1224,7 +1229,10 @@ function ResumenBar({ coaches, reservas, monday }: { coaches: Coach[]; reservas:
                 </div>
                 {k.pago > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--nexa-border)' }}>
-                    <span style={{ color: 'var(--nexa-muted)' }}>Pago estimado</span>
+                    <span style={{ color: 'var(--nexa-muted)' }}
+                      title="Según las tarifas actuales del profesor. Incluye inasistencias y cancelaciones tardías (cobrables) y las clases futuras ya agendadas, que aún pueden cambiar.">
+                      Pago estimado · incl. cancelaciones cobrables
+                    </span>
                     <span style={{ fontWeight: 700, color: 'var(--nexa-accent)' }}>${k.pago.toLocaleString('es-CL')}</span>
                   </div>
                 )}
@@ -1237,10 +1245,145 @@ function ResumenBar({ coaches, reservas, monday }: { coaches: Coach[]; reservas:
   );
 }
 
+// ─── Vista celular: agenda de un día ──────────────────────────────────────────
+
+/** true en pantallas de menos de 768 px (sin setState dentro de efectos). */
+function useEsCelular(): boolean {
+  return useSyncExternalStore(
+    cb => {
+      const mq = window.matchMedia('(max-width: 767px)');
+      mq.addEventListener('change', cb);
+      return () => mq.removeEventListener('change', cb);
+    },
+    () => window.matchMedia('(max-width: 767px)').matches,
+    () => false,
+  );
+}
+
+const ETIQUETA_ESTADO: Record<string, string> = Object.fromEntries(ESTADOS_ASISTENCIA.map(e => [e.value, e.label]));
+
+interface CeldaDia {
+  slots:      Slot[];
+  isPast:     boolean;
+  cerrado:    boolean;
+  bloqueo?:   { motivo?: string };
+  coachLibre?: { id: string; nombre: string };
+}
+
+function AgendaDia({ dias, diaSel, onDia, horas, celda, coachById, onSlot, onNueva }: {
+  dias:      { fecha: string; etiqueta: string; numero: number; esHoy: boolean; cerrado: boolean; nClases: number }[];
+  diaSel:    string;
+  onDia:     (fecha: string) => void;
+  horas:     string[];
+  celda:     (fecha: string, hora: string) => CeldaDia;
+  coachById: Map<string, { color: string; nombre: string }>;
+  onSlot:    (s: Slot) => void;
+  onNueva:   (fecha: string, hora: string, coachId: string | null) => void;
+}) {
+  const filas = horas.map(h => ({ hora: h, ...celda(diaSel, h) }))
+    // Horas cerradas sin clases no se muestran en el celular
+    .filter(f => f.slots.length > 0 || !f.cerrado);
+
+  return (
+    <div style={{ border: '1px solid var(--nexa-border)', borderTop: 'none', background: 'var(--nexa-bg)' }}>
+      {/* Días de la semana */}
+      <div role="tablist" aria-label="Día" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 10px 8px', borderBottom: '1px solid var(--nexa-border)' }}>
+        {dias.map(d => {
+          const sel = d.fecha === diaSel;
+          return (
+            <button key={d.fecha} role="tab" aria-selected={sel} onClick={() => onDia(d.fecha)}
+              style={{
+                flex: '0 0 auto', minWidth: 52, minHeight: 56, borderRadius: 10, padding: '6px 8px',
+                border: `1px solid ${sel ? 'var(--nexa-text)' : 'var(--nexa-border)'}`,
+                background: sel ? 'var(--nexa-text)' : d.cerrado ? 'var(--nexa-surface)' : 'var(--nexa-card)',
+                color: sel ? 'var(--nexa-bg)' : 'var(--nexa-text)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+              }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}>{d.etiqueta}</span>
+              <span style={{ fontSize: 17, fontWeight: d.esHoy ? 900 : 500, textDecoration: d.esHoy && !sel ? 'underline' : 'none' }}>{d.numero}</span>
+              <span style={{ fontSize: 10, opacity: 0.8 }}>{d.nClases > 0 ? `${d.nClases} h` : '—'}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {filas.length === 0 && (
+        <p style={{ padding: 24, textAlign: 'center', fontSize: 14, color: 'var(--nexa-text-sub)' }}>Día cerrado. Sin clases.</p>
+      )}
+
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {filas.map(f => (
+          <li key={f.hora} style={{ display: 'flex', gap: 10, padding: '10px 10px', borderBottom: '1px solid var(--nexa-border-sub)', opacity: f.isPast ? 0.7 : 1 }}>
+            <div style={{ width: 48, flexShrink: 0, paddingTop: 4, fontSize: 15, fontWeight: 700, color: 'var(--nexa-text)', fontVariantNumeric: 'tabular-nums' }}>
+              {f.hora.slice(0, 5)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {f.slots.length === 0 && f.bloqueo && (
+                <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--nexa-danger-bg)', color: 'var(--nexa-danger)', fontSize: 13, fontWeight: 600 }}>
+                  Bloqueado{f.bloqueo.motivo ? ` · ${f.bloqueo.motivo}` : ''}
+                </div>
+              )}
+              {f.slots.map((slot, i) => {
+                const coach = slot.coachId ? coachById.get(slot.coachId) : undefined;
+                const usados = slot.alumnos.filter(a => esActiva(a.status)).length;
+                const conflicto = usados > slot.cuposTotal;
+                return (
+                  <button key={i} type="button" onClick={() => onSlot(slot)}
+                    aria-label={`Clase ${slot.tipo} a las ${f.hora.slice(0, 5)}${coach ? ` con ${coach.nombre}` : ''}`}
+                    style={{
+                      textAlign: 'left', width: '100%', minHeight: 48, borderRadius: 8, padding: '8px 10px',
+                      background: 'var(--nexa-card)', cursor: 'pointer',
+                      border: `1px solid ${conflicto ? '#B44040' : 'var(--nexa-border)'}`,
+                      borderLeft: `5px solid ${conflicto ? '#B44040' : coach?.color || 'var(--nexa-muted)'}`,
+                    }}>
+                    {conflicto && <div style={{ fontSize: 12, fontWeight: 800, color: '#B44040', marginBottom: 2 }}>⚠ Conflicto de horario</div>}
+                    {slot.alumnos.map((a, j) => (
+                      <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 8, lineHeight: 1.35 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--nexa-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                          {a.extra && <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', background: '#B44040', borderRadius: 3, padding: '1px 4px', marginRight: 5 }}>EXTRA</span>}
+                          {a.nombre}
+                        </span>
+                        <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: statusColor(a.status) === '#C9A96E' ? 'var(--nexa-text-sub)' : statusColor(a.status) }}>
+                          {ETIQUETA_ESTADO[(a.status || '').toLowerCase()] ?? a.status}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 3, fontSize: 13, color: 'var(--nexa-text-sub)', display: 'flex', gap: 6 }}>
+                      <span>{slot.tipo}</span>
+                      {coach && <span>· {coach.nombre}</span>}
+                      <span style={{ marginLeft: 'auto', fontWeight: 600, color: usados >= slot.cuposTotal ? 'var(--nexa-danger)' : 'var(--nexa-text-sub)' }}>{usados}/{slot.cuposTotal}</span>
+                    </div>
+                  </button>
+                );
+              })}
+              {!f.isPast && !f.bloqueo && (f.slots.length === 0 || f.coachLibre) && (
+                <button type="button"
+                  onClick={() => onNueva(diaSel, f.hora, f.slots.length === 0 ? null : f.coachLibre!.id)}
+                  style={{
+                    minHeight: 44, borderRadius: 8, border: '1px dashed var(--nexa-border)', background: 'transparent',
+                    color: 'var(--nexa-text-sub)', fontSize: 14, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+                  }}>
+                  <Plus size={16} /> {f.slots.length === 0 ? 'Agendar' : `Agendar con ${f.coachLibre!.nombre.split(' ')[0]}`}
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function HorarioPage() {
   const [weekOffset,  setWeekOffset]  = useState(0);
+  // Celular (< 768 px): agenda de un día por defecto; escritorio: semana.
+  const esCelular = useEsCelular();
+  const [modoElegido, setModoElegido] = useState<'dia' | 'semana' | null>(null);
+  const modo = modoElegido ?? (esCelular ? 'dia' : 'semana');
+  const [diaElegido, setDiaElegido] = useState<string | null>(null);
   const [coachFiltro, setCoachFiltro] = useState<string>('all');
   const [coaches,     setCoaches]     = useState<Coach[]>([]);
   const [reservas,    setReservas]    = useState<RawReserva[]>([]);
@@ -1356,6 +1499,20 @@ export default function HorarioPage() {
   });
   const showHours = [...configHoursSet, ...extraHours].sort();
 
+  // Datos de una celda (lo usan la grilla semanal y la agenda del celular)
+  function celdaDe(ds: string, hora: string): CeldaDia {
+    const slots     = getSlotsForCell(slotMap, ds, hora);
+    const isPast    = new Date(`${ds}T${hora}:00`) < now;
+    const dow       = new Date(`${ds}T12:00:00`).getDay();
+    const diaConfig = horConfig.dias.find(x => x.dow === dow);
+    const cerrado   = !diaConfig?.abierto || hora < (diaConfig?.apertura ?? '00:00') || hora > (diaConfig?.cierre ?? '23:59');
+    const bloqueo   = bloqueos.find(b => b.fecha === ds && (!b.horaInicio || (hora >= b.horaInicio && hora < (b.horaFin ?? '23:59'))));
+    const libre     = !isPast && !bloqueo && coachFiltro === 'all' && slots.length > 0
+      ? coaches.find(c => !slots.some(s => s.coachId === c.id)) : undefined;
+    return { slots, isPast, cerrado, bloqueo: bloqueo ? { motivo: bloqueo.motivo } : undefined,
+             coachLibre: libre ? { id: libre.id, nombre: libre.nombre } : undefined };
+  }
+
   // Conteo de horas únicas con clases por día (ignora dimensión coach en la clave)
   function clasesEnDia(ds: string): number {
     const horas = new Set<string>();
@@ -1377,7 +1534,9 @@ export default function HorarioPage() {
               {vista === 'horario' ? 'HORARIO' : 'CHECK-IN'}
             </h1>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--nexa-muted)' }}>
-              {vista === 'horario' ? 'Clic en clase para editar · clic en celda vacía para agendar' : 'Clases individuales de hoy'}
+              {vista === 'horario'
+                ? (modo === 'dia' ? 'Toca una clase para editar · "Agendar" para una hora libre' : 'Clic en clase para editar · clic en celda vacía para agendar')
+                : 'Clases individuales de hoy'}
             </p>
           </div>
 
@@ -1401,9 +1560,21 @@ export default function HorarioPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            {vista === 'horario' && (
+              <div className="flex gap-1 rounded-lg p-0.5" role="group" aria-label="Vista del horario"
+                style={{ background: 'var(--nexa-card)', border: '1px solid var(--nexa-border)' }}>
+                {(['dia', 'semana'] as const).map(m => (
+                  <button key={m} onClick={() => setModoElegido(m)} aria-pressed={modo === m}
+                    className="rounded-md px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wider transition"
+                    style={{ minHeight: 36, background: modo === m ? 'var(--nexa-text)' : 'transparent', color: modo === m ? 'var(--nexa-bg)' : 'var(--nexa-text-sub)' }}>
+                    {m === 'dia' ? 'Día' : 'Semana'}
+                  </button>
+                ))}
+              </div>
+            )}
             <button
-              onClick={() => setWeekOffset(0)}
+              onClick={() => { setWeekOffset(0); setDiaElegido(null); }}
               className="rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition"
               style={{
                 background: weekOffset === 0 ? 'var(--nexa-text)' : 'var(--nexa-card)',
@@ -1415,14 +1586,14 @@ export default function HorarioPage() {
             </button>
             <div className="flex items-center gap-1 rounded-lg border px-1"
               style={{ borderColor: 'var(--nexa-border)', background: 'var(--nexa-card)' }}>
-              <button onClick={() => setWeekOffset(o => o - 1)}
+              <button onClick={() => { setWeekOffset(o => o - 1); setDiaElegido(null); }} aria-label="Semana anterior"
                 className="rounded p-1.5" style={{ color: 'var(--nexa-muted)' }}>
                 <ChevronLeft size={15} />
               </button>
               <span className="min-w-[130px] text-center text-[12px] font-medium" style={{ color: 'var(--nexa-text)' }}>
                 {weekLabel}
               </span>
-              <button onClick={() => setWeekOffset(o => o + 1)}
+              <button onClick={() => { setWeekOffset(o => o + 1); setDiaElegido(null); }} aria-label="Semana siguiente"
                 className="rounded p-1.5" style={{ color: 'var(--nexa-muted)' }}>
                 <ChevronRight size={15} />
               </button>
@@ -1488,7 +1659,29 @@ export default function HorarioPage() {
           </div>
         ) : (
           <>
-            {/* Grid — siempre visible, compacto en mobile */}
+            {modo === 'dia' ? (() => {
+              const fechas = days.map(d => dateStr(d));
+              const diaSel = diaElegido && fechas.includes(diaElegido) ? diaElegido
+                           : fechas.includes(today) ? today : fechas[0];
+              return (
+                <AgendaDia
+                  dias={days.map((d, i) => ({
+                    fecha: dateStr(d), etiqueta: DAY_LABELS[i], numero: d.getDate(), esHoy: dateStr(d) === today,
+                    cerrado: !horConfig.dias.find(x => x.dow === d.getDay())?.abierto, nClases: clasesEnDia(dateStr(d)),
+                  }))}
+                  diaSel={diaSel}
+                  onDia={setDiaElegido}
+                  horas={showHours}
+                  celda={celdaDe}
+                  coachById={coachById}
+                  onSlot={sl => setEditSlot(sl)}
+                  onNueva={(fecha, hora, coachId) => setNuevaSlot({
+                    fecha, hora, coachId: coachId ?? (coachFiltro !== 'all' ? coachFiltro : (coaches[0]?.id ?? null)),
+                  })}
+                />
+              );
+            })() : (
+            /* Grid semanal (escritorio) */
             <div>
               <div
                 ref={gridRef}
@@ -1639,9 +1832,11 @@ export default function HorarioPage() {
                 </div>
               </div>
 
-              {/* Barra resumen */}
-              <ResumenBar coaches={coaches} reservas={reservas} monday={monday} />
             </div>
+            )}
+
+            {/* Barra resumen */}
+            <ResumenBar coaches={coaches} reservas={reservas} monday={monday} />
 
           </>
         )}

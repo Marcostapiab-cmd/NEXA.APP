@@ -9,6 +9,7 @@ import ResultadoPago, { FilasResumen, type VistaPago } from '@/components/public
 interface EstadoRes {
   id:                string;
   estado:            string;
+  clasesSinAgendar?: number;
   nombre:            string;
   apellido:          string;
   modalidad:         string;
@@ -21,7 +22,7 @@ const MAX_INTENTOS = 15; // ~30 segundos
 
 export default function RetornoContent() {
   const token = useSearchParams().get('token');
-  const [vista, setVista] = useState<VistaPago>(token ? 'cargando' : 'error');
+  const [vista, setVista] = useState<VistaPago | 'revision'>(token ? 'cargando' : 'error');
   const [datos, setDatos] = useState<EstadoRes | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function RetornoContent() {
         const d = await res.json() as EstadoRes;
         if (d.estado === 'pagado') { setDatos(d); setVista('pagado'); return; }
         if (d.estado === 'fallido' || d.estado === 'cancelado') { setVista('error'); return; }
+        if (d.estado === 'revision') { setVista('revision'); return; }
         intentos += 1;
         if (intentos >= MAX_INTENTOS) { setVista('pendiente'); return; }
         timer = setTimeout(consultar, 2000);
@@ -63,7 +65,9 @@ export default function RetornoContent() {
       <ResultadoPago vista="pagado" titulo={`¡Listo, ${datos.nombre}!`}
         acciones={[{ href: '/planes', label: 'Volver a planes', primario: true }]}>
         <p className="mb-4 text-center text-[14px] leading-relaxed" style={{ color: 'var(--nx-muted)' }}>
-          Tu pago está confirmado y tu plan quedó agendado. El equipo de NEXA te asignará un coach y se pondrá en contacto contigo.
+          {datos.clasesSinAgendar
+            ? `Tu pago está confirmado y tu plan quedó activo. ${datos.clasesSinAgendar === 1 ? '1 clase no se pudo agendar' : `${datos.clasesSinAgendar} clases no se pudieron agendar`} en el horario elegido: quedan como crédito de tu plan y el equipo de NEXA te contactará para agendarlas. No tienes que volver a pagar.`
+            : 'Tu pago está confirmado y tu plan quedó agendado. El equipo de NEXA te asignará un coach y se pondrá en contacto contigo.'}
         </p>
         <FilasResumen filas={[
           ['Modalidad', titulo],
@@ -71,6 +75,17 @@ export default function RetornoContent() {
           ['Duración', TIPO_LABEL[datos.tipo as TipoPlan] ?? datos.tipo],
           ['Total pagado', clp(datos.montoCLP)],
         ]} />
+      </ResultadoPago>
+    );
+  }
+
+  if (vista === 'revision') {
+    return (
+      <ResultadoPago vista="pendiente" titulo="Estamos revisando tu pago"
+        acciones={[{ href: '/planes', label: 'Volver a planes', primario: true }]}>
+        <p className="text-center text-[14px] leading-relaxed" style={{ color: 'var(--nx-muted)' }}>
+          Recibimos un aviso de pago que necesitamos verificar antes de activar tu plan. El equipo de NEXA te contactará. No vuelvas a pagar.
+        </p>
       </ResultadoPago>
     );
   }

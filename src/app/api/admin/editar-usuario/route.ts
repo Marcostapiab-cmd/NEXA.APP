@@ -40,21 +40,37 @@ export async function PUT(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    const rolNuevo = body.rol && ['admin', 'host', 'profesor', 'recepcionista'].includes(body.rol) ? body.rol : undefined;
+    if (body.rol && !['admin', 'host', 'profesor', 'recepcionista'].includes(body.rol)) {
+      return NextResponse.json({ error: 'Rol no válido.' }, { status: 400 });
+    }
+    const rolNuevo = body.rol || undefined;
 
-    // Actualizar auth (email, contraseña y metadata). El middleware decide los
-    // permisos con user_metadata.rol: si solo se cambia `perfiles`, el nuevo
-    // rol no tendría efecto al navegar.
-    const authUpdate: { email?: string; password?: string; user_metadata?: Record<string, unknown> } = {};
+    // Solo un administrador asigna roles o modifica cuentas de administración.
+    const { data: perfilObjetivo } = await supabaseAdmin.from('perfiles').select('rol, nombre').eq('id', body.id).maybeSingle();
+    if (myRole !== 'admin') {
+      if (rolNuevo && rolNuevo !== perfilObjetivo?.rol) {
+        return NextResponse.json({ error: 'Solo un administrador puede asignar roles.' }, { status: 403 });
+      }
+      if (!perfilObjetivo || perfilObjetivo.rol === 'admin' || perfilObjetivo.rol === 'host') {
+        return NextResponse.json({ error: 'Solo un administrador puede modificar esta cuenta.' }, { status: 403 });
+      }
+    }
+
+    // Actualizar auth (email, contraseña y nombre). El rol NO va en user_metadata
+    // (lo puede cambiar el propio usuario): se guarda en `perfiles` y la base lo
+    // copia a app_metadata (migración 050).
+    const authUpdate: { email?: string; password?: string; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } = {};
     if (body.email?.trim()) authUpdate.email = body.email.trim().toLowerCase();
     if (body.password) authUpdate.password = body.password;
     if (rolNuevo || body.nombre?.trim()) {
       const { data: actual } = await supabaseAdmin.auth.admin.getUserById(body.id);
+      const { rol: _rolViejo, ...metaSinRol } = (actual?.user?.user_metadata ?? {}) as Record<string, unknown>;
+      void _rolViejo;
       authUpdate.user_metadata = {
-        ...(actual?.user?.user_metadata ?? {}),
-        ...(rolNuevo ? { rol: rolNuevo } : {}),
+        ...metaSinRol,
         ...(body.nombre?.trim() ? { nombre: body.nombre.trim() } : {}),
       };
+      if (rolNuevo) authUpdate.app_metadata = { ...(actual?.user?.app_metadata ?? {}), rol: rolNuevo };
     }
 
     if (Object.keys(authUpdate).length > 0) {
@@ -66,9 +82,8 @@ export async function PUT(req: NextRequest) {
     if (rolNuevo === 'profesor') {
       const { data: coach } = await supabaseAdmin.from('coaches').select('id').eq('id', body.id).maybeSingle();
       if (!coach) {
-        const { data: perfil } = await supabaseAdmin.from('perfiles').select('nombre').eq('id', body.id).maybeSingle();
         await supabaseAdmin.from('coaches').insert({
-          id: body.id, nombre: body.nombre?.trim() || perfil?.nombre || 'Profesor',
+          id: body.id, nombre: body.nombre?.trim() || perfilObjetivo?.nombre || 'Profesor',
           tarifa_1a1: 0, tarifa_2a1: 0, tarifa_incompleta_2a1: 0, activo: true,
         });
       }
@@ -81,10 +96,10 @@ export async function PUT(req: NextRequest) {
     if (rolNuevo) perfilUpdate.rol = rolNuevo;
 
     if (Object.keys(perfilUpdate).length > 0) {
-      const { error: perfilErr } = await supabaseAdmin
-        .from('perfiles')
-        .update(perfilUpdate)
-        .eq('id', body.id);
+      // Si la cuenta no tenía perfil y se le asigna rol, se crea.
+      const { error: perfilErr } = perfilObjetivo || !rolNuevo
+        ? await supabaseAdmin.from('perfiles').update(perfilUpdate).eq('id', body.id)
+        : await supabaseAdmin.from('perfiles').insert({ id: body.id, nombre: body.nombre?.trim() || '', rol: rolNuevo });
       if (perfilErr) return NextResponse.json({ error: perfilErr.message }, { status: 500 });
     }
 

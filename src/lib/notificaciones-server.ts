@@ -5,6 +5,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { horaChile as instanteChile } from './politica-cancelacion';
 
 const MAX_INTENTOS = 3;
 
@@ -12,7 +13,7 @@ interface ResumenPlan {
   nombre?: string; modalidad?: string; fin?: string;
   contratadas?: number; realizadas?: number; pendientes?: number; disponibles?: number; agendadas?: number;
 }
-interface Datos {
+export interface Datos {
   fecha?: string; hora?: string; modalidad?: string; profesor?: string | null;
   anterior?: { fecha?: string; hora?: string };
   plan?: ResumenPlan | null;
@@ -291,39 +292,91 @@ export function adminClient(): SupabaseClient {
   });
 }
 
-export interface ResultadoEnvio { enviadas: number; errores: number; omitidas: number; sinConfigurar?: boolean }
+export interface ResultadoEnvio { enviadas: number; errores: number; omitidas: number; recuperadas?: number; sinConfigurar?: boolean }
 
-/** Envía hasta `limite` avisos pendientes. Sin RESEND_API_KEY no envía nada y los deja en cola. */
+/** Un envío "enviando" más viejo que esto se considera interrumpido. */
+export const MINUTOS_ATASCADA = 15;
+
+/** Recordatorios de una clase que ya empezó no se envían (p. ej. tras días sin procesar la cola). */
+export function recordatorioVencido(tipo: string, d: Datos, ahora = new Date()): boolean {
+  if (tipo !== 'recordatorio_clase' || !d.fecha || !d.hora) return false;
+  return instanteChile(d.fecha, d.hora).getTime() <= ahora.getTime();
+}
+
+/**
+ * Envía hasta `limite` avisos pendientes. Sin RESEND_API_KEY no envía nada y los deja en cola.
+ *  - Recupera envíos interrumpidos ("enviando" por más de MINUTOS_ATASCADA).
+ *  - Máximo MAX_INTENTOS intentos por aviso; después queda en "error" y aparece en Requiere atención.
+ *  - Cada aviso usa su id como clave de idempotencia en Resend: si un envío se
+ *    repite (proceso cortado después de enviar), Resend no manda un segundo correo.
+ */
 export async function procesarCola(db: SupabaseClient = adminClient(), limite = 20): Promise<ResultadoEnvio> {
-  const out: ResultadoEnvio = { enviadas: 0, errores: 0, omitidas: 0 };
+  const out: ResultadoEnvio = { enviadas: 0, errores: 0, omitidas: 0, recuperadas: 0 };
   if (!process.env.RESEND_API_KEY) return { ...out, sinConfigurar: true };
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.RESEND_FROM ?? 'NEXA Performance <onboarding@resend.dev>';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
-  const { data: pendientes } = await db.from('notificaciones')
+  // 1. Recuperar envíos atascados
+  const corte = new Date(Date.now() - MINUTOS_ATASCADA * 60_000).toISOString();
+  const { data: atascadas, error: errAtascadas } = await db.from('notificaciones')
+    .update({ estado: 'error', error: 'Envío interrumpido; se reintentará' })
+    .eq('estado', 'enviando').lt('reclamada_at', corte)
+    .select('id');
+  if (errAtascadas) console.error('[notificaciones] no se pudieron recuperar envíos atascados:', errAtascadas.message);
+  out.recuperadas = atascadas?.length ?? 0;
+
+  // 2. Pendientes y con error que aún tienen intentos
+  const { data: pendientes, error: errLeer } = await db.from('notificaciones')
     .select('id, atleta_id, tipo, datos, intentos, estado')
     .in('estado', ['pendiente', 'error']).lt('intentos', MAX_INTENTOS)
     .eq('canal', 'email')
     .order('created_at').limit(limite);
+  if (errLeer) {
+    console.error('[notificaciones] no se pudo leer la cola:', errLeer.message);
+    return { ...out, errores: out.errores + 1 };
+  }
 
   for (const n of pendientes ?? []) {
     // Reclamar: si otro proceso ya la tomó, este update no devuelve filas.
     const { data: tomada } = await db.from('notificaciones')
-      .update({ estado: 'enviando', intentos: Number(n.intentos) + 1 })
+      .update({ estado: 'enviando', intentos: Number(n.intentos) + 1, reclamada_at: new Date().toISOString() })
       .eq('id', n.id).eq('estado', n.estado).select('id');
     if (!tomada?.length) continue;
 
+    const datos = (n.datos ?? {}) as Datos;
+    if (recordatorioVencido(String(n.tipo), datos)) {
+      await db.from('notificaciones').update({ estado: 'omitida', error: 'La clase ya pasó: recordatorio no enviado' }).eq('id', n.id);
+      out.omitidas++;
+      continue;
+    }
+
     const { data: atleta } = await db.from('atletas').select('nombre, email').eq('id', n.atleta_id).maybeSingle();
-    const correo = atleta?.email ? armarCorreo(String(n.tipo), String(atleta.nombre ?? ''), (n.datos ?? {}) as Datos, appUrl) : null;
+    const correo = atleta?.email ? armarCorreo(String(n.tipo), String(atleta.nombre ?? ''), datos, appUrl) : null;
     if (!correo) {
       await db.from('notificaciones').update({ estado: 'omitida', error: atleta?.email ? 'tipo sin plantilla' : 'alumno sin email' }).eq('id', n.id);
       out.omitidas++;
       continue;
     }
-    const { error } = await resend.emails.send({ from, to: String(atleta!.email), subject: correo.asunto, html: correo.html });
-    if (error) {
-      await db.from('notificaciones').update({ estado: 'error', error: error.message }).eq('id', n.id);
+
+    let errorEnvio: string | null = null;
+    try {
+      const { error } = await resend.emails.send(
+        { from, to: String(atleta!.email), subject: correo.asunto, html: correo.html },
+        { idempotencyKey: `nexa-notificacion-${n.id}` },
+      );
+      if (error) errorEnvio = error.message;
+    } catch (e) {
+      errorEnvio = e instanceof Error ? e.message : String(e);
+    }
+
+    if (errorEnvio) {
+      const agotado = Number(n.intentos) + 1 >= MAX_INTENTOS;
+      console.error('[notificaciones] error enviando', n.id, errorEnvio);
+      await db.from('notificaciones').update({
+        estado: 'error',
+        error: agotado ? `Sin más reintentos (${MAX_INTENTOS}): ${errorEnvio}` : errorEnvio,
+      }).eq('id', n.id);
       out.errores++;
     } else {
       await db.from('notificaciones').update({ estado: 'enviada', enviada_at: new Date().toISOString(), error: null }).eq('id', n.id);

@@ -142,6 +142,11 @@ export default function PlanStatusCard({ plan, reservas, reagendas, isAdmin, onE
         </div>
         <div className="mb-2 flex flex-wrap gap-x-3 text-[11px] text-[#777777]">
           <span><b className="text-[#121212]">{agendadas}</b> agendadas</span>
+          {(plan.porConfirmarClases ?? 0) > 0 && (
+            <span title="Clases pasadas sin asistencia marcada: retienen el crédito hasta que se registre la asistencia">
+              <b className="text-[#A86B1F]">{plan.porConfirmarClases}</b> por confirmar asistencia
+            </span>
+          )}
           <span><b style={{ color: porAgendar === 0 ? '#B44040' : '#121212' }}>{porAgendar}</b> por agendar</span>
           {extra > 0 && <span className="font-bold text-[#B44040]">{extra} extra · cobrar</span>}
         </div>

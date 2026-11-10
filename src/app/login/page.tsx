@@ -1,19 +1,24 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
+import { rolActual } from '@/lib/rol-cliente';
+import { esStaff, inicioDeRol } from '@/lib/roles';
 import Link from 'next/link';
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
 
+import { cerrarSesion } from '@/lib/cerrar-sesion';
 export default function LoginPage() {
   const [email, setEmail]       = useState('');
   // Sesión de alumno abierta en este dispositivo (se reemplaza al entrar como staff)
   const [sesionAlumno, setSesionAlumno] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       const u = data.session?.user;
-      const r = u?.user_metadata?.rol;
-      if (u && (r === 'alumno' || r === 'grupales')) setSesionAlumno(u.email ?? 'cuenta de alumno');
+      if (!u) return;
+      const r = await rolActual(u);
+      // Cualquier sesión que no sea del personal se cierra antes de entrar como staff
+      if (!esStaff(r)) setSesionAlumno(u.email ?? 'otra cuenta');
     });
   }, []);
   const [password, setPassword] = useState('');
@@ -33,7 +38,7 @@ export default function LoginPage() {
 
     try {
       // Si había una sesión de alumno, se cierra antes de entrar como staff
-      if (sesionAlumno) await supabase.auth.signOut();
+      if (sesionAlumno) await cerrarSesion();
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
 
       if (err) {
@@ -42,11 +47,7 @@ export default function LoginPage() {
         return;
       }
 
-      const rol = data.user?.user_metadata?.rol;
-      const destino = rol === 'alumno' ? '/portal'
-                    : rol === 'grupales' ? '/grupales-alumno/dashboard'
-                    : rol === 'profesor' || rol === 'recepcionista' ? '/horario'
-                    : '/dashboard';
+      const destino = inicioDeRol(await rolActual(data.user));
       // Navegación completa para que el servidor lea la sesión nueva
       window.location.assign(destino);
     } catch {
