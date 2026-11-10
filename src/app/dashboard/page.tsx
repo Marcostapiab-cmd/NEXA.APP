@@ -51,7 +51,8 @@ function isRoutineActive(r: RutinaDB): boolean {
 }
 
 function getGreeting(): string {
-  const h = new Date().getHours();
+  // Hora de Chile (el servidor está en otro huso horario)
+  const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Santiago' }));
   if (h < 12) return 'Buenos días';
   if (h < 20) return 'Buenas tardes';
   return 'Buenas noches';
@@ -127,6 +128,7 @@ export default function DashboardPage() {
   );
 
   const displayDate = new Date().toLocaleDateString('es-CL', {
+    timeZone: 'America/Santiago',
     weekday: 'long', day: 'numeric', month: 'long',
   });
 
@@ -165,10 +167,10 @@ export default function DashboardPage() {
 
       {/* ── Header ── */}
       <div className="mb-8">
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#9B9B9B]">
+        <p suppressHydrationWarning className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#9B9B9B]">
           {displayDate}
         </p>
-        <h1 className="text-[20px] font-bold tracking-tight text-[#121212]">
+        <h1 suppressHydrationWarning className="text-[20px] font-bold tracking-tight text-[#121212]">
           {getGreeting()}, Coach
         </h1>
       </div>

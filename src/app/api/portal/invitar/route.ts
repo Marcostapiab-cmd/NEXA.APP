@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
+import { asegurarPerfil } from '@/lib/perfil-server';
 import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
@@ -59,9 +60,8 @@ export async function POST(req: NextRequest) {
       }
       if (!perfil) {
         // Cuenta sin rol (p. ej. creada antes): se le da acceso de alumno.
-        const { error: pErr } = await supabaseAdmin.from('perfiles')
-          .insert({ id: userId, nombre: nombre ?? '', rol: 'alumno' });
-        if (pErr) throw pErr;
+        const p = await asegurarPerfil(supabaseAdmin, userId, 'alumno', nombre ?? '');
+        if (p.error) throw new Error(p.error);
         await supabaseAdmin.from('atletas').delete().eq('perfil_id', userId).neq('id', alumnoId);
       }
     } else {
@@ -75,8 +75,13 @@ export async function POST(req: NextRequest) {
       if (createErr || !newUser.user) throw createErr ?? new Error('No se pudo crear el usuario');
       userId = newUser.user.id;
 
-      // El trigger de registro crea una ficha nueva para toda cuenta de alumno.
-      // Aquí el alumno ya tiene ficha: se borra la recién creada para no duplicarlo.
+      const perfil = await asegurarPerfil(supabaseAdmin, userId, 'alumno', nombre ?? '');
+      if (perfil.error) {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        throw new Error(`No se pudo crear el perfil: ${perfil.error}`);
+      }
+      // Al crear el perfil se crea una ficha nueva; este alumno ya tiene la suya:
+      // se borra la recién creada para no duplicarlo.
       await supabaseAdmin.from('atletas').delete().eq('perfil_id', userId).neq('id', alumnoId);
     }
 
