@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
       email:         emailNorm,
       password,
       email_confirm: true,
-      user_metadata: { rol: 'grupales', nombre: nombre.trim(), apellido: apellido.trim() },
+      app_metadata:  { rol: 'grupales' },
+      user_metadata: { nombre: nombre.trim(), apellido: apellido.trim() },
     });
 
     if (authErr || !authData.user) {

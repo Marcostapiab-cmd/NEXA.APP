@@ -19,8 +19,8 @@ export const dynamic = 'force-dynamic';
 
 const PASOS = [
   { n: '01', t: 'Elige tu plan',        d: 'Abre cada plan para ver sus clases, vigencia y condiciones antes de comprar.' },
-  { n: '02', t: 'Crea tu cuenta',       d: 'Para la clase de prueba tu cuenta guarda tu reserva y su vigencia.' },
-  { n: '03', t: 'Elige tu horario',     d: 'Ves las fechas con cupos reales. En 1:1 y 2:1 eliges tus días y hora.' },
+  { n: '02', t: 'Haz tu evaluación',    d: 'Compra tu clase de prueba y te contactamos para coordinar el día y la hora.' },
+  { n: '03', t: 'Elige tu horario',     d: 'En tu plan 1:1 o 2:1 eliges los días de la semana y tu hora.' },
   { n: '04', t: 'Paga en línea',        d: 'Pago seguro en Flow. Tu plan queda activo cuando Flow confirma el pago.' },
 ];
 
@@ -40,12 +40,12 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
       r: 'Desde que Flow confirma tu pago. Cada plan indica sus días de vigencia; las clases que no reserves dentro de ese plazo vencen.',
     },
     {
-      p: '¿Cómo reservo mi clase de prueba?',
-      r: 'Eliges la fecha y hora al comprar, entre los horarios con cupos disponibles. Si prefieres, la reservas después desde tu cuenta.',
+      p: '¿Cómo agendo mi evaluación inicial?',
+      r: 'Después de comprar tu clase de prueba, el equipo de NEXA te contacta para coordinar el día y la hora.',
     },
     {
-      p: '¿Qué pasa si la clase que elegí se llena mientras pago?',
-      r: 'Tu pago y tus clases quedan cargados igual, y eliges otro horario desde tu cuenta. Nunca reservamos una clase sin cupo.',
+      p: '¿Necesito la evaluación para contratar un plan?',
+      r: 'Sí. Para contratar un plan 1:1 o 2:1 en línea primero haces tu evaluación inicial. Si ya fuiste alumno de NEXA, puedes contratar directo.',
     },
     ...(prueba ? [{
       p: '¿Puedo tomar la clase de prueba más de una vez?',
@@ -74,11 +74,11 @@ export default async function PlanesPage({ searchParams }: { searchParams: Promi
             <Link href="#planes" className="nx-btn nx-btn-primary">
               Ver planes <ArrowDown size={16} aria-hidden />
             </Link>
-            <Link href="/grupales-alumno/login" className="nx-btn nx-btn-outline">Ya tengo cuenta</Link>
+            <Link href="/portal/login" className="nx-btn nx-btn-outline">Ya tengo cuenta</Link>
           </div>
           {desdeGrupal !== null && (
             <p className="mt-10 text-[13px]" style={{ color: 'var(--nx-muted)' }}>
-              {prueba ? 'Clase de prueba' : 'Clases grupales desde'} <span style={{ color: 'var(--nx-white)', fontWeight: 600 }}>{clp(desdeGrupal)}</span>
+              Evaluación inicial <span style={{ color: 'var(--nx-white)', fontWeight: 600 }}>{clp(desdeGrupal)}</span>
             </p>
           )}
         </HeroFoto>

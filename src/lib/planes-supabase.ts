@@ -1,49 +1,60 @@
 import { supabase } from './supabaseClient';
 import type { Plan, Reserva, Reagenda } from './planes';
-import { hoyLocal } from './format';
+import { fechaChile } from './contadores';
 
 // Estados que SÍ queman clase del plan
 export const ESTADOS_QUE_QUEMAN: string[] = ['presente', 'no_show', 'cancelada_tarde'];
 // Estados que NO ocupan una clase del plan (se devolvió o se movió a otra fecha)
 export const ESTADOS_NO_DESCUENTAN: string[] = ['cancelada_tiempo', 'cancelada_nexa', 'bloqueada', 'reagendada', 'cancelada'];
 
-// Cómo cuenta una reserva en su plan:
-//  - 'usada'    → realizada o perdida (presente, no-show, cancelación tardía)
-//  - 'agendada' → clase futura (o de hoy) aún sin marcar
-//  - null       → no ocupa clase: cancelada a tiempo, reagendada, o una clase
-//                 que ya pasó sin marcar asistencia ("pendiente" o "confirmada")
-export function cuentaEnPlan(estado: unknown, fecha: unknown, hoy = hoyLocal()): 'usada' | 'agendada' | null {
+// Cómo cuenta una reserva en su plan. Es la MISMA regla que usa la base para el
+// portal del alumno (nexa_cat_credito / nexa_resumen_plan, migración 042), así
+// administración y MI NEXA muestran el mismo saldo:
+//  - 'usada'         → realizada o perdida (presente, no-show, cancelación tardía)
+//  - 'agendada'      → clase de hoy o futura, aún sin marcar
+//  - 'por_confirmar' → clase pasada sin asistencia registrada: retiene su crédito
+//                      hasta que el staff marque asistencia
+//  - null            → no ocupa clase (cancelada a tiempo, por NEXA, reagendada…)
+// `hoy` es la fecha de Chile (no la del dispositivo).
+export type CuentaPlan = 'usada' | 'agendada' | 'por_confirmar' | null;
+export function cuentaEnPlan(estado: unknown, fecha: unknown, hoy = fechaChile()): CuentaPlan {
   const e = String(estado ?? '').toLowerCase();
+  if (!e) return null;
   if (ESTADOS_QUE_QUEMAN.includes(e))    return 'usada';
   if (ESTADOS_NO_DESCUENTAN.includes(e)) return null;
   const f = String(fecha ?? '').slice(0, 10);
-  if ((e === 'pendiente' || e === 'confirmada') && f && f < hoy) return null;
+  if (f && f < hoy) return 'por_confirmar';
   return 'agendada';
 }
 
 // Cuenta, por plan, las clases realizadas y las agendadas
 function contarPorPlan(rows: { plan_id: unknown; estado: unknown; fecha?: unknown }[]) {
-  const usadas    = new Map<string, number>();
-  const agendadas = new Map<string, number>();
-  const hoy = hoyLocal();
+  const usadas       = new Map<string, number>();
+  const agendadas    = new Map<string, number>();
+  const porConfirmar = new Map<string, number>();
+  const hoy = fechaChile();
+  const sumar = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
   for (const r of rows) {
     if (!r.plan_id) continue;
     const pid = String(r.plan_id);
     const c   = cuentaEnPlan(r.estado, r.fecha, hoy);
-    if (c === 'usada')         usadas.set(pid, (usadas.get(pid) ?? 0) + 1);
-    else if (c === 'agendada') agendadas.set(pid, (agendadas.get(pid) ?? 0) + 1);
+    if (c === 'usada')              sumar(usadas, pid);
+    else if (c === 'agendada')      sumar(agendadas, pid);
+    else if (c === 'por_confirmar') sumar(porConfirmar, pid);
   }
-  return { usadas, agendadas };
+  return { usadas, agendadas, porConfirmar };
 }
 
 // Supabase devuelve máximo 1000 filas por consulta: se pide por páginas
-async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown; fecha: unknown }[]> {
+// (si falla una página se lanza el error: nunca se devuelve un total incompleto)
+async function reservasConPlan(alumnoId?: string): Promise<{ plan_id: unknown; estado: unknown; fecha: unknown }[]> {
   const out: { plan_id: unknown; estado: unknown; fecha: unknown }[] = [];
   for (let desde = 0; ; desde += 1000) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('reservas').select('plan_id, estado, fecha')
-      .not('plan_id', 'is', null)
-      .order('id').range(desde, desde + 999);
+      .not('plan_id', 'is', null);
+    if (alumnoId) q = q.eq('alumno_id', alumnoId);
+    const { data, error } = await q.order('id').range(desde, desde + 999);
     if (error) throw error;
     out.push(...(data ?? []));
     if (!data || data.length < 1000) break;
@@ -54,14 +65,14 @@ async function reservasConPlan(): Promise<{ plan_id: unknown; estado: unknown; f
 // ─── Planes ───────────────────────────────────────────────────────────────────
 
 export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
-  const [{ data: planesData, error }, { data: reservasData }] = await Promise.all([
+  const [{ data: planesData, error }, reservasData] = await Promise.all([
     supabase.from('planes').select('*').eq('alumno_id', alumnoId).order('start_date', { ascending: false }),
-    supabase.from('reservas').select('plan_id, estado, fecha').eq('alumno_id', alumnoId),
+    reservasConPlan(alumnoId),
   ]);
   if (error) throw error;
 
   // Contar por plan desde las reservas (source of truth, no usamos used_clases guardado)
-  const { usadas: countByPlan, agendadas } = contarPorPlan(reservasData ?? []);
+  const { usadas: countByPlan, agendadas, porConfirmar } = contarPorPlan(reservasData);
 
   return (planesData ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
@@ -72,6 +83,7 @@ export async function getPlanesAlumnoDB(alumnoId: string): Promise<Plan[]> {
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
     agendadasClases: agendadas.get(String(r.id)) ?? 0,
+    porConfirmarClases: porConfirmar.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,
@@ -159,7 +171,7 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
   ]);
   if (error) throw error;
 
-  const { usadas: countByPlan, agendadas } = contarPorPlan(reservasData);
+  const { usadas: countByPlan, agendadas, porConfirmar } = contarPorPlan(reservasData);
 
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id:            String(r.id),
@@ -170,6 +182,7 @@ export async function getAllPlanesDB(): Promise<Plan[]> {
     totalClases:   Number(r.total_clases),
     usedClases:    countByPlan.get(String(r.id)) ?? 0,
     agendadasClases: agendadas.get(String(r.id)) ?? 0,
+    porConfirmarClases: porConfirmar.get(String(r.id)) ?? 0,
     startDate:     String(r.start_date),
     endDate:       String(r.end_date),
     extendedUntil: r.extended_until ? String(r.extended_until) : undefined,

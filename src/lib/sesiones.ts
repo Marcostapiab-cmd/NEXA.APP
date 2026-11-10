@@ -27,19 +27,24 @@ export interface Sesion {
   ejercicios: SesionEjercicio[];
 }
 
+// Sesiones cargadas desde Supabase en esta pestaña (solo memoria: no se guardan
+// en el navegador). Las páginas las cargan con getSesionesDB() y las registran aquí.
+let sesionesEnMemoria: Sesion[] = [];
+
 export function getSesiones(): Sesion[] {
-  try {
-    const s = localStorage.getItem('nexa_sesiones');
-    return s ? JSON.parse(s) : [];
-  } catch { return []; }
+  return sesionesEnMemoria;
+}
+
+export function setSesionesEnMemoria(sesiones: Sesion[]): void {
+  sesionesEnMemoria = [...sesiones];
 }
 
 export function saveSesion(sesion: Sesion): void {
-  const todas = getSesiones();
+  const todas = [...sesionesEnMemoria];
   const existe = todas.findIndex(s => s.id === sesion.id);
   if (existe >= 0) todas[existe] = sesion;
   else todas.unshift(sesion);
-  localStorage.setItem('nexa_sesiones', JSON.stringify(todas));
+  sesionesEnMemoria = todas;
 }
 
 export function getSesionesAlumno(alumnoId: string): Sesion[] {

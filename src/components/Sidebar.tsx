@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { esStaff, rolDeUsuario } from '@/lib/roles';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
+import { cerrarSesion } from '@/lib/cerrar-sesion';
 interface NavItem { href: string; label: string; Icon: LucideIcon }
 interface Section  { label: string; collapsible?: boolean; items: NavItem[] }
 
@@ -204,18 +206,18 @@ export default function Sidebar() {
       if (cancelled) return;
       if (user?.email) setEmail(user.email);
 
-      const fromMeta = (user?.user_metadata?.rol as string | undefined) ?? null;
+      // Rol protegido (app_metadata / perfiles), nunca user_metadata.
       const { data, error } = await supabase.rpc('get_my_role');
       if (cancelled) return;
 
-      const rol = (typeof data === 'string' && data) ? data : fromMeta;
+      const rol = esStaff(data) ? data : esStaff(rolDeUsuario(user)) ? rolDeUsuario(user) : null;
       if (rol) { setRole(rol); return; }
 
       if ((error || !user) && attempt < 3) {
         setTimeout(() => { if (!cancelled) loadRole(attempt + 1); }, 600 * (attempt + 1));
         return;
       }
-      // Sin rol conocido: se muestra el menú general (cada página y RLS validan el acceso).
+      // Sin rol del personal: no se muestra ningún menú.
       setRole('desconocido');
     }
 
@@ -239,7 +241,7 @@ export default function Sidebar() {
   async function handleLogout() {
     if (loggingOut) return;
     setLoggingOut(true);
-    await supabase.auth.signOut();
+    await cerrarSesion();
     window.location.href = '/login';
   }
 
@@ -247,7 +249,7 @@ export default function Sidebar() {
     return null;
   }
 
-  const sections = role === null             ? []
+  const sections = role === null || role === 'desconocido' ? []
                  : role === 'profesor'      ? SECTIONS_PROFESOR
                  : role === 'recepcionista' ? SECTIONS_HOST
                  : SECTIONS_COMUN;

@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getHorarioConfig, DEFAULT_HORARIO_CONFIG, type HorarioConfig } from '@/lib/horario-config';
 import { COACH_COLORS } from '@/lib/coaches-supabase';
 
+import { todasLasFilas } from '@/lib/paginar';
 const ESTADOS_QUE_QUEMAN = ['presente', 'no_show', 'cancelada_tarde'] as const;
 
 type EstadoReserva =
@@ -241,9 +242,10 @@ export default function CheckinTab() {
       const planUsadoMap = new Map<string, number>();
 
       if (planIds.length > 0) {
-        const [{ data: planesData }, { data: reservasTodas }] = await Promise.all([
+        const [{ data: planesData }, reservasTodas] = await Promise.all([
           supabase.from('planes').select('id, total_clases, end_date').in('id', planIds),
-          supabase.from('reservas').select('plan_id, estado').in('plan_id', planIds).in('estado', [...ESTADOS_QUE_QUEMAN]),
+          todasLasFilas<{ plan_id: string; estado: string }>((d, h) => supabase.from('reservas').select('plan_id, estado')
+            .in('plan_id', planIds).in('estado', [...ESTADOS_QUE_QUEMAN]).order('id').range(d, h)),
         ]);
         ((planesData ?? []) as { id: string; total_clases: number; end_date: string }[])
           .forEach(p => planMeta.set(p.id, { total: p.total_clases, fechaFin: p.end_date ?? null }));

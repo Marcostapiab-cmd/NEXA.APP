@@ -35,7 +35,8 @@ export async function getAlumnoGrupalSesion(admin: SupabaseClient): Promise<Alum
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
   );
   const { data: { user } } = await supabaseUser.auth.getUser();
-  if (!user || user.user_metadata?.rol !== 'grupales') return null;
+  // La autoridad es la fila en grupales_alumnos (no user_metadata, que el usuario puede editar).
+  if (!user) return null;
 
   const { data } = await admin
     .from('grupales_alumnos')

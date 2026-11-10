@@ -16,7 +16,8 @@ export interface Plan {
   modalidad?: PlanModalidad | null;
   totalClases: number;
   usedClases: number;       // clases ya realizadas (presente / no-show / cancelada tarde)
-  agendadasClases?: number; // clases futuras o pendientes ya reservadas con este plan
+  agendadasClases?: number; // clases de hoy o futuras ya reservadas con este plan
+  porConfirmarClases?: number; // clases pasadas sin asistencia marcada (retienen su crédito)
   startDate: string;        // YYYY-MM-DD
   endDate: string;          // YYYY-MM-DD
   extendedUntil?: string;   // admin override: extiende la fecha de vencimiento
@@ -152,9 +153,10 @@ export function getClasesRestantes(plan: Plan): number {
   return Math.max(0, plan.totalClases - plan.usedClases);
 }
 
-// Clases del plan ya ocupadas: realizadas + agendadas
+// Clases del plan ya ocupadas: realizadas + agendadas + por confirmar
+// (igual que 'disponibles' en nexa_resumen_plan, lo que ve el alumno en MI NEXA)
 export function getClasesComprometidas(plan: Plan): number {
-  return plan.usedClases + (plan.agendadasClases ?? 0);
+  return plan.usedClases + (plan.agendadasClases ?? 0) + (plan.porConfirmarClases ?? 0);
 }
 
 // Clases que todavía se pueden agendar dentro del plan
@@ -242,83 +244,5 @@ export const RESERVA_LABEL: Record<ReservaEstado, { label: string; color: string
   bloqueada:        { label: 'Bloqueada',           color: '#64748b', quema: false },
 };
 
-// ─── Storage ─────────────────────────────────────────────────────────────────
-
-const KEY_PLANES    = 'nexa_planes';
-const KEY_RESERVAS  = 'nexa_reservas';
-const KEY_REAGENDAS = 'nexa_reagendas';
-
-// Plans
-export function getPlanes(): Plan[] {
-  try { const s = localStorage.getItem(KEY_PLANES); return s ? JSON.parse(s) : []; } catch { return []; }
-}
-export function savePlanes(planes: Plan[]): void {
-  localStorage.setItem(KEY_PLANES, JSON.stringify(planes));
-}
-export function getPlanesAlumno(alumnoId: string): Plan[] {
-  return getPlanes().filter(p => p.alumnoId === alumnoId).sort((a, b) => b.startDate.localeCompare(a.startDate));
-}
-export function getPlanActivo(alumnoId: string, hoy = todayStr()): Plan | null {
-  const planes = getPlanesAlumno(alumnoId);
-  const activo = planes.find(p => {
-    const e = getPlanEstado(p, hoy);
-    return e === 'activo' || e === 'por_vencer';
-  });
-  return activo ?? planes[0] ?? null;
-}
-export function upsertPlan(plan: Plan): void {
-  const planes = getPlanes();
-  const idx = planes.findIndex(p => p.id === plan.id);
-  if (idx >= 0) planes[idx] = plan; else planes.push(plan);
-  savePlanes(planes);
-}
-export function deletePlan(planId: string): void {
-  savePlanes(getPlanes().filter(p => p.id !== planId));
-}
-
-// Reservas
-export function getReservas(): Reserva[] {
-  try { const s = localStorage.getItem(KEY_RESERVAS); return s ? JSON.parse(s) : []; } catch { return []; }
-}
-export function saveReservas(r: Reserva[]): void {
-  localStorage.setItem(KEY_RESERVAS, JSON.stringify(r));
-}
-export function getReservasPlan(planId: string): Reserva[] {
-  return getReservas().filter(r => r.planId === planId).sort((a, b) => b.fecha.localeCompare(a.fecha));
-}
-export function getReservasAlumno(alumnoId: string): Reserva[] {
-  return getReservas().filter(r => r.alumnoId === alumnoId).sort((a, b) => b.fecha.localeCompare(a.fecha));
-}
-export function upsertReserva(reserva: Reserva): void {
-  const all = getReservas();
-  const idx = all.findIndex(r => r.id === reserva.id);
-  if (idx >= 0) all[idx] = reserva; else all.push(reserva);
-  saveReservas(all);
-}
-export function deleteReserva(reservaId: string): void {
-  saveReservas(getReservas().filter(r => r.id !== reservaId));
-}
-
-// Reagendas
-export function getReagendas(): Reagenda[] {
-  try { const s = localStorage.getItem(KEY_REAGENDAS); return s ? JSON.parse(s) : []; } catch { return []; }
-}
-export function saveReagendas(r: Reagenda[]): void {
-  localStorage.setItem(KEY_REAGENDAS, JSON.stringify(r));
-}
-export function getReagendasAlumno(alumnoId: string): Reagenda[] {
-  return getReagendas().filter(r => r.alumnoId === alumnoId);
-}
-export function getPendingReagendas(alumnoId: string, hoy = todayStr()): Reagenda[] {
-  return getReagendasAlumno(alumnoId).filter(r => {
-    if (r.estado !== 'pendiente') return false;
-    if (hoy > r.fechaLimite) { r.estado = 'vencida'; return false; }
-    return true;
-  });
-}
-export function upsertReagenda(reagenda: Reagenda): void {
-  const all = getReagendas();
-  const idx = all.findIndex(r => r.id === reagenda.id);
-  if (idx >= 0) all[idx] = reagenda; else all.push(reagenda);
-  saveReagendas(all);
-}
+// Los planes, reservas y reagendas viven solo en Supabase (planes-supabase.ts).
+// Ya no se guardan copias en el navegador (ver lib/datos-locales.ts).

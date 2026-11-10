@@ -82,10 +82,12 @@ export async function POST(req: NextRequest) {
       // createUser no envía correo de confirmación: si quedara sin confirmar,
       // el alumno nunca podría iniciar sesión.
       email_confirm: true,
+      // El rol va en app_metadata (solo el servidor lo puede fijar); el
+      // disparador handle_new_user lo lee de ahí (migración 050).
+      app_metadata:  { rol: 'alumno' },
       user_metadata: {
         nombre:   nombre.trim(),
         apellido: '',
-        rol:      'alumno',
         rut:      rutNormalizado,
       },
     });

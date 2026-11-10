@@ -16,6 +16,7 @@ import type { Plan } from '@/lib/planes';
 import { getAlumnos } from '@/lib/alumnos';
 import QuickCreateModal, { type QuickExercise } from './QuickCreateModal';
 
+import AvisoErrorCarga from '@/components/AvisoErrorCarga';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Exercise {
@@ -1298,24 +1299,18 @@ function AlumnoSelectorScreen({ alumnos, routines, planes, onSelect }: {
 
 export default function RutinasPage() {
   const [routines, setRoutines]           = useState<Routine[]>([]);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [alumnos, setAlumnos]             = useState<Alumno[]>([]);
   const [planes,  setPlanes]              = useState<Plan[]>([]);
   const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null);
 
   useEffect(() => {
     async function loadData() {
-      // Alumnos desde Supabase
+      // Solo datos del servidor: sin copias del navegador.
       try {
-        const dbAlumnos = await getAlumnos();
-        if (dbAlumnos.length > 0) {
-          setAlumnos(dbAlumnos);
-          localStorage.setItem('nexa_alumnos', JSON.stringify(dbAlumnos));
-        } else {
-          const s = localStorage.getItem('nexa_alumnos');
-          if (s) setAlumnos(JSON.parse(s));
-        }
+        setAlumnos(await getAlumnos());
       } catch {
-        try { const s = localStorage.getItem('nexa_alumnos'); if (s) setAlumnos(JSON.parse(s)); } catch {}
+        setErrorCarga(true);
       }
       // Rutinas desde Supabase
       try {
@@ -1328,11 +1323,10 @@ export default function RutinasPage() {
             sessions: r.sessions, blocks: r.blocks,
           }));
           setRoutines(mapped);
-          localStorage.setItem('nexa_routines', JSON.stringify(mapped));
-          return;
         }
-      } catch {}
-      try { const s = localStorage.getItem('nexa_routines'); if (s) setRoutines(JSON.parse(s).map(migrateToCalendar)); } catch {}
+      } catch {
+        setErrorCarga(true);
+      }
     }
     loadData();
     getAllPlanesDB().then(setPlanes).catch(() => {});
@@ -1340,7 +1334,6 @@ export default function RutinasPage() {
 
   function save(next: Routine[]) {
     setRoutines(next);
-    try { localStorage.setItem('nexa_routines', JSON.stringify(next)); } catch {}
   }
 
   // ── Guardado en el servidor ──────────────────────────────────────────────
@@ -1429,7 +1422,6 @@ export default function RutinasPage() {
       };
       const updated = [newRoutine, ...routines];
       setRoutines(updated);
-      try { localStorage.setItem('nexa_routines', JSON.stringify(updated)); } catch {}
       syncToSupabase(newRoutine, true);
     }
     setSelectedAlumno(alumno);
@@ -1446,6 +1438,7 @@ export default function RutinasPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      {errorCarga && <AvisoErrorCarga />}
       {selectedAlumno && currentRoutine
         ? (
           <RoutineCalendarEditor

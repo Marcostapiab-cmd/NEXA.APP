@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Plus, Minus, CheckSquare, Mic, Trophy, CalendarDays, Search, Check, StickyNote, RefreshCw } from 'lucide-react';
 import type { Alumno } from '@/app/alumnos/page';
-import { saveSesion, getMaxPeso, type Sesion, type SesionEjercicio, type SesionSerie } from '@/lib/sesiones';
-import { saveSesionDB } from '@/lib/sesiones-supabase';
+import { saveSesion, setSesionesEnMemoria, getMaxPeso, type Sesion, type SesionEjercicio, type SesionSerie } from '@/lib/sesiones';
+import { saveSesionDB, getSesionesDB } from '@/lib/sesiones-supabase';
+import AvisoErrorCarga from '@/components/AvisoErrorCarga';
+import { claveBorrador, leerBorrador, guardarBorrador, borrarBorrador } from '@/lib/datos-locales';
 import { getRutinasDB } from '@/lib/rutinas-supabase';
 import { getAlumnos } from '@/lib/alumnos';
 import { calc1RM } from '@/lib/mevmrv';
@@ -175,7 +177,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   // Mismo id en cada reintento: si el primer envío llegó pero falló la
   // respuesta, reintentar no crea una sesión duplicada.
   const sesionIdRef = useRef<string | null>(null);
-  const draftKey  = `nexa_wr_draft_${alumno.id}`;
+  const draftKey  = claveBorrador(alumno.id);
   const restoredRef = useRef(false);
 
   // Recupera un registro a medio hacer (si se cerró la app, se cambió de pestaña, etc.)
@@ -183,7 +185,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
     if (restoredRef.current) return;
     restoredRef.current = true;
     try {
-      const raw = localStorage.getItem(draftKey);
+      const raw = leerBorrador(draftKey);
       if (!raw) return;
       const d = JSON.parse(raw) as {
         block: DayBlock; fechaReal: string; fechaPlaneada?: string; notas: string; ejercicios: SesionEjercicio[];
@@ -203,11 +205,11 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
   useEffect(() => {
     if (!isRecording || !activeBlock) return;
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ block: activeBlock, fechaReal, fechaPlaneada, notas, ejercicios }));
+      guardarBorrador(draftKey, JSON.stringify({ block: activeBlock, fechaReal, fechaPlaneada, notas, ejercicios }));
     } catch {}
   }, [isRecording, activeBlock, fechaReal, fechaPlaneada, notas, ejercicios, draftKey]);
 
-  function clearDraft() { try { localStorage.removeItem(draftKey); } catch {} }
+  function clearDraft() { borrarBorrador(draftKey); }
 
   function cancelRecording() {
     const algo = ejercicios.some(ej => ej.series.some(sr => sr.completada)) || notas.trim().length > 0;
@@ -348,7 +350,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
       notas,
       ejercicios,
     };
-    saveSesion(sesion); // localStorage (backup local)
+    saveSesion(sesion); // memoria de esta pestaña (no se guarda en el navegador)
     setSaving(true);
     try {
       await saveSesionDB(sesion);
@@ -680,6 +682,7 @@ function AlumnoCard({ alumno, routine, defaultBlock, calTrigger, onCalendarOpen,
 export default function WeightroomPage() {
   const [alumnos, setAlumnos]     = useState<Alumno[]>([]);
   const [routines, setRoutines]   = useState<Routine[]>([]);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [calPickerFor, setCalPickerFor] = useState<Alumno | null>(null);
   const [calTriggers, setCalTriggers]   = useState<Record<string, { block: DayBlock; fecha: string; ts: number } | null>>({});
@@ -690,20 +693,15 @@ export default function WeightroomPage() {
 
   useEffect(() => {
     async function loadData() {
-      // Alumnos desde Supabase
+      // Solo datos del servidor: si falla la conexión no se muestran copias
+      // guardadas en el dispositivo (podrían ser de otra cuenta).
       try {
-        const dbAlumnos = await getAlumnos();
-        if (dbAlumnos.length > 0) {
-          setAlumnos(dbAlumnos);
-          localStorage.setItem('nexa_alumnos', JSON.stringify(dbAlumnos));
-        } else {
-          const a = localStorage.getItem('nexa_alumnos');
-          if (a) setAlumnos(JSON.parse(a));
-        }
+        const [dbAlumnos, dbSesiones] = await Promise.all([getAlumnos(), getSesionesDB().catch(() => null)]);
+        setAlumnos(dbAlumnos);
+        if (dbSesiones) setSesionesEnMemoria(dbSesiones);
       } catch {
-        try { const a = localStorage.getItem('nexa_alumnos'); if (a) setAlumnos(JSON.parse(a)); } catch {}
+        setErrorCarga(true);
       }
-      // Rutinas desde Supabase con fallback a localStorage
       try {
         const dbRutinas = await getRutinasDB();
         if (dbRutinas.length > 0) {
@@ -714,10 +712,10 @@ export default function WeightroomPage() {
             sessions: r.sessions, blocks: r.blocks,
           }));
           setRoutines(mapped as unknown as Routine[]);
-          return;
         }
-      } catch {}
-      try { const r = localStorage.getItem('nexa_routines'); if (r) setRoutines(JSON.parse(r)); } catch {}
+      } catch {
+        setErrorCarga(true);
+      }
     }
     loadData();
   }, []);
@@ -726,7 +724,7 @@ export default function WeightroomPage() {
   useEffect(() => {
     if (alumnos.length === 0) return;
     try {
-      const conBorrador = alumnos.filter(a => localStorage.getItem(`nexa_wr_draft_${a.id}`));
+      const conBorrador = alumnos.filter(a => leerBorrador(claveBorrador(a.id)));
       if (conBorrador.length) setSelected(prev => new Set([...prev, ...conBorrador.map(a => a.id)]));
     } catch {}
   }, [alumnos]);
@@ -761,6 +759,7 @@ export default function WeightroomPage() {
 
   return (
     <div className="flex flex-col bg-[#F8F8F8]">
+      {errorCarga && <AvisoErrorCarga />}
 
       {/* ── Selector bar ── */}
       <div className="border-b border-[#E8E8E8] bg-[#F8F8F8] px-4 py-3 sm:px-6">

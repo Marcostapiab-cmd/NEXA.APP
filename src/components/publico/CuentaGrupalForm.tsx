@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { rolActual } from '@/lib/rol-cliente';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { EMAIL_RE, formatearRut, validarRut } from '@/lib/catalogo';
 
+import { cerrarSesion } from '@/lib/cerrar-sesion';
 type Modo = 'login' | 'registro';
 
 /**
@@ -26,8 +28,8 @@ export default function CuentaGrupalForm({ modoInicial = 'login', onListo, compa
   async function iniciarSesion(email: string, password: string): Promise<boolean> {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err || !data.user) { setError('Email o contraseña incorrectos.'); return false; }
-    if (data.user.user_metadata?.rol !== 'grupales') {
-      await supabase.auth.signOut();
+    if ((await rolActual(data.user)) !== 'grupales') {
+      await cerrarSesion();
       setError('Esta cuenta es del equipo o del portal de alumnos personalizados. Usa otra cuenta o crea una nueva para clases.');
       return false;
     }

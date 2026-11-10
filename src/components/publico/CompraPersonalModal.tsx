@@ -17,6 +17,14 @@ const DIAS_SEMANA = [
 ];
 const PASOS = ['Días y hora', 'Tus datos', 'Pago'];
 
+// Bloques de una hora: 06:00–07:00 … 21:00–22:00
+const pad = (h: number) => String(h).padStart(2, '0');
+const BLOQUES_HORA = Array.from({ length: 16 }, (_, i) => {
+  const h = 6 + i;
+  return { valor: `${pad(h)}:00`, texto: `${pad(h)}:00 – ${pad(h + 1)}:00` };
+});
+const textoBloque = (valor: string) => BLOQUES_HORA.find(b => b.valor === valor)?.texto ?? valor;
+
 export interface SeleccionPersonal {
   modalidad:  Modalidad;
   frecuencia: number;
@@ -36,7 +44,7 @@ export default function CompraPersonalModal({ sel, onCerrar }: { sel: SeleccionP
 
   const sesiones = sesionesTotalesPlan(sel.frecuencia, sel.tipo);
   const diasOk   = dias.length === sel.frecuencia;
-  const horaOk   = /^([01]\d|2[0-3]):[0-5]\d$/.test(hora);
+  const horaOk   = BLOQUES_HORA.some(b => b.valor === hora);
   const sucio    = dias.length > 0 || Object.values(f).some(v => v.trim() !== '');
 
   function toggleDia(n: number) {
@@ -136,9 +144,12 @@ export default function CompraPersonalModal({ sel, onCerrar }: { sel: SeleccionP
             </div>
           </fieldset>
           <div>
-            <label htmlFor="cp-hora" className="nx-label">Hora preferida</label>
-            <input id="cp-hora" type="time" step={900} className="nexa-input max-w-[200px]" value={hora}
-              onChange={e => setHora(e.target.value)} />
+            <label htmlFor="cp-hora" className="nx-label">Horario</label>
+            <select id="cp-hora" className="nexa-input max-w-[200px]" value={hora}
+              onChange={e => setHora(e.target.value)}>
+              <option value="" disabled>Elige un horario</option>
+              {BLOQUES_HORA.map(b => <option key={b.valor} value={b.valor}>{b.texto}</option>)}
+            </select>
             <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--nx-muted)' }}>
               Tus sesiones quedan agendadas en estos días y hora. El equipo de NEXA asigna tu coach después del pago.
             </p>
@@ -168,7 +179,7 @@ export default function CompraPersonalModal({ sel, onCerrar }: { sel: SeleccionP
               ['Frecuencia', `${sel.frecuencia} ${sel.frecuencia === 1 ? 'vez' : 'veces'} por semana`],
               ['Duración', `${TIPO_LABEL[sel.tipo]} · ${DIAS_POR_TIPO[sel.tipo]} días`],
               ['Sesiones', `${sesiones} sesiones`],
-              ['Días y hora', `${dias.map(n => DIAS_SEMANA.find(d => d.n === n)?.corto).join(' · ')} · ${hora}`],
+              ['Días y hora', `${dias.map(n => DIAS_SEMANA.find(d => d.n === n)?.corto).join(' · ')} · ${textoBloque(hora)}`],
               ['Titular', `${f.nombre.trim()} ${f.apellido.trim()} · ${f.email.trim()}`],
             ].map(([k, v]) => (
               <div key={k} className="flex flex-col gap-0.5 px-4 py-3 sm:flex-row sm:justify-between sm:gap-6" style={{ borderColor: 'var(--nx-line)' }}>

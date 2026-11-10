@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { clp } from '@/lib/format';
 import {
   DIAS_POR_TIPO, FRECUENCIAS, MODALIDADES, MODALIDAD_INFO, TIPOS_PLAN, TIPO_LABEL,
-  buscarPrecio, descuentoMensual, esClaseDePrueba, etiquetaClases, etiquetaDias,
+  buscarPrecio, descuentoMensual, etiquetaClases, etiquetaDias,
   montoTotalPlan, precioMensualPlan, sesionesTotalesPlan,
   type CatalogoPublico, type PlanGrupal, type TipoPlan,
 } from '@/lib/catalogo';
@@ -46,19 +46,17 @@ export default function PlanesExplorer({ catalogo, comprarInicial }: { catalogo:
   return (
     <div className="space-y-20">
       {catalogo.grupales.length > 0 && (
-        <Categoria id="grupales"
-          titulo={catalogo.grupales.length === 1 ? 'Para empezar' : 'Clases grupales'}
-          desc={catalogo.grupales.length === 1
-            ? 'Tu primera clase en NEXA. Eliges fecha y hora según los cupos disponibles.'
-            : 'Packs por cantidad de clases. Reservas tus horarios según los cupos disponibles.'}>
+        <Categoria id="evaluacion"
+          titulo="Evaluación inicial"
+          desc="Tu primera sesión en NEXA. Es el paso previo para contratar tu plan 1:1 o 2:1 en línea.">
           {catalogo.grupales.map(p => {
             const k = `g-${p.id}`;
             const detalles = [
-              etiquetaClases(p.num_clases),
-              `Válido por ${etiquetaDias(p.validez_dias)} desde la confirmación del pago`,
-              'Reservas cada clase según los cupos disponibles',
+              'Sesión de evaluación con un coach de NEXA',
+              `Válida por ${etiquetaDias(p.validez_dias)} desde la confirmación del pago`,
+              'NEXA te contacta para coordinar el día y la hora',
+              'Una sola vez por persona',
             ];
-            if (esClaseDePrueba(p)) detalles.push('Una sola vez por persona');
             return (
               <PlanCard key={p.id}
                 titulo={p.nombre}

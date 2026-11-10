@@ -12,6 +12,7 @@ interface PedidoRow {
   tipo:               string;
   frecuencia_semanal: number;
   monto_clp:          number;
+  clases_sin_agendar?: number | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const query = supabaseAdmin
     .from('pedidos_planes')
-    .select('id, estado, nombre, apellido, modalidad, tipo, frecuencia_semanal, monto_clp');
+    .select('*');
 
   const { data, error } = token
     ? await query.eq('flow_token', token).maybeSingle()
@@ -51,5 +52,6 @@ export async function GET(req: NextRequest) {
     tipo:              pedido.tipo,
     frecuenciaSemanal: pedido.frecuencia_semanal,
     montoCLP:          pedido.monto_clp,
+    clasesSinAgendar:  pedido.clases_sin_agendar ?? 0,
   });
 }

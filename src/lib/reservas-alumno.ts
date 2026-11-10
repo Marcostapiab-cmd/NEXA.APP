@@ -37,9 +37,16 @@ const MENSAJES: Record<string, string> = {
   sin_plan:          'Esta clase no está asociada a un plan. Escríbenos para gestionarla.',
   lista_desactivada: 'La lista de espera no está disponible en este momento.',
   no_autorizado:     'Tu sesión expiró. Vuelve a ingresar.',
+  duplicada:         'Ya tienes una clase a esa misma hora. Elige otro horario.',
+  error_sistema:     'No pudimos completar el cambio por un problema de nuestro sistema. Tu clase no se modificó. Escríbenos y lo revisamos.',
 };
 
-function resultado(data: unknown, error: { message: string } | null): ResultadoAccion {
+// La base responde "sin_cupo" ante cualquier error al guardar, pero solo los
+// choques de horario/capacidad son de verdad falta de cupo. El resto es una
+// falla del sistema y no se le debe decir al alumno que el horario se ocupó.
+const ES_FALTA_DE_CUPO = /conflicto|capacidad|cupo|duplicate key|unique|exclusi/i;
+
+export function resultado(data: unknown, error: { message: string } | null): ResultadoAccion {
   if (error) {
     const sinFuncion = /function .* does not exist|Could not find the function/i.test(error.message);
     return {
@@ -49,9 +56,15 @@ function resultado(data: unknown, error: { message: string } | null): ResultadoA
         : 'No pudimos conectar con NEXA. Revisa tu conexión e inténtalo de nuevo; tu clase no se modificó.',
     };
   }
-  const r = (data ?? {}) as { ok?: boolean; error?: string; reserva_id?: number };
+  const r = (data ?? {}) as { ok?: boolean; error?: string; reserva_id?: number; detalle?: string };
   if (r.ok) return { ok: true, reservaId: r.reserva_id };
-  const code = r.error ?? 'desconocido';
+  let code = r.error ?? 'desconocido';
+  if (code === 'sin_cupo' && r.detalle && /Reserva duplicada/i.test(r.detalle)) {
+    code = 'duplicada';
+  } else if (code === 'sin_cupo' && r.detalle && !ES_FALTA_DE_CUPO.test(r.detalle)) {
+    console.error('[reservas-alumno] error del sistema:', r.detalle);
+    code = 'error_sistema';
+  }
   return { ok: false, error: code, mensaje: MENSAJES[code] ?? 'No se pudo completar la operación.' };
 }
 

@@ -52,12 +52,25 @@ export async function POST(req: NextRequest) {
 
     if (existingUser) {
       userId = existingUser.id;
+      // Una cuenta del personal no se convierte en cuenta de alumno.
+      const { data: perfil } = await supabaseAdmin.from('perfiles').select('rol').eq('id', userId).maybeSingle();
+      if (perfil && perfil.rol !== 'alumno') {
+        return NextResponse.json({ error: 'Ese correo pertenece a una cuenta del personal. Usa otro correo para el alumno.' }, { status: 409 });
+      }
+      if (!perfil) {
+        // Cuenta sin rol (p. ej. creada antes): se le da acceso de alumno.
+        const { error: pErr } = await supabaseAdmin.from('perfiles')
+          .insert({ id: userId, nombre: nombre ?? '', rol: 'alumno' });
+        if (pErr) throw pErr;
+        await supabaseAdmin.from('atletas').delete().eq('perfil_id', userId).neq('id', alumnoId);
+      }
     } else {
       // 2. Crear usuario nuevo (sin contraseña: la fija con el link de abajo)
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email:         emailNorm,
         email_confirm: true,
-        user_metadata: { rol: 'alumno', nombre: nombre ?? '' },
+        app_metadata:  { rol: 'alumno' },
+        user_metadata: { nombre: nombre ?? '' },
       });
       if (createErr || !newUser.user) throw createErr ?? new Error('No se pudo crear el usuario');
       userId = newUser.user.id;

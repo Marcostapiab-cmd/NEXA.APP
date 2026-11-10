@@ -11,6 +11,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { fechaLocal } from '@/lib/format';
 
+import { todasLasFilas } from '@/lib/paginar';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(nombre: string): string {
@@ -73,7 +74,8 @@ function draftFromCoach(c: Coach): Draft {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err, inviteDone, inviteLink, inviteWarning }: {
+function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err, inviteDone, inviteLink, inviteWarning, puedeDarAcceso }: {
+  puedeDarAcceso: boolean; // solo un administrador crea cuentas del personal
   draft:          Draft;
   onChange:       (d: Draft) => void;
   onSave:         () => void;
@@ -200,8 +202,8 @@ function ProfesorModal({ draft, onChange, onSave, onDelete, onClose, saving, err
             />
           </div>
 
-          {/* Acceso a la app — solo al crear un profesor nuevo */}
-          {!isEdit && (
+          {/* Acceso a la app — solo al crear un profesor nuevo, y solo un administrador */}
+          {!isEdit && puedeDarAcceso && (
             <div className="rounded-lg p-3 space-y-3"
               style={{ background: 'var(--nexa-card-alt)', border: '1px solid var(--nexa-border)' }}>
               <div className="flex items-center justify-between">
@@ -427,14 +429,15 @@ export default function ProfesoresPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: roleData }, coaches, { data: atletasData }] = await Promise.all([
+      const [{ data: roleData }, coaches, atletasData] = await Promise.all([
         supabase.rpc('get_my_role'),
         getAllCoachesDB().catch(() => [] as Coach[]),
-        supabase.from('reservas').select('coach_id, alumno_id')
+        todasLasFilas<{ coach_id: string; alumno_id: string }>((d, h) => supabase.from('reservas').select('coach_id, alumno_id')
           .not('coach_id', 'is', null).not('alumno_id', 'is', null)
           .gte('fecha', fechaLocal(new Date(Date.now() - 30 * 86400000)))
           .lte('fecha', fechaLocal(new Date(Date.now() + 30 * 86400000)))
-          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_nexa)'),
+          .not('estado', 'in', '(cancelada,cancelada_tiempo,cancelada_nexa)')
+          .order('id').range(d, h)).catch(() => []),
       ]);
       setRole(roleData as string ?? null);
       setCoaches(coaches);
@@ -648,6 +651,7 @@ export default function ProfesoresPage() {
           inviteDone={inviteDone}
           inviteLink={inviteLink}
           inviteWarning={inviteWarning}
+          puedeDarAcceso={role === 'admin'}
         />
       )}
     </main>

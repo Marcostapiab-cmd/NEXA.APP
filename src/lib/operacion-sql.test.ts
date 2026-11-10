@@ -13,8 +13,13 @@ const plan = (n: number) => `30000000-0000-0000-0000-0000000000${String(n).padSt
 const TZ = 'America/Santiago';
 const HOY = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
 const sumar = (f: string, n: number) => { const d = new Date(`${f}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-/** Primer día hábil (lun–sáb) a partir de HOY + n. */
-function habil(n: number) { let f = sumar(HOY, n); while (new Date(`${f}T12:00:00Z`).getUTCDay() === 0) f = sumar(f, 1); return f; }
+/** n-ésimo día hábil (lun–sáb) después de HOY. Cada n da un día distinto
+ *  (antes se saltaba el domingo y dos n seguidos podían caer el mismo lunes). */
+function habil(n: number) {
+  let f = HOY;
+  for (let k = 0; k < n; ) { f = sumar(f, 1); if (new Date(`${f}T12:00:00Z`).getUTCDay() !== 0) k++; }
+  return f;
+}
 
 let db: PGlite;
 async function como(n: number | string | null, rol: string | null = null) {

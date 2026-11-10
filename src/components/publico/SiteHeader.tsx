@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { rolActual } from '@/lib/rol-cliente';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -20,7 +21,7 @@ export default function SiteHeader({ transparente = false }: { transparente?: bo
 
   useEffect(() => {
     supabase.auth.getUser()
-      .then(({ data }) => setConCuenta(data.user?.user_metadata?.rol === 'grupales'))
+      .then(async ({ data }) => setConCuenta(!!data.user && (await rolActual(data.user)) === 'alumno'))
       .catch(() => setConCuenta(false));
   }, []);
 
@@ -41,7 +42,7 @@ export default function SiteHeader({ transparente = false }: { transparente?: bo
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, [abierto]);
 
-  const cuentaHref  = conCuenta ? '/grupales-alumno/dashboard' : '/grupales-alumno/login';
+  const cuentaHref  = conCuenta ? '/portal' : '/portal/login';
   const cuentaLabel = conCuenta ? 'Mi cuenta' : 'Iniciar sesión';
   const solido = scrolled || abierto;
 

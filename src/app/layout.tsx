@@ -1,20 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter, Manrope } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import AppShell from '@/components/AppShell';
 
-const inter = Inter({
+// Fuentes incluidas en el proyecto (src/app/fonts, licencia SIL OFL) en vez de
+// descargarlas de Google al compilar: Google Fonts empezó a entregar direcciones
+// sin extensión que hacen fallar el cargador de next/font/google (Next 16.2.7),
+// y eso rompía la compilación. Mismas familias y pesos que antes.
+const inter = localFont({
+  src: './fonts/inter-latin-variable.woff2',
   variable: '--font-inter',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800', '900'],
+  weight: '300 900',
   display: 'swap',
 });
 
 // Tipografía de títulos de las páginas públicas (clase .nx-display)
-const manrope = Manrope({
+const manrope = localFont({
+  src: './fonts/manrope-latin-variable.woff2',
   variable: '--font-manrope',
-  subsets: ['latin'],
-  weight: ['600', '700', '800'],
+  weight: '600 800',
   display: 'swap',
 });
 

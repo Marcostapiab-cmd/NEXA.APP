@@ -12,6 +12,7 @@ import type { Plan, Reserva } from '@/lib/planes';
 import { getClasesRestantes } from '@/lib/planes';
 import { getAllPlanesDB, getAllReservasDB } from '@/lib/planes-supabase';
 
+import AvisoErrorCarga from '@/components/AvisoErrorCarga';
 const SL = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9B9B9B]';
 
 function getWeekRange(): { start: string; end: string } {
@@ -37,16 +38,15 @@ export default function ProgresoPage() {
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
   const [planes,   setPlanes]   = useState<Plan[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [errorCarga, setErrorCarga] = useState(false);
 
   useEffect(() => {
-    getAlumnos().then(setAlumnos).catch(() => {
-      try { const a = localStorage.getItem('nexa_alumnos'); if (a) setAlumnos(JSON.parse(a)); } catch {}
-    });
-    getSesionesDB().then(setSesiones).catch(() => {
-      try { const s = localStorage.getItem('nexa_sesiones'); if (s) setSesiones(JSON.parse(s)); } catch {}
-    });
-    getAllPlanesDB().then(setPlanes).catch(() => {});
-    getAllReservasDB().then(setReservas).catch(() => {});
+    // Solo datos del servidor: sin copias del navegador (podrían ser de otra cuenta).
+    const fallo = () => setErrorCarga(true);
+    getAlumnos().then(setAlumnos).catch(fallo);
+    getSesionesDB().then(setSesiones).catch(fallo);
+    getAllPlanesDB().then(setPlanes).catch(fallo);
+    getAllReservasDB().then(setReservas).catch(fallo);
   }, []);
 
   const alumnoMap = useMemo(
@@ -109,6 +109,7 @@ export default function ProgresoPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
+      {errorCarga && <AvisoErrorCarga />}
 
       <div className="mb-6">
         <h1 className="text-xl font-bold text-[#121212]">Progreso</h1>
