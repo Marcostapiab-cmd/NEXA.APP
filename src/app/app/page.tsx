@@ -15,7 +15,10 @@ import {
 } from '@/lib/app-rutinas-datos';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const fechaLarga = (f: string) => new Date(`${f}T12:00:00Z`).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const fechaLarga = (f: string) => {
+  const t = new Date(`${f}T12:00:00Z`).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  return t.charAt(0).toUpperCase() + t.slice(1); // "Lunes, 23 de noviembre"
+};
 const fechaCorta = (f: string) => new Date(`${f}T12:00:00Z`).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const mesNombre = (f: string) => new Date(`${f}T12:00:00Z`).toLocaleDateString('es-CL', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -133,7 +136,7 @@ export default function AppRutinaPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[17px] font-bold">{d ? d.titulo || 'Entrenamiento' : fueraDeRutina ? 'Fuera de la rutina' : 'Descanso'}</span>
-                        {d && <span className="block text-[14px] text-white/60">{d.ejercicios.length} ejercicios</span>}
+                        {d && <span className="block text-[14px] text-white/60">{d.ejercicios.length} {d.ejercicios.length === 1 ? 'ejercicio' : 'ejercicios'}</span>}
                       </span>
                       {d && <ChevronRight size={20} className="shrink-0 text-white/50" />}
                     </button>
@@ -217,7 +220,7 @@ function VistaDia(p: {
         </div>
       )}
       <div className="mx-5 mb-3">
-        <p className="text-[15px] capitalize text-white/60">{p.fecha === p.hoy ? 'Hoy · ' : ''}{fechaLarga(p.fecha)}</p>
+        <p className="text-[15px] text-white/60">{p.fecha === p.hoy ? `Hoy · ${fechaLarga(p.fecha).toLowerCase()}` : fechaLarga(p.fecha)}</p>
         <h2 className="text-[20px] font-black">{p.dia?.titulo || 'Entrenamiento'}</h2>
       </div>
       {!p.dia ? (
@@ -300,7 +303,7 @@ function TarjetaEjercicio(p: {
         {ultima
           ? <p><span className="text-white/60">La última vez ({fechaCorta(ultima.fecha)}): </span>
               <b>{ultima.series.map(s => `${s.peso_kg ?? '–'} kg × ${s.reps ?? '–'}`).join(' · ')}</b></p>
-          : <p className="text-white/60">Aún no anotas este ejercicio.</p>}
+          : <p className="text-white/60">{guardados.length ? 'Primera vez que anotas este ejercicio.' : 'Aún no anotas este ejercicio.'}</p>}
       </div>
 
       {/* Series */}
@@ -313,15 +316,15 @@ function TarjetaEjercicio(p: {
             <div key={i} className="grid grid-cols-[56px_1fr_1fr] items-center gap-2">
               <span className="text-center text-[18px] font-bold text-white/80">{i + 1}</span>
               <input aria-label={`Kilos serie ${i + 1}`} inputMode="decimal" value={s.kg} placeholder="kg"
-                onChange={e => setSeries(v => v.map((x, j) => j === i ? { ...x, kg: e.target.value } : x))} className={input} />
+                onChange={e => { setAviso(null); setSeries(v => v.map((x, j) => j === i ? { ...x, kg: e.target.value } : x)); }} className={input} />
               <input aria-label={`Repeticiones serie ${i + 1}`} inputMode="numeric" value={s.reps} placeholder="reps"
-                onChange={e => setSeries(v => v.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))} className={input} />
+                onChange={e => { setAviso(null); setSeries(v => v.map((x, j) => j === i ? { ...x, reps: e.target.value } : x)); }} className={input} />
             </div>
           ))}
         </div>
         <label className="mt-3 flex items-center justify-between gap-3 text-[15px] text-white/70">
           Fecha en que lo hiciste
-          <input type="date" value={fecha} max={p.hoy} onChange={e => e.target.value && setFecha(e.target.value)}
+          <input type="date" value={fecha} max={p.hoy} onChange={e => { if (e.target.value) { setAviso(null); setFecha(e.target.value); } }}
             className="h-12 rounded-xl border border-white/15 bg-white/5 px-3 text-[16px] text-white [color-scheme:dark]" />
         </label>
         <button onClick={guardar} disabled={guardando}

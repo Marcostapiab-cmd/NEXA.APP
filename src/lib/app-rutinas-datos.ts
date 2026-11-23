@@ -19,7 +19,8 @@ export async function miFicha(): Promise<FichaAlumno | null> {
 export async function misRutinas(atletaId: string): Promise<RutinaApp[]> {
   const { data, error } = await supabase.from('rutinas')
     .select('id, nombre, start_date, end_date, sessions')
-    .contains('alumno_ids', [atletaId]);
+    // alumno_ids es jsonb: hay que enviar JSON (un arreglo JS se mandaría como {…} de Postgres)
+    .contains('alumno_ids', JSON.stringify([atletaId]));
   if (error) throw error;
   return (data ?? []).map(r => normalizarRutina(r as Record<string, unknown>));
 }
