@@ -37,6 +37,7 @@ describe('decidirAcceso', () => {
     expect(pasa('/portal/clases', true, 'alumno')).toBe(true);
     for (const p of ['/usuarios', '/metricas', '/dashboard', '/alumnos/123', '/grupales-alumno/dashboard']) {
       expect(pasa(p, true, 'alumno')).toBe(false);
+      expect(decidirAcceso(p, true, 'alumno')).toEqual({ tipo: 'redirigir', destino: '/app' }); // vuelve a su rutina
     }
     expect(decidirAcceso('/api/admin/editar-usuario', true, 'alumno')).toEqual({ tipo: 'denegar', status: 403 });
     expect(pasa('/api/notificaciones/procesar', true, 'alumno')).toBe(true);
@@ -74,5 +75,23 @@ describe('decidirAcceso', () => {
   it('no confunde prefijos parecidos', () => {
     expect(pasa('/portales', true, 'alumno')).toBe(false);
     expect(pasa('/planesX', false, null)).toBe(false);
+  });
+
+  it('app de rutinas: login propio, solo alumnos, instalación pública', () => {
+    expect(decidirAcceso('/app', false, null)).toEqual({ tipo: 'redirigir', destino: '/app/login' });
+    expect(pasa('/app/login', false, null)).toBe(true);
+    expect(pasa('/app/instalar', false, null)).toBe(true);
+    expect(pasa('/app/manifest.webmanifest', false, null)).toBe(true);
+    expect(pasa('/app', true, 'alumno')).toBe(true);
+    expect(decidirAcceso('/app/login', true, 'alumno')).toEqual({ tipo: 'redirigir', destino: '/app' });
+    for (const r of ['admin', 'host', 'profesor', 'recepcionista', 'grupales'] as const) expect(pasa('/app', true, r)).toBe(false);
+    expect(pasa('/app', true, null)).toBe(false);
+  });
+
+  it('comentarios de alumnos: coach y admin sí, recepción y alumnos no', () => {
+    expect(pasa('/comentarios', true, 'profesor')).toBe(true);
+    expect(pasa('/comentarios', true, 'admin')).toBe(true);
+    expect(pasa('/comentarios', true, 'recepcionista')).toBe(false);
+    expect(pasa('/comentarios', true, 'alumno')).toBe(false);
   });
 });

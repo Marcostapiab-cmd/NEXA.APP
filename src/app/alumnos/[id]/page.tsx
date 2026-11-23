@@ -24,6 +24,8 @@ import { getBloqueos, type HorarioBloqueo } from '@/lib/horario-config';
 import { getPagosAlumnoDB, type Pago } from '@/lib/pagos-supabase';
 import { supabase } from '@/lib/supabaseClient';
 import { getMedicionesAlumnoDB, insertMedicionDB, deleteMedicionDB, type Medicion } from '@/lib/mediciones-supabase';
+import PesosYComentarios from '@/components/app-rutinas/PesosYComentarios';
+import AccesoAppRutinas from '@/components/app-rutinas/AccesoAppRutinas';
 
 type AlumnoExtended = Alumno;
 
@@ -577,6 +579,9 @@ export default function AlumnoPerfilPage() {
             )}
           </div>
 
+          {/* App de rutinas: pesos anotados y comentarios del alumno */}
+          <PesosYComentarios atletaId={id} />
+
           {/* Reservas / Asistencia */}
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-5">
             <div className="mb-3 flex items-center justify-between">
@@ -999,6 +1004,9 @@ export default function AlumnoPerfilPage() {
               </div>
             )}
           </div>
+
+          {/* ── App de rutinas: clave de acceso (solo admin) ── */}
+          <AccesoAppRutinas atletaId={id} emailFicha={alumno.email} nombre={alumno.nombre} />
 
           {/* ── Portal del alumno: invitación ── */}
           <div className="rounded-[12px] border border-[#CACACA] bg-[#F0F0F0] p-4">

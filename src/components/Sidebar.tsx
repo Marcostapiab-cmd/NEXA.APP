@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { esStaff, rolDeUsuario } from '@/lib/roles';
+import ContadorComentarios from './app-rutinas/ContadorComentarios';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Home, Calendar, Users, Users2, Dumbbell, TrendingUp,
   Grid3x3, Settings, LogOut,
-  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog, Menu, X, AlertTriangle, RefreshCcw, CalendarOff,
+  ChevronDown, ChevronRight, CalendarDays, BarChart2, UserCog, Menu, X, AlertTriangle, RefreshCcw, CalendarOff, MessageCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -29,6 +30,7 @@ const SECTIONS_COMUN: Section[] = [
     collapsible: true,
     items: [
       { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar },
+      { href: '/comentarios', label: 'Comentarios', Icon: MessageCircle },
       { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell },
       { href: '/progreso',   label: 'Progreso',   Icon: TrendingUp },
     ],
@@ -84,6 +86,7 @@ const SECTIONS_PROFESOR: Section[] = [
     collapsible: true,
     items: [
       { href: '/rutinas',    label: 'Rutinas',    Icon: Calendar     },
+      { href: '/comentarios', label: 'Comentarios', Icon: MessageCircle },
       { href: '/weightroom', label: 'Weightroom', Icon: Dumbbell     },
       { href: '/calendario', label: 'Calendario', Icon: CalendarDays },
     ],
@@ -91,7 +94,7 @@ const SECTIONS_PROFESOR: Section[] = [
 ];
 
 const NO_SIDEBAR_EXACT    = new Set(['/', '/login', '/registro', '/recuperar-contrasena', '/actualizar-contrasena', '/reglamento']);
-const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/planes', '/grupales-alumno'];
+const NO_SIDEBAR_PREFIXES = ['/portal', '/clases-grupales', '/unirse', '/planes', '/grupales-alumno', '/app'];
 
 function isActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href;
@@ -162,6 +165,7 @@ function SectionBlock({ section, pathname }: { section: Section; pathname: strin
                 >
                   <item.Icon size={13} strokeWidth={isActive(pathname, item.href) ? 2.25 : 1.75} className="shrink-0" />
                   {item.label}
+                  {item.href === '/comentarios' && <ContadorComentarios />}
                 </Link>
               )}
               {!isCollapsible && <NavLink item={item} pathname={pathname} />}

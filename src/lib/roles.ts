@@ -53,22 +53,23 @@ export const PUBLIC_OPEN = [
   '/api/notificaciones/procesar', // tarea horaria de Supabase: se protege con secreto o sesión
   '/reglamento',     // reglamento publicado
   '/robots.txt', '/sitemap.xml', // buscadores
+  '/app/manifest.webmanifest', '/app/instalar', // app de rutinas: instalación (sin datos)
 ];
 
 const GRUPALES_AUTH = ['/grupales-alumno/login', '/grupales-alumno/registro'];
-const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login'];
+const AUTH_ROUTES = ['/login', '/registro', '/recuperar-contrasena', '/portal/login', '/app/login'];
 const STAFF_LOGIN_ROUTES = ['/login', '/recuperar-contrasena'];
 
 // Lo que puede abrir cada rol (además de PUBLIC_OPEN). `admin` y `host` pueden
 // todo salvo el portal de alumnos y el de clases grupales (regla vigente).
 const PERMITIDAS: Record<Exclude<Rol, 'admin' | 'host'>, string[]> = {
-  alumno:        ['/portal', '/api/notificaciones'],
+  alumno:        ['/portal', '/app', '/api/notificaciones'],
   grupales:      ['/grupales-alumno'],
-  profesor:      ['/horario', '/rutinas', '/weightroom', '/calendario', '/cierres', '/api/notificaciones'],
+  profesor:      ['/horario', '/rutinas', '/weightroom', '/calendario', '/cierres', '/comentarios', '/api/notificaciones'],
   recepcionista: ['/horario', '/alumnos', '/profesores', '/metricas', '/grupales', '/usuarios', '/configuracion',
                   '/pagos', '/atencion', '/renovaciones', '/cierres', '/api/'],
 };
-const SOLO_ALUMNOS = ['/portal', '/grupales-alumno'];
+const SOLO_ALUMNOS = ['/portal', '/grupales-alumno', '/app'];
 
 // Coincide con la ruta exacta o con sus subrutas ('/portal' → '/portal/clases', no '/portales').
 const empieza = (path: string, prefijos: string[]) =>
@@ -98,6 +99,9 @@ export function decidirAcceso(pathname: string, conSesion: boolean, rol: Rol | n
     if (pathname === '/portal/login') {
       return rol === 'alumno' ? { tipo: 'redirigir', destino: '/portal' } : { tipo: 'pasar' };
     }
+    if (pathname === '/app/login') {
+      return rol === 'alumno' ? { tipo: 'redirigir', destino: '/app' } : { tipo: 'pasar' };
+    }
     // El login del staff se muestra aunque haya una sesión de alumno o sin rol abierta.
     if (!esStaff(rol) && STAFF_LOGIN_ROUTES.includes(pathname)) return { tipo: 'pasar' };
     return rol ? { tipo: 'redirigir', destino: inicioDeRol(rol) } : { tipo: 'pasar' };
@@ -108,6 +112,7 @@ export function decidirAcceso(pathname: string, conSesion: boolean, rol: Rol | n
     if (api) return { tipo: 'denegar', status: 401 };
     if (empieza(pathname, ['/grupales-alumno'])) return { tipo: 'redirigir', destino: '/grupales-alumno/login' };
     if (empieza(pathname, ['/portal'])) return { tipo: 'redirigir', destino: '/portal/login' };
+    if (empieza(pathname, ['/app'])) return { tipo: 'redirigir', destino: '/app/login' };
     return { tipo: 'redirigir', destino: '/login' };
   }
 
@@ -122,5 +127,7 @@ export function decidirAcceso(pathname: string, conSesion: boolean, rol: Rol | n
     ? !empieza(pathname, SOLO_ALUMNOS)
     : empieza(pathname, PERMITIDAS[rol]);
   if (permitido) return { tipo: 'pasar' };
-  return api ? { tipo: 'denegar', status: 403 } : { tipo: 'redirigir', destino: inicioDeRol(rol) };
+  if (api) return { tipo: 'denegar', status: 403 };
+  // Un alumno que intenta abrir otra página vuelve a su rutina.
+  return { tipo: 'redirigir', destino: rol === 'alumno' ? '/app' : inicioDeRol(rol) };
 }
